@@ -372,7 +372,7 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
         -- Helper to copy castbar settings from one unit to another
         local function CopyCastbarSettings(sourceDB, targetDB)
             if not sourceDB or not targetDB then return end
-            local keys = {"width", "height", "offsetX", "offsetY", "fontSize", "borderSize", "maxLength", "texture", "showIcon", "enabled", "anchor", "iconAnchor", "iconSpacing", "spellTextAnchor", "spellTextOffsetX", "spellTextOffsetY", "timeTextAnchor", "timeTextOffsetX", "timeTextOffsetY", "showSpellText", "showTimeText", "useClassColor"}
+            local keys = {"width", "height", "offsetX", "offsetY", "fontSize", "borderSize", "maxLength", "texture", "showIcon", "enabled", "anchor", "iconAnchor", "iconSpacing", "spellTextAnchor", "spellTextOffsetX", "spellTextOffsetY", "timeTextAnchor", "timeTextOffsetX", "timeTextOffsetY", "showSpellText", "showTimeText", "useClassColor", "empoweredStageColors", "empoweredFillColors"}
             for _, key in ipairs(keys) do
                 if sourceDB[key] ~= nil then
                     targetDB[key] = sourceDB[key]
@@ -383,6 +383,32 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
             end
             if sourceDB.bgColor then
                 targetDB.bgColor = {sourceDB.bgColor[1], sourceDB.bgColor[2], sourceDB.bgColor[3], sourceDB.bgColor[4]}
+            end
+            if sourceDB.empoweredStageColors then
+                targetDB.empoweredStageColors = {}
+                for i = 1, 4 do
+                    if sourceDB.empoweredStageColors[i] then
+                        targetDB.empoweredStageColors[i] = {
+                            sourceDB.empoweredStageColors[i][1],
+                            sourceDB.empoweredStageColors[i][2],
+                            sourceDB.empoweredStageColors[i][3],
+                            sourceDB.empoweredStageColors[i][4]
+                        }
+                    end
+                end
+            end
+            if sourceDB.empoweredFillColors then
+                targetDB.empoweredFillColors = {}
+                for i = 1, 4 do
+                    if sourceDB.empoweredFillColors[i] then
+                        targetDB.empoweredFillColors[i] = {
+                            sourceDB.empoweredFillColors[i][1],
+                            sourceDB.empoweredFillColors[i][2],
+                            sourceDB.empoweredFillColors[i][3],
+                            sourceDB.empoweredFillColors[i][4]
+                        }
+                    end
+                end
             end
         end
 
@@ -582,6 +608,156 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
         timeTextOffsetYSlider:SetPoint("TOPLEFT", PAD, y)
         timeTextOffsetYSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
+
+        -- Empowered settings (player only)
+        if unitKey == "player" then
+            -- Hide time text on empowered
+            if castDB.hideTimeTextOnEmpowered == nil then castDB.hideTimeTextOnEmpowered = false end
+
+            local hideTimeTextOnEmpoweredToggle = GUI:CreateFormToggle(tabContent, "Hide Time Text on Empowered", "hideTimeTextOnEmpowered", castDB, RefreshUnit)
+            hideTimeTextOnEmpoweredToggle:SetPoint("TOPLEFT", PAD, y)
+            hideTimeTextOnEmpoweredToggle:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Empowered level text settings
+            if castDB.empoweredLevelTextAnchor == nil then castDB.empoweredLevelTextAnchor = "CENTER" end
+            if castDB.empoweredLevelTextOffsetX == nil then castDB.empoweredLevelTextOffsetX = 0 end
+            if castDB.empoweredLevelTextOffsetY == nil then castDB.empoweredLevelTextOffsetY = 0 end
+            if castDB.showEmpoweredLevel == nil then castDB.showEmpoweredLevel = false end
+
+            local empoweredLevelTextAnchorDropdown = GUI:CreateFormDropdown(tabContent, "Empowered Level Text Anchor", NINE_POINT_ANCHOR_OPTIONS, "empoweredLevelTextAnchor", castDB, RefreshUnit)
+            empoweredLevelTextAnchorDropdown:SetPoint("TOPLEFT", PAD, y)
+            empoweredLevelTextAnchorDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            local empoweredLevelTextVisibilityToggle = GUI:CreateFormToggle(tabContent, "Show Empowered Level", "showEmpoweredLevel", castDB, RefreshUnit)
+            empoweredLevelTextVisibilityToggle:SetPoint("TOPLEFT", PAD, y)
+            empoweredLevelTextVisibilityToggle:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            local empoweredLevelTextOffsetXSlider = GUI:CreateFormSlider(tabContent, "Empowered Level Text X Offset", -200, 200, 1, "empoweredLevelTextOffsetX", castDB, RefreshUnit)
+            empoweredLevelTextOffsetXSlider:SetPoint("TOPLEFT", PAD, y)
+            empoweredLevelTextOffsetXSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            local empoweredLevelTextOffsetYSlider = GUI:CreateFormSlider(tabContent, "Empowered Level Text Y Offset", -200, 200, 1, "empoweredLevelTextOffsetY", castDB, RefreshUnit)
+            empoweredLevelTextOffsetYSlider:SetPoint("TOPLEFT", PAD, y)
+            empoweredLevelTextOffsetYSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Empowered color overrides section
+            local empoweredColorsHeader = GUI:CreateSectionHeader(tabContent, "Empowered Color Overrides")
+            empoweredColorsHeader:SetPoint("TOPLEFT", PAD, y)
+            y = y - empoweredColorsHeader.gap
+
+            -- Initialize color arrays if needed with default values from constants
+            if not castDB.empoweredStageColors then castDB.empoweredStageColors = {} end
+            if not castDB.empoweredFillColors then castDB.empoweredFillColors = {} end
+
+            -- Get default colors from castbar module
+            local QUI_Castbar = ns.QUI_Castbar
+            local defaultStageColors = QUI_Castbar and QUI_Castbar.STAGE_COLORS or {}
+            local defaultFillColors = QUI_Castbar and QUI_Castbar.STAGE_FILL_COLORS or {}
+
+            -- Store color picker references for reset functionality
+            local stageColorPickers = {}
+            local fillColorPickers = {}
+
+            -- Stage colors (background overlays)
+            local stageColorLabel = GUI:CreateLabel(tabContent, "Stage Colors (Background Overlays)", 11, C.textMuted)
+            stageColorLabel:SetPoint("TOPLEFT", PAD, y)
+            y = y - 20
+
+            for i = 1, 4 do
+                if not castDB.empoweredStageColors[i] and defaultStageColors[i] then
+                    castDB.empoweredStageColors[i] = {defaultStageColors[i][1], defaultStageColors[i][2], defaultStageColors[i][3], defaultStageColors[i][4]}
+                end
+                local stageColorPicker = GUI:CreateFormColorPicker(tabContent, "Stage " .. i .. " Color", i, castDB.empoweredStageColors, RefreshUnit)
+                stageColorPicker:SetPoint("TOPLEFT", PAD, y)
+                stageColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                stageColorPickers[i] = stageColorPicker
+                y = y - FORM_ROW
+            end
+
+            y = y - 10
+
+            -- Fill colors (status bar fill)
+            local fillColorLabel = GUI:CreateLabel(tabContent, "Fill Colors (Status Bar Fill)", 11, C.textMuted)
+            fillColorLabel:SetPoint("TOPLEFT", PAD, y)
+            y = y - 20
+
+            for i = 1, 4 do
+                if not castDB.empoweredFillColors[i] and defaultFillColors[i] then
+                    castDB.empoweredFillColors[i] = {defaultFillColors[i][1], defaultFillColors[i][2], defaultFillColors[i][3], defaultFillColors[i][4]}
+                end
+                local fillColorPicker = GUI:CreateFormColorPicker(tabContent, "Fill " .. i .. " Color", i, castDB.empoweredFillColors, RefreshUnit)
+                fillColorPicker:SetPoint("TOPLEFT", PAD, y)
+                fillColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                fillColorPickers[i] = fillColorPicker
+                y = y - FORM_ROW
+            end
+
+            y = y - 10
+
+            -- Reset button
+            local resetContainer = CreateFrame("Frame", nil, tabContent)
+            resetContainer:SetHeight(FORM_ROW)
+            resetContainer:SetPoint("TOPLEFT", PAD, y)
+            resetContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+
+            local resetLabel = resetContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            resetLabel:SetPoint("LEFT", 0, 0)
+            resetLabel:SetText("Reset Empowered Colors")
+            resetLabel:SetTextColor(C.text[1], C.text[2], C.text[3], 1)
+
+            local resetBtn = CreateFrame("Button", nil, resetContainer, "BackdropTemplate")
+            resetBtn:SetSize(140, 24)
+            resetBtn:SetPoint("LEFT", resetContainer, "LEFT", 180, 0)
+            resetBtn:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8x8",
+                edgeFile = "Interface\\Buttons\\WHITE8x8",
+                edgeSize = 1,
+            })
+            resetBtn:SetBackdropColor(0.15, 0.15, 0.15, 1)
+            resetBtn:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
+
+            local resetBtnText = resetBtn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            resetBtnText:SetPoint("CENTER")
+            resetBtnText:SetText("Reset to Defaults")
+            resetBtnText:SetTextColor(C.text[1], C.text[2], C.text[3], 1)
+
+            resetBtn:SetScript("OnEnter", function(self)
+                self:SetBackdropBorderColor(C.accent[1], C.accent[2], C.accent[3], 1)
+            end)
+            resetBtn:SetScript("OnLeave", function(self)
+                self:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
+            end)
+            resetBtn:SetScript("OnClick", function()
+                -- Reset stage colors
+                for i = 1, 4 do
+                    if defaultStageColors[i] then
+                        castDB.empoweredStageColors[i] = {defaultStageColors[i][1], defaultStageColors[i][2], defaultStageColors[i][3], defaultStageColors[i][4]}
+                        if stageColorPickers[i] and stageColorPickers[i].swatch then
+                            stageColorPickers[i].swatch:SetBackdropColor(defaultStageColors[i][1], defaultStageColors[i][2], defaultStageColors[i][3], defaultStageColors[i][4])
+                        end
+                    end
+                end
+
+                -- Reset fill colors
+                for i = 1, 4 do
+                    if defaultFillColors[i] then
+                        castDB.empoweredFillColors[i] = {defaultFillColors[i][1], defaultFillColors[i][2], defaultFillColors[i][3], defaultFillColors[i][4]}
+                        if fillColorPickers[i] and fillColorPickers[i].swatch then
+                            fillColorPickers[i].swatch:SetBackdropColor(defaultFillColors[i][1], defaultFillColors[i][2], defaultFillColors[i][3], defaultFillColors[i][4])
+                        end
+                    end
+                end
+
+                RefreshUnit()
+            end)
+
+            y = y - FORM_ROW
+        end
 
         -- Initialize UI state
         UpdateCastbarSliders()

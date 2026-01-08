@@ -683,6 +683,155 @@ local function CreateGeneralQoLPage(parent)
 
         y = y - 10
 
+        -- Consumable Check Section
+        local consumableHeader = GUI:CreateSectionHeader(tabContent, "Consumable Check")
+        consumableHeader:SetPoint("TOPLEFT", PADDING, y)
+        y = y - consumableHeader.gap
+
+        -- Initialize defaults - master toggle
+        if db.general.consumableCheckEnabled == nil then db.general.consumableCheckEnabled = true end
+
+        local consumableEnableCheck = GUI:CreateFormCheckbox(tabContent, "Enable Consumable Check", "consumableCheckEnabled", db.general, nil)
+        consumableEnableCheck:SetPoint("TOPLEFT", PADDING, y)
+        consumableEnableCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local consumableDesc = GUI:CreateLabel(tabContent, "Display consumable status icons when triggered by events below.", 11, C.textMuted)
+        consumableDesc:SetPoint("TOPLEFT", PADDING, y + 4)
+        consumableDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        consumableDesc:SetJustifyH("LEFT")
+        y = y - 20
+
+        -- Trigger Options subsection
+        local triggerLabel = GUI:CreateLabel(tabContent, "Show On:", 12, C.text)
+        triggerLabel:SetPoint("TOPLEFT", PADDING + 10, y)
+        y = y - 20
+
+        -- Initialize trigger defaults
+        if db.general.consumableOnReadyCheck == nil then db.general.consumableOnReadyCheck = true end
+        if db.general.consumableOnDungeon == nil then db.general.consumableOnDungeon = false end
+        if db.general.consumableOnRaid == nil then db.general.consumableOnRaid = false end
+        if db.general.consumableOnResurrect == nil then db.general.consumableOnResurrect = false end
+
+        local triggerReadyCheck = GUI:CreateFormCheckbox(tabContent, "Ready Check", "consumableOnReadyCheck", db.general, nil)
+        triggerReadyCheck:SetPoint("TOPLEFT", PADDING + 20, y)
+        triggerReadyCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local triggerDungeon = GUI:CreateFormCheckbox(tabContent, "Dungeon Entrance", "consumableOnDungeon", db.general, nil)
+        triggerDungeon:SetPoint("TOPLEFT", PADDING + 20, y)
+        triggerDungeon:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local triggerRaid = GUI:CreateFormCheckbox(tabContent, "Raid Entrance", "consumableOnRaid", db.general, nil)
+        triggerRaid:SetPoint("TOPLEFT", PADDING + 20, y)
+        triggerRaid:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local triggerResurrect = GUI:CreateFormCheckbox(tabContent, "Instanced Resurrect", "consumableOnResurrect", db.general, nil)
+        triggerResurrect:SetPoint("TOPLEFT", PADDING + 20, y)
+        triggerResurrect:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local resurrectDesc = GUI:CreateLabel(tabContent, "Shows when resurrected in a dungeon or raid with missing buffs.", 11, C.textMuted)
+        resurrectDesc:SetPoint("TOPLEFT", PADDING, y + 4)
+        resurrectDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        resurrectDesc:SetJustifyH("LEFT")
+        y = y - 20
+
+        -- Buffs to Check subsection
+        local buffsLabel = GUI:CreateLabel(tabContent, "Buffs to Check:", 12, C.text)
+        buffsLabel:SetPoint("TOPLEFT", PADDING + 10, y)
+        y = y - 20
+
+        -- Initialize buff defaults
+        if db.general.consumableFood == nil then db.general.consumableFood = true end
+        if db.general.consumableFlask == nil then db.general.consumableFlask = true end
+        if db.general.consumableOilMH == nil then db.general.consumableOilMH = true end
+        if db.general.consumableOilOH == nil then db.general.consumableOilOH = true end
+        if db.general.consumableRune == nil then db.general.consumableRune = true end
+        if db.general.consumableHealthstone == nil then db.general.consumableHealthstone = true end
+
+        local consumableFoodCheck = GUI:CreateFormCheckbox(tabContent, "Food Buff", "consumableFood", db.general, nil)
+        consumableFoodCheck:SetPoint("TOPLEFT", PADDING + 20, y)
+        consumableFoodCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local consumableFlaskCheck = GUI:CreateFormCheckbox(tabContent, "Flask Buff", "consumableFlask", db.general, nil)
+        consumableFlaskCheck:SetPoint("TOPLEFT", PADDING + 20, y)
+        consumableFlaskCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local consumableOilMHCheck = GUI:CreateFormCheckbox(tabContent, "Weapon Oil (Main Hand)", "consumableOilMH", db.general, nil)
+        consumableOilMHCheck:SetPoint("TOPLEFT", PADDING + 20, y)
+        consumableOilMHCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local consumableOilOHCheck = GUI:CreateFormCheckbox(tabContent, "Weapon Oil (Off Hand)", "consumableOilOH", db.general, nil)
+        consumableOilOHCheck:SetPoint("TOPLEFT", PADDING + 20, y)
+        consumableOilOHCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local consumableRuneCheck = GUI:CreateFormCheckbox(tabContent, "Augment Rune", "consumableRune", db.general, nil)
+        consumableRuneCheck:SetPoint("TOPLEFT", PADDING + 20, y)
+        consumableRuneCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local consumableHSCheck = GUI:CreateFormCheckbox(tabContent, "Healthstones", "consumableHealthstone", db.general, nil)
+        consumableHSCheck:SetPoint("TOPLEFT", PADDING + 20, y)
+        consumableHSCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local consumableHSDesc = GUI:CreateLabel(tabContent, "Only shows when a Warlock is in the group.", 11, C.textMuted)
+        consumableHSDesc:SetPoint("TOPLEFT", PADDING, y + 4)
+        consumableHSDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        consumableHSDesc:SetJustifyH("LEFT")
+        y = y - 20
+
+        -- Refresh function for live preview (preserves position - for icon size)
+        local function RefreshConsumables()
+            if _G.QuaziiUI_RefreshConsumables then
+                _G.QuaziiUI_RefreshConsumables()
+            end
+        end
+
+        -- Reposition function for offset changes (repositions relative to ReadyCheck)
+        local function RepositionConsumables()
+            if _G.QuaziiUI_RepositionConsumables then
+                _G.QuaziiUI_RepositionConsumables()
+            end
+        end
+
+        -- Icon offset slider
+        if db.general.consumableIconOffset == nil then db.general.consumableIconOffset = 5 end
+
+        local iconOffsetSlider = GUI:CreateFormSlider(tabContent, "Icon Offset", -10, 30, 1, "consumableIconOffset", db.general, RepositionConsumables)
+        iconOffsetSlider:SetPoint("TOPLEFT", PADDING, y)
+        iconOffsetSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local iconOffsetDesc = GUI:CreateLabel(tabContent, "Distance (pixels) between icons and ready check frame.", 11, C.textMuted)
+        iconOffsetDesc:SetPoint("TOPLEFT", PADDING, y + 4)
+        iconOffsetDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        iconOffsetDesc:SetJustifyH("LEFT")
+        y = y - 16
+
+        -- Icon size slider
+        if db.general.consumableIconSize == nil then db.general.consumableIconSize = 40 end
+
+        local iconSizeSlider = GUI:CreateFormSlider(tabContent, "Icon Size", 24, 64, 2, "consumableIconSize", db.general, RefreshConsumables)
+        iconSizeSlider:SetPoint("TOPLEFT", PADDING, y)
+        iconSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local iconSizeDesc = GUI:CreateLabel(tabContent, "Size of consumable icons (pixels).", 11, C.textMuted)
+        iconSizeDesc:SetPoint("TOPLEFT", PADDING, y + 4)
+        iconSizeDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        iconSizeDesc:SetJustifyH("LEFT")
+        y = y - 16
+
+        y = y - 10
+
         -- Quick Salvage Section
         local quickSalvageHeader = GUI:CreateSectionHeader(tabContent, "Quick Salvage")
         quickSalvageHeader:SetPoint("TOPLEFT", PADDING, y)
@@ -2305,6 +2454,9 @@ local function CreateAutohidesPage(parent)
                 if _G.QuaziiUI_RefreshInstanceFramesColors then
                     _G.QuaziiUI_RefreshInstanceFramesColors()
                 end
+                if _G.QuaziiUI_RefreshReadyCheckColors then
+                    _G.QuaziiUI_RefreshReadyCheckColors()
+                end
             end
 
             local useClassColorCheck = GUI:CreateFormCheckbox(tabContent, "Use Class Colors", "skinUseClassColor", general, function()
@@ -2390,6 +2542,57 @@ local function CreateAutohidesPage(parent)
             gameMenuFontSlider:SetPoint("TOPLEFT", PAD, y)
             gameMenuFontSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
+
+            y = y - 10  -- Extra padding before next section
+
+            -- ═══════════════════════════════════════════════════════════════
+            -- READY CHECK FRAME SECTION
+            -- ═══════════════════════════════════════════════════════════════
+            GUI:SetSearchSection("Ready Check Frame")
+
+            if general.skinReadyCheck == nil then general.skinReadyCheck = true end
+
+            local readyCheckHeader = GUI:CreateSectionHeader(tabContent, "Ready Check Frame")
+            readyCheckHeader:SetPoint("TOPLEFT", PAD, y)
+            y = y - readyCheckHeader.gap
+
+            local readyCheckDesc = GUI:CreateLabel(tabContent, "Skin the ready check popup with QUI styling.", 11, C.textMuted)
+            readyCheckDesc:SetPoint("TOPLEFT", PAD, y)
+            readyCheckDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            readyCheckDesc:SetJustifyH("LEFT")
+            readyCheckDesc:SetWordWrap(true)
+            readyCheckDesc:SetHeight(20)
+            y = y - 28
+
+            local skinReadyCheckCheck = GUI:CreateFormCheckbox(tabContent, "Skin Ready Check Frame", "skinReadyCheck", general, function()
+                GUI:ShowConfirmation({
+                    title = "Reload UI?",
+                    message = "Skinning changes require a reload to take effect.",
+                    acceptText = "Reload",
+                    cancelText = "Later",
+                    onAccept = function() QuaziiUI:SafeReload() end,
+                })
+            end)
+            skinReadyCheckCheck:SetPoint("TOPLEFT", PAD, y)
+            skinReadyCheckCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Move/Reset buttons for Ready Check frame position
+            local rcMoveBtn = GUI:CreateButton(tabContent, "Toggle Mover", 140, 28, function()
+                if _G.QuaziiUI_ToggleReadyCheckMover then
+                    _G.QuaziiUI_ToggleReadyCheckMover()
+                end
+            end)
+            rcMoveBtn:SetPoint("TOPLEFT", PAD, y)
+
+            local rcResetBtn = GUI:CreateButton(tabContent, "Reset Position", 140, 28, function()
+                if _G.QuaziiUI_ResetReadyCheckPosition then
+                    _G.QuaziiUI_ResetReadyCheckPosition()
+                    print("|cFF56D1FF[QUI]|r Ready Check position reset to default.")
+                end
+            end)
+            rcResetBtn:SetPoint("LEFT", rcMoveBtn, "RIGHT", 10, 0)
+            y = y - 36
 
             y = y - 10  -- Extra padding before next section
 

@@ -79,19 +79,23 @@ end
 ---------------------------------------------------------------------------
 -- CONSTANTS
 ---------------------------------------------------------------------------
-local STAGE_COLORS = {
+QUI_Castbar.STAGE_COLORS = {
     {0.15, 0.38, 0.58, 1},   -- Stage 1: Dark Blue
     {0.55, 0.20, 0.24, 1},   -- Stage 2: Dark Red/Pink
     {0.58, 0.45, 0.18, 1},   -- Stage 3: Dark Yellow/Orange
     {0.27, 0.50, 0.21, 1},   -- Stage 4: Dark Green
 }
 
-local STAGE_FILL_COLORS = {
+QUI_Castbar.STAGE_FILL_COLORS = {
     {0.26, 0.64, 0.96, 1},   -- Stage 1: Bright Blue
     {0.91, 0.35, 0.40, 1},   -- Stage 2: Bright Red/Pink
     {0.95, 0.75, 0.30, 1},   -- Stage 3: Bright Yellow/Orange
     {0.45, 0.82, 0.35, 1},   -- Stage 4: Bright Green
 }
+
+-- Local references for internal use
+local STAGE_COLORS = QUI_Castbar.STAGE_COLORS
+local STAGE_FILL_COLORS = QUI_Castbar.STAGE_FILL_COLORS
 
 ---------------------------------------------------------------------------
 -- SETTINGS HELPERS
@@ -144,6 +148,31 @@ local function InitializeDefaultSettings(castSettings)
     if castSettings.timeTextOffsetX == nil then castSettings.timeTextOffsetX = -4 end
     if castSettings.timeTextOffsetY == nil then castSettings.timeTextOffsetY = 0 end
     if castSettings.showTimeText == nil then castSettings.showTimeText = true end
+
+    -- Empowered cast settings
+    if castSettings.empoweredLevelTextAnchor == nil then castSettings.empoweredLevelTextAnchor = "CENTER" end
+    if castSettings.empoweredLevelTextOffsetX == nil then castSettings.empoweredLevelTextOffsetX = 0 end
+    if castSettings.empoweredLevelTextOffsetY == nil then castSettings.empoweredLevelTextOffsetY = 0 end
+    if castSettings.showEmpoweredLevel == nil then castSettings.showEmpoweredLevel = false end
+    if castSettings.hideTimeTextOnEmpowered == nil then castSettings.hideTimeTextOnEmpowered = false end
+
+    -- Empowered color overrides (player only) - initialize with default constants
+    if not castSettings.empoweredStageColors then
+        castSettings.empoweredStageColors = {}
+        for i = 1, 4 do
+            if STAGE_COLORS[i] then
+                castSettings.empoweredStageColors[i] = {STAGE_COLORS[i][1], STAGE_COLORS[i][2], STAGE_COLORS[i][3], STAGE_COLORS[i][4]}
+            end
+        end
+    end
+    if not castSettings.empoweredFillColors then
+        castSettings.empoweredFillColors = {}
+        for i = 1, 4 do
+            if STAGE_FILL_COLORS[i] then
+                castSettings.empoweredFillColors[i] = {STAGE_FILL_COLORS[i][1], STAGE_FILL_COLORS[i][2], STAGE_FILL_COLORS[i][3], STAGE_FILL_COLORS[i][4]}
+            end
+        end
+    end
 end
 
 local function GetSizingValues(castSettings)
@@ -461,13 +490,44 @@ local function UpdateCastbarElements(anchorFrame, unitKey, castSettings)
         currentCastSettings.spellTextOffsetY or 0,
         currentCastSettings.showSpellText
     )
+
+    -- Time text visibility: hide if empowered and setting is enabled
+    local showTimeText = currentCastSettings.showTimeText
+    if showTimeText and currentCastSettings.hideTimeTextOnEmpowered and anchorFrame.isEmpowered then
+        showTimeText = false
+    end
+
     UpdateTextPosition(
         anchorFrame.timeText, anchorFrame.statusBar,
         currentCastSettings.timeTextAnchor or "RIGHT",
         currentCastSettings.timeTextOffsetX or -4,
         currentCastSettings.timeTextOffsetY or 0,
-        currentCastSettings.showTimeText
+        showTimeText
     )
+
+    -- Empowered level text (player only)
+    if unitKey == "player" and anchorFrame.empoweredLevelText then
+        UpdateTextPosition(
+            anchorFrame.empoweredLevelText, anchorFrame.statusBar,
+            currentCastSettings.empoweredLevelTextAnchor or "CENTER",
+            currentCastSettings.empoweredLevelTextOffsetX or 0,
+            currentCastSettings.empoweredLevelTextOffsetY or 0,
+            currentCastSettings.showEmpoweredLevel
+        )
+    end
+
+    -- Refresh empowered stage overlay colors if currently empowered (for real-time options updates)
+    if unitKey == "player" and anchorFrame.isEmpowered and anchorFrame.stageOverlays then
+        for i, overlay in ipairs(anchorFrame.stageOverlays) do
+            if overlay:IsShown() then
+                local stageColor = STAGE_COLORS[i] or STAGE_COLORS[1]
+                if currentCastSettings.empoweredStageColors and currentCastSettings.empoweredStageColors[i] then
+                    stageColor = currentCastSettings.empoweredStageColors[i]
+                end
+                overlay:SetColorTexture(unpack(stageColor))
+            end
+        end
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -491,9 +551,13 @@ local function ClearEmpoweredState(bar)
     end
     
     if bar.bgBar then bar.bgBar:Show() end
-    
+
     if bar.statusBar then
         ApplyCastColor(bar.statusBar, false, bar.customColor)
+    end
+
+    if bar.empoweredLevelText then
+        bar.empoweredLevelText:SetText("")
     end
 end
 
@@ -685,8 +749,15 @@ local function UpdateEmpoweredStages(bar, numStages)
             local startPos = stagePositions[i] * barWidth
             local endPos = stagePositions[i + 1] * barWidth
             local width = endPos - startPos
-            
-            overlay:SetColorTexture(unpack(STAGE_COLORS[i] or STAGE_COLORS[1]))
+
+            -- Get cast settings for color overrides
+            local castSettings = GetCastSettings(bar.unitKey)
+            local stageColor = STAGE_COLORS[i] or STAGE_COLORS[1]
+            if castSettings and castSettings.empoweredStageColors and castSettings.empoweredStageColors[i] then
+                stageColor = castSettings.empoweredStageColors[i]
+            end
+
+            overlay:SetColorTexture(unpack(stageColor))
             overlay:SetSize(width, barHeight)
             overlay:ClearAllPoints()
             overlay:SetPoint("LEFT", bar.statusBar, "LEFT", startPos, 0)
@@ -719,10 +790,10 @@ end
 
 local function UpdateEmpoweredFillColor(bar, progress, duration)
     if not bar.isEmpowered or not bar.stagePositions then return end
-    
+
     local progressPercent = progress / duration
     local currentStage = 1
-    
+
     for i = 2, #bar.stagePositions do
         if progressPercent >= bar.stagePositions[i] then
             currentStage = i
@@ -730,15 +801,68 @@ local function UpdateEmpoweredFillColor(bar, progress, duration)
             break
         end
     end
-    
-    if currentStage > #STAGE_FILL_COLORS then
-        currentStage = #STAGE_FILL_COLORS
+
+    -- Get cast settings for color overrides
+    local castSettings = GetCastSettings(bar.unitKey)
+    local fillColors = STAGE_FILL_COLORS
+    if castSettings and castSettings.empoweredFillColors then
+        -- Use override colors if available, fallback to defaults
+        fillColors = {}
+        for i = 1, 4 do
+            if castSettings.empoweredFillColors[i] then
+                fillColors[i] = castSettings.empoweredFillColors[i]
+            else
+                fillColors[i] = STAGE_FILL_COLORS[i] or STAGE_FILL_COLORS[1]
+            end
+        end
     end
-    
-    local c = STAGE_FILL_COLORS[currentStage]
+
+    if currentStage > #fillColors then
+        currentStage = #fillColors
+    end
+
+    local c = fillColors[currentStage]
     if c then
         bar.statusBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
     end
+end
+
+-- Get current empowered level from player castbar
+function QUI_Castbar:GetEmpoweredLevel()
+    local playerCastbar = self.castbars["player"]
+    if not playerCastbar then
+        playerCastbar = _G.QuaziiUI_Castbars and _G.QuaziiUI_Castbars["player"]
+    end
+
+    if not playerCastbar or not playerCastbar.isEmpowered then
+        return nil, nil, false
+    end
+
+    if not playerCastbar.startTime or not playerCastbar.endTime or not playerCastbar.stagePositions then
+        return nil, nil, false
+    end
+
+    local now = GetTime()
+    local progress = now - playerCastbar.startTime
+    local duration = playerCastbar.endTime - playerCastbar.startTime
+
+    if duration <= 0 then
+        return nil, nil, false
+    end
+
+    local progressPercent = progress / duration
+    local currentStage = 1
+
+    for i = 2, #playerCastbar.stagePositions do
+        if progressPercent >= playerCastbar.stagePositions[i] then
+            currentStage = i
+        else
+            break
+        end
+    end
+
+    local maxStages = playerCastbar.numStages or 0
+    return currentStage, maxStages, true
 end
 
 ---------------------------------------------------------------------------
@@ -806,10 +930,16 @@ function QUI_Castbar:CreateCastbar(unitFrame, unit, unitKey)
     
     local spellText = CreateTextElement(statusBar, fontSize)
     anchorFrame.spellText = spellText
-    
+
     local timeText = CreateTextElement(statusBar, fontSize)
     anchorFrame.timeText = timeText
-    
+
+    -- Empowered level text (player only)
+    if unitKey == "player" then
+        local empoweredLevelText = CreateTextElement(statusBar, fontSize)
+        anchorFrame.empoweredLevelText = empoweredLevelText
+    end
+
     anchorFrame.UpdateCastbarElements = function(self)
         UpdateCastbarElements(self, unitKey, castSettings)
     end
@@ -1073,15 +1203,60 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
             
             self.statusBar:SetMinMaxValues(0, duration)
             self.statusBar:SetValue(progress)
-            
+
             -- Empowered cast handling (player only)
             if isPlayer and self.isEmpowered then
                 UpdateEmpoweredFillColor(self, progress, duration)
+
+                -- Update empowered level text
+                if self.empoweredLevelText and self.showEmpoweredLevel then
+                    local currentStage, maxStages, isEmpowered = QUI_Castbar:GetEmpoweredLevel()
+                    if isEmpowered and currentStage then
+                        self.textThrottle = (self.textThrottle or 0) + elapsed
+                        if self.textThrottle >= 0.1 then
+                            self.textThrottle = 0
+                            self.empoweredLevelText:SetText(tostring(math.floor(currentStage)))
+                            UpdateTimeTextColor(self, self.unit)
+                        end
+                    else
+                        self.empoweredLevelText:SetText("")
+                    end
+                elseif self.empoweredLevelText then
+                    self.empoweredLevelText:SetText("")
+                end
+
+                -- Update time text visibility if hiding on empowered
+                local currentSettings = GetUnitSettings(self.unitKey)
+                local currentCastSettings = currentSettings and currentSettings.castbar
+                if currentCastSettings and currentCastSettings.hideTimeTextOnEmpowered then
+                    if self.timeText then
+                        self.timeText:Hide()
+                    end
+                end
+            elseif isPlayer and self.empoweredLevelText then
+                self.empoweredLevelText:SetText("")
+
+                -- Show time text again if not empowered
+                local currentSettings = GetUnitSettings(self.unitKey)
+                local currentCastSettings = currentSettings and currentSettings.castbar
+                if currentCastSettings and currentCastSettings.showTimeText and self.timeText then
+                    self.timeText:Show()
+                end
             end
-            
-            -- Update time text (throttle to 10 FPS)
-            if UpdateThrottledText(self, elapsed, self.timeText, remaining) and remaining > 0 and isPlayer then
-                UpdateTimeTextColor(self, self.unit)
+
+            -- Update time text (throttle to 10 FPS) - only if not hiding on empowered
+            if isPlayer and self.isEmpowered then
+                local currentSettings = GetUnitSettings(self.unitKey)
+                local currentCastSettings = currentSettings and currentSettings.castbar
+                if not (currentCastSettings and currentCastSettings.hideTimeTextOnEmpowered) then
+                    if UpdateThrottledText(self, elapsed, self.timeText, remaining) and remaining > 0 then
+                        UpdateTimeTextColor(self, self.unit)
+                    end
+                end
+            else
+                if UpdateThrottledText(self, elapsed, self.timeText, remaining) and remaining > 0 and isPlayer then
+                    UpdateTimeTextColor(self, self.unit)
+                end
             end
         elseif self.isPreviewSimulation then
             -- Preview simulation - use preview data
@@ -1157,7 +1332,12 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
             
             -- Update visual elements
             UpdateCastbarVisuals(self, castSettings, self.unitKey, texture, text, spellName, self.unit, isChanneled, notInterruptible, startTime, endTime)
-            
+
+            -- Store showEmpoweredLevel setting for OnUpdate
+            if isPlayer then
+                self.showEmpoweredLevel = castSettings.showEmpoweredLevel
+            end
+
             -- Update empowered state
             UpdateEmpoweredState(self, isPlayer, isEmpowered, numStages)
             
