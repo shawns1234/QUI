@@ -2172,14 +2172,10 @@ local function UpdateStatsPanel(panel, unit)
 
     local leech = SafeGetStat(GetLifesteal)
     local speed = SafeGetStat(GetSpeed)
-    local moveSpeed = SafeGetStat(GetUnitSpeed, unit)
-    local baseMoveSpeed = 7  -- Base running speed in yards/sec
-    local movePct = moveSpeed and baseMoveSpeed > 0 and (moveSpeed / baseMoveSpeed * 100) or 100
 
     local generalStats = {
         { label = "Leech", value = FormatPercent(leech), statKey = "LIFESTEAL" },
         { label = "Speed", value = FormatPercent(speed), statKey = "SPEED" },
-        { label = "Movement Speed", value = string.format("%.0f%%", movePct), statKey = "MOVEMENT_SPEED" },
     }
 
     for _, stat in ipairs(generalStats) do
@@ -2196,10 +2192,6 @@ local function UpdateStatsPanel(panel, unit)
             local speedValue = GetSpeed()
             row.tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, STAT_SPEED) .. " " .. format("%.2F%%", speedValue) .. FONT_COLOR_CODE_CLOSE
             row.tooltip2 = format(CR_SPEED_TOOLTIP, BreakUpLargeNumbers(GetCombatRating(CR_SPEED)), GetCombatRatingBonus(CR_SPEED))
-        elseif stat.statKey == "MOVEMENT_SPEED" then
-            -- Movement speed uses a custom OnEnter function, but we'll set basic tooltip
-            row.tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, STAT_MOVEMENT_SPEED) .. " " .. string.format("%.0f%%", movePct) .. FONT_COLOR_CODE_CLOSE
-            row.tooltip2 = STAT_MOVEMENT_SPEED_TOOLTIP
         end
         
         y = y - ROW_HEIGHT
