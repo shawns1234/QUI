@@ -8635,6 +8635,53 @@ local function CreateCustomTrackersPage(parent)
         stackYSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
+        -----------------------------------------------------------------------
+        -- BUFF ACTIVE SETTINGS SECTION
+        -----------------------------------------------------------------------
+        local buffActiveHeader = GUI:CreateSectionHeader(lowerContainer, "Buff Active Settings")
+        buffActiveHeader:SetPoint("TOPLEFT", 0, y)
+        y = y - buffActiveHeader.gap
+
+        local glowEnabledCheck = GUI:CreateFormCheckbox(lowerContainer, "Enable Glow", "activeGlowEnabled", barConfig, RefreshThisBar)
+        glowEnabledCheck:SetPoint("TOPLEFT", 0, y)
+        glowEnabledCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local glowTypeOptions = {
+            {value = "Button Glow", text = "Button Glow"},
+            {value = "Pixel Glow", text = "Pixel Glow"},
+            {value = "Autocast Shine", text = "Autocast Shine"},
+        }
+        local glowTypeDropdown = GUI:CreateFormDropdown(lowerContainer, "Glow Type", glowTypeOptions, "activeGlowType", barConfig, RefreshThisBar)
+        glowTypeDropdown:SetPoint("TOPLEFT", 0, y)
+        glowTypeDropdown:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local glowColorPicker = GUI:CreateFormColorPicker(lowerContainer, "Glow Color", "activeGlowColor", barConfig, RefreshThisBar)
+        glowColorPicker:SetPoint("TOPLEFT", 0, y)
+        glowColorPicker:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local glowLinesSlider = GUI:CreateFormSlider(lowerContainer, "Glow Lines", 4, 16, 1, "activeGlowLines", barConfig, RefreshThisBar)
+        glowLinesSlider:SetPoint("TOPLEFT", 0, y)
+        glowLinesSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local glowSpeedSlider = GUI:CreateFormSlider(lowerContainer, "Glow Speed", 0.1, 1.0, 0.05, "activeGlowFrequency", barConfig, RefreshThisBar)
+        glowSpeedSlider:SetPoint("TOPLEFT", 0, y)
+        glowSpeedSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local glowThicknessSlider = GUI:CreateFormSlider(lowerContainer, "Glow Thickness", 1, 5, 1, "activeGlowThickness", barConfig, RefreshThisBar)
+        glowThicknessSlider:SetPoint("TOPLEFT", 0, y)
+        glowThicknessSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local glowScaleSlider = GUI:CreateFormSlider(lowerContainer, "Glow Scale", 0.5, 2.0, 0.1, "activeGlowScale", barConfig, RefreshThisBar)
+        glowScaleSlider:SetPoint("TOPLEFT", 0, y)
+        glowScaleSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
         -- Set lowerContainer height based on content
         lowerContainer:SetHeight(math.abs(y) + 20)
 
