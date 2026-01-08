@@ -382,6 +382,10 @@ local defaults = {
                 enabled = false,  -- Opt-in, OFF by default
                 modifier = "ALT",  -- "ALT", "ALTCTRL", "ALTSHIFT"
             },
+            -- M+ Dungeon Teleport
+            mplusTeleportEnabled = true,  -- Click-to-teleport on M+ tab icons
+            keyTrackerEnabled = true,     -- Show party keys on M+ tab
+            keyTrackerFontSize = 9,       -- Font size for key tracker (7-12)
         },
 
         -- Alert & Toast Skinning Settings (enabled via general.skinAlerts)
