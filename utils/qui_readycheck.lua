@@ -965,14 +965,28 @@ _G.QuaziiUI_RefreshConsumables = function()
     end
 end
 
--- Reposition consumables (for offset changes - repositions relative to ReadyCheck)
+-- Reposition consumables (for offset changes - live update position)
 _G.QuaziiUI_RepositionConsumables = function()
     if ConsumablesFrame:IsShown() then
         InitializeButtons()
         UpdateConsumables()
-        -- Only reposition if anchored to ReadyCheckFrame, otherwise preserve position
+
         if ConsumablesFrame:GetParent() == ReadyCheckFrame then
+            -- Anchored to ReadyCheckFrame - use standard positioning
             PositionConsumablesFrame()
+        else
+            -- Standalone mode - recalculate position with new offset
+            local settings = GetSettings()
+            local userOffset = (settings and settings.consumableIconOffset) or 5
+            local totalOffset = userOffset + CLOSE_BUTTON_HEIGHT + 2
+
+            local savedPos = settings and settings.readyCheckPosition
+            if savedPos then
+                local readyCheckHalfHeight = 55
+                ConsumablesFrame:ClearAllPoints()
+                ConsumablesFrame:SetPoint("BOTTOM", UIParent, savedPos.relativePoint, savedPos.x, savedPos.y + readyCheckHalfHeight + totalOffset)
+            end
+            -- If no saved position, preserve current position (user may have manually placed it)
         end
     end
 end
