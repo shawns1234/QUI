@@ -1,0 +1,7 @@
+<Bindings>
+  <Binding name="QUAZIIUI_TOGGLE_OPTIONS" category="QuaziiUI">
+    if QuaziiUI and QuaziiUI.GUI then
+      QuaziiUI.GUI:Toggle()
+    end
+  </Binding>
+</Bindings>
