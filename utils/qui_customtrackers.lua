@@ -166,6 +166,173 @@ local function GetDB()
     return nil
 end
 
+local function GetGlobalDB()
+    if QUICore and QUICore.db and QUICore.db.global then
+        return QUICore.db.global
+    end
+    return nil
+end
+
+---------------------------------------------------------------------------
+-- SPEC-SPECIFIC SPELL HELPERS
+---------------------------------------------------------------------------
+-- Get the current player's spec key in "CLASS-specID" format
+-- Returns human-readable format for storage and display
+local function GetCurrentSpecKey()
+    local _, className = UnitClass("player")
+    local specIndex = GetSpecialization()
+    if specIndex then
+        local specID = GetSpecializationInfo(specIndex)
+        if specID and className then
+            return className .. "-" .. specID
+        end
+    end
+    return nil
+end
+
+-- Get human-readable "Class - Spec" name for display
+local function GetClassSpecName(specKey)
+    if not specKey then return "Unknown" end
+    local className, specID = specKey:match("^(.+)-(%d+)$")
+    if not className or not specID then return specKey end
+    
+    specID = tonumber(specID)
+    if not specID then return specKey end
+    
+    local _, specName = GetSpecializationInfoByID(specID)
+    if specName then
+        -- Capitalize class name properly
+        local classDisplay = className:sub(1, 1):upper() .. className:sub(2):lower()
+        return classDisplay .. " - " .. specName
+    end
+    return specKey
+end
+
+-- Get all specs for the player's class
+local function GetAllClassSpecs()
+    local _, className = UnitClass("player")
+    local specs = {}
+    local numSpecs = GetNumSpecializations()
+    
+    for i = 1, numSpecs do
+        local specID, specName = GetSpecializationInfo(i)
+        if specID and specName then
+            table.insert(specs, {
+                key = className .. "-" .. specID,
+                specID = specID,
+                specIndex = i,
+                name = className:sub(1, 1):upper() .. className:sub(2):lower() .. " - " .. specName,
+                className = className,
+                specName = specName,
+            })
+        end
+    end
+    
+    return specs
+end
+
+-- Get entries for a bar, resolving spec-specific storage if enabled
+-- @param barConfig: The bar configuration from db.profile
+-- @param specKey: Optional override spec key (for editing other specs in UI)
+-- @return entries table (may be empty but never nil)
+local function GetBarEntries(barConfig, specKey)
+    if not barConfig then return {} end
+    
+    -- If spec-specific mode is not enabled, use profile entries
+    if not barConfig.specSpecificSpells then
+        return barConfig.entries or {}
+    end
+    
+    -- Spec-specific mode: get entries from global storage
+    local globalDB = GetGlobalDB()
+    if not globalDB then
+        return barConfig.entries or {}  -- Fallback to profile
+    end
+    
+    -- Initialize global spec storage if needed
+    if not globalDB.specTrackerSpells then
+        globalDB.specTrackerSpells = {}
+    end
+    
+    -- Get or create bar's spec spell storage
+    local barSpecSpells = globalDB.specTrackerSpells[barConfig.id]
+    if not barSpecSpells then
+        barSpecSpells = {}
+        globalDB.specTrackerSpells[barConfig.id] = barSpecSpells
+    end
+    
+    -- Use provided specKey or current spec
+    local key = specKey or GetCurrentSpecKey()
+    if not key then
+        return barConfig.entries or {}  -- Fallback if spec unavailable
+    end
+    
+    -- Get entries for this spec, or empty table
+    return barSpecSpells[key] or {}
+end
+
+-- Get/set entries for a specific spec (for UI use)
+-- @param barConfig: Bar configuration
+-- @param specKey: The spec key to get/set entries for
+-- @param entries: If provided, sets the entries; if nil, gets them
+-- @return entries table when getting
+function CustomTrackers:GetSpecEntries(barConfig, specKey)
+    if not barConfig or not specKey then return {} end
+    
+    local globalDB = GetGlobalDB()
+    if not globalDB then return {} end
+    
+    if not globalDB.specTrackerSpells then
+        globalDB.specTrackerSpells = {}
+    end
+    
+    local barSpecSpells = globalDB.specTrackerSpells[barConfig.id]
+    if not barSpecSpells then return {} end
+    
+    return barSpecSpells[specKey] or {}
+end
+
+function CustomTrackers:SetSpecEntries(barConfig, specKey, entries)
+    if not barConfig or not specKey then return end
+    
+    local globalDB = GetGlobalDB()
+    if not globalDB then return end
+    
+    if not globalDB.specTrackerSpells then
+        globalDB.specTrackerSpells = {}
+    end
+    
+    if not globalDB.specTrackerSpells[barConfig.id] then
+        globalDB.specTrackerSpells[barConfig.id] = {}
+    end
+    
+    globalDB.specTrackerSpells[barConfig.id][specKey] = entries
+end
+
+-- Copy profile entries to spec storage (used when enabling spec-specific mode)
+function CustomTrackers:CopyEntriesToSpec(barConfig, specKey)
+    if not barConfig or not specKey then return end
+    if not barConfig.entries or #barConfig.entries == 0 then return end
+    
+    -- Deep copy entries
+    local copiedEntries = {}
+    for _, entry in ipairs(barConfig.entries) do
+        table.insert(copiedEntries, {
+            type = entry.type,
+            id = entry.id,
+            customName = entry.customName,
+        })
+    end
+    
+    self:SetSpecEntries(barConfig, specKey, copiedEntries)
+end
+
+-- Expose helper functions to module for use in options UI
+CustomTrackers.GetCurrentSpecKey = GetCurrentSpecKey
+CustomTrackers.GetClassSpecName = GetClassSpecName
+CustomTrackers.GetAllClassSpecs = GetAllClassSpecs
+CustomTrackers.GetBarEntries = GetBarEntries
+
 ---------------------------------------------------------------------------
 -- FONT HELPERS (matches NCDM pattern)
 ---------------------------------------------------------------------------
@@ -841,7 +1008,8 @@ function CustomTrackers:UpdateBarIcons(bar)
     if not bar then return end
 
     local config = bar.config
-    local entries = config.entries or {}
+    -- Use GetBarEntries to resolve entries from correct storage (profile or global/spec)
+    local entries = GetBarEntries(config)
 
     -- Hide and clear existing icons
     for _, icon in ipairs(bar.icons or {}) do
@@ -1330,30 +1498,62 @@ end
 ---------------------------------------------------------------------------
 -- ENTRY MANAGEMENT
 ---------------------------------------------------------------------------
-function CustomTrackers:AddEntry(barID, entryType, entryID)
+function CustomTrackers:AddEntry(barID, entryType, entryID, specKeyOverride)
     local db = GetDB()
     if not db or not db.bars then return false end
 
     for _, barConfig in ipairs(db.bars) do
         if barConfig.id == barID then
-            if not barConfig.entries then barConfig.entries = {} end
+            -- Determine target entries table based on spec-specific mode
+            local entries
+            local specKey
+            
+            if barConfig.specSpecificSpells then
+                -- Spec-specific mode: use global storage
+                specKey = specKeyOverride or GetCurrentSpecKey()
+                if not specKey then
+                    return false
+                end
+                
+                local globalDB = GetGlobalDB()
+                if not globalDB then return false end
+                
+                if not globalDB.specTrackerSpells then
+                    globalDB.specTrackerSpells = {}
+                end
+                if not globalDB.specTrackerSpells[barID] then
+                    globalDB.specTrackerSpells[barID] = {}
+                end
+                if not globalDB.specTrackerSpells[barID][specKey] then
+                    globalDB.specTrackerSpells[barID][specKey] = {}
+                end
+                
+                entries = globalDB.specTrackerSpells[barID][specKey]
+            else
+                -- Normal mode: use profile entries
+                if not barConfig.entries then barConfig.entries = {} end
+                entries = barConfig.entries
+            end
 
             -- Check for duplicates
-            for _, entry in ipairs(barConfig.entries) do
+            for _, entry in ipairs(entries) do
                 if entry.type == entryType and entry.id == entryID then
                     return false  -- Already exists
                 end
             end
 
-            table.insert(barConfig.entries, {
+            table.insert(entries, {
                 type = entryType,
                 id = entryID,
             })
 
-            -- Refresh the bar
+            -- Refresh the bar (only if viewing current spec or not spec-specific)
             if self.activeBars[barID] then
-                self.activeBars[barID].config = barConfig
-                self:UpdateBarIcons(self.activeBars[barID])
+                local currentSpec = GetCurrentSpecKey()
+                if not barConfig.specSpecificSpells or specKey == currentSpec then
+                    self.activeBars[barID].config = barConfig
+                    self:UpdateBarIcons(self.activeBars[barID])
+                end
             end
 
             return true
@@ -1362,21 +1562,50 @@ function CustomTrackers:AddEntry(barID, entryType, entryID)
     return false
 end
 
-function CustomTrackers:RemoveEntry(barID, entryType, entryID)
+function CustomTrackers:RemoveEntry(barID, entryType, entryID, specKeyOverride)
     local db = GetDB()
     if not db or not db.bars then return false end
 
     for _, barConfig in ipairs(db.bars) do
         if barConfig.id == barID then
-            if barConfig.entries then
-                for i, entry in ipairs(barConfig.entries) do
+            -- Determine target entries table based on spec-specific mode
+            local entries
+            local specKey
+            
+            if barConfig.specSpecificSpells then
+                -- Spec-specific mode: use global storage
+                specKey = specKeyOverride or GetCurrentSpecKey()
+                if not specKey then
+                    return false
+                end
+                
+                local globalDB = GetGlobalDB()
+                if not globalDB then return false end
+                
+                if not globalDB.specTrackerSpells or
+                   not globalDB.specTrackerSpells[barID] or
+                   not globalDB.specTrackerSpells[barID][specKey] then
+                    return false
+                end
+                
+                entries = globalDB.specTrackerSpells[barID][specKey]
+            else
+                -- Normal mode: use profile entries
+                entries = barConfig.entries
+            end
+            
+            if entries then
+                for i, entry in ipairs(entries) do
                     if entry.type == entryType and entry.id == entryID then
-                        table.remove(barConfig.entries, i)
+                        table.remove(entries, i)
 
-                        -- Refresh the bar
+                        -- Refresh the bar (only if viewing current spec or not spec-specific)
                         if self.activeBars[barID] then
-                            self.activeBars[barID].config = barConfig
-                            self:UpdateBarIcons(self.activeBars[barID])
+                            local currentSpec = GetCurrentSpecKey()
+                            if not barConfig.specSpecificSpells or specKey == currentSpec then
+                                self.activeBars[barID].config = barConfig
+                                self:UpdateBarIcons(self.activeBars[barID])
+                            end
                         end
 
                         return true
@@ -1388,13 +1617,36 @@ function CustomTrackers:RemoveEntry(barID, entryType, entryID)
     return false
 end
 
-function CustomTrackers:MoveEntry(barID, entryIndex, direction)
+function CustomTrackers:MoveEntry(barID, entryIndex, direction, specKeyOverride)
     local db = GetDB()
     if not db or not db.bars then return false end
 
     for _, barConfig in ipairs(db.bars) do
         if barConfig.id == barID then
-            local entries = barConfig.entries
+            -- Determine target entries table based on spec-specific mode
+            local entries
+            local specKey
+            
+            if barConfig.specSpecificSpells then
+                -- Spec-specific mode: use global storage
+                specKey = specKeyOverride or GetCurrentSpecKey()
+                if not specKey then
+                    return false
+                end
+                
+                local globalDB = GetGlobalDB()
+                if not globalDB or not globalDB.specTrackerSpells or
+                   not globalDB.specTrackerSpells[barID] or
+                   not globalDB.specTrackerSpells[barID][specKey] then
+                    return false
+                end
+                
+                entries = globalDB.specTrackerSpells[barID][specKey]
+            else
+                -- Normal mode: use profile entries
+                entries = barConfig.entries
+            end
+            
             if not entries then return false end
 
             local newIndex = entryIndex + direction
@@ -1404,10 +1656,13 @@ function CustomTrackers:MoveEntry(barID, entryIndex, direction)
             local entry = table.remove(entries, entryIndex)
             table.insert(entries, newIndex, entry)
 
-            -- Refresh bar display
+            -- Refresh bar display (only if viewing current spec or not spec-specific)
             if self.activeBars[barID] then
-                self.activeBars[barID].config = barConfig
-                self:UpdateBarIcons(self.activeBars[barID])
+                local currentSpec = GetCurrentSpecKey()
+                if not barConfig.specSpecificSpells or specKey == currentSpec then
+                    self.activeBars[barID].config = barConfig
+                    self:UpdateBarIcons(self.activeBars[barID])
+                end
             end
             return true
         end
@@ -1443,7 +1698,19 @@ initFrame:RegisterEvent("UNIT_SPELLCAST_STOP")
 initFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 initFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 initFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+-- Spec change detection for spec-specific spells
+initFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 initFrame:SetScript("OnEvent", function(self, event, ...)
+    -- Spec change: refresh all bars to load spec-appropriate spells
+    -- PLAYER_SPECIALIZATION_CHANGED only fires for player, no unit check needed
+    if event == "PLAYER_SPECIALIZATION_CHANGED" then
+        -- Small delay to ensure spec info is fully updated
+        C_Timer.After(0.1, function()
+            CustomTrackers:RefreshAll()
+        end)
+        return
+    end
+    
     -- Event-driven cooldown updates (reduces ticker frequency)
     if event == "SPELL_UPDATE_COOLDOWN" or event == "ACTIONBAR_UPDATE_COOLDOWN" then
         -- Update all active bars immediately on cooldown change
