@@ -8553,66 +8553,6 @@ local function CreateCustomTrackersPage(parent)
         y = y - FORM_ROW
 
         -----------------------------------------------------------------------
-        -- ACTIVE STATE VISUALS SECTION
-        -----------------------------------------------------------------------
-        local activeStateHeader = GUI:CreateSectionHeader(lowerContainer, "Active State Visuals")
-        activeStateHeader:SetPoint("TOPLEFT", 0, y)
-        y = y - activeStateHeader.gap + 12
-
-        local activeStateDesc = GUI:CreateLabel(lowerContainer, "Highlight icons when actively casting, channeling, or when their buff is on you. Icons appear saturated with an optional glow effect and show remaining duration.", 11, C.textMuted)
-        activeStateDesc:SetPoint("TOPLEFT", 0, y)
-        activeStateDesc:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        activeStateDesc:SetJustifyH("LEFT")
-        activeStateDesc:SetWordWrap(true)
-        activeStateDesc:SetHeight(45)
-        y = y - 55
-
-        local showActiveStateCheck = GUI:CreateFormCheckbox(lowerContainer, "Show Active State (Saturated)", "showActiveState", barConfig, RefreshThisBar)
-        showActiveStateCheck:SetPoint("TOPLEFT", 0, y)
-        showActiveStateCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        local enableGlowCheck = GUI:CreateFormCheckbox(lowerContainer, "Enable Glow Effect", "activeGlowEnabled", barConfig, RefreshThisBar)
-        enableGlowCheck:SetPoint("TOPLEFT", 0, y)
-        enableGlowCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        local glowTypeOptions = {
-            {value = "Button Glow", text = "Button Glow (Classic)"},
-            {value = "Pixel Glow", text = "Pixel Glow"},
-            {value = "Autocast Shine", text = "Autocast Shine"},
-        }
-        local glowTypeDropdown = GUI:CreateFormDropdown(lowerContainer, "Glow Type", glowTypeOptions, "activeGlowType", barConfig, RefreshThisBar, 150)
-        glowTypeDropdown:SetPoint("TOPLEFT", 0, y)
-        glowTypeDropdown:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        local glowColorPicker = GUI:CreateFormColorPicker(lowerContainer, "Glow Color", "activeGlowColor", barConfig, RefreshThisBar)
-        glowColorPicker:SetPoint("TOPLEFT", 0, y)
-        glowColorPicker:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        local glowLinesSlider = GUI:CreateFormSlider(lowerContainer, "Lines / Spots", 1, 16, 1, "activeGlowLines", barConfig, RefreshThisBar)
-        glowLinesSlider:SetPoint("TOPLEFT", 0, y)
-        glowLinesSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        local glowThicknessSlider = GUI:CreateFormSlider(lowerContainer, "Line Thickness", 1, 8, 1, "activeGlowThickness", barConfig, RefreshThisBar)
-        glowThicknessSlider:SetPoint("TOPLEFT", 0, y)
-        glowThicknessSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        local glowScaleSlider = GUI:CreateFormSlider(lowerContainer, "Shine Scale", 0.5, 2.0, 0.1, "activeGlowScale", barConfig, RefreshThisBar)
-        glowScaleSlider:SetPoint("TOPLEFT", 0, y)
-        glowScaleSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        local glowSpeedSlider = GUI:CreateFormSlider(lowerContainer, "Animation Speed", 0.1, 1.0, 0.05, "activeGlowFrequency", barConfig, RefreshThisBar)
-        glowSpeedSlider:SetPoint("TOPLEFT", 0, y)
-        glowSpeedSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        -----------------------------------------------------------------------
         -- ICON STYLE SECTION
         -----------------------------------------------------------------------
         local styleHeader = GUI:CreateSectionHeader(lowerContainer, "Icon Style")
@@ -8712,6 +8652,250 @@ local function CreateCustomTrackersPage(parent)
 
     local tabDefs = {}
 
+    ---------------------------------------------------------------------------
+    -- SPELL SCANNER TAB (always first)
+    ---------------------------------------------------------------------------
+    table.insert(tabDefs, {
+        name = "Setup Custom Buff Tracking",
+        builder = function(tabContent)
+            GUI:SetSearchContext({tabIndex = 9, tabName = "Custom Items/Spells", subTabIndex = 1, subTabName = "Spell Scanner"})
+            local y = -10
+            local scanner = QUI.SpellScanner
+            local scannedListFrame  -- Forward declaration for refresh
+
+            -- Header
+            local header = GUI:CreateSectionHeader(tabContent, "Spell Scanner")
+            header:SetPoint("TOPLEFT", PAD, y)
+            y = y - header.gap
+
+            -- "How It Works" mini-header
+            local howItWorks = GUI:CreateLabel(tabContent, "How It Works", 11, C.accentLight)
+            howItWorks:SetPoint("TOPLEFT", PAD, y)
+            y = y - 16
+
+            -- Step 1
+            local step1 = GUI:CreateLabel(tabContent, "1. Enable Scan Mode and cast spells or items out of combat to record their buff durations", 11, C.text)
+            step1:SetPoint("TOPLEFT", PAD, y)
+            step1:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            step1:SetJustifyH("LEFT")
+            step1:SetWordWrap(true)
+            step1:SetHeight(28)
+            y = y - 32
+
+            -- Step 2
+            local step2 = GUI:CreateLabel(tabContent, "2. Add those spells/items to a Custom Tracker bar", 11, C.text)
+            step2:SetPoint("TOPLEFT", PAD, y)
+            step2:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            step2:SetJustifyH("LEFT")
+            y = y - 16
+
+            -- Step 3
+            local step3 = GUI:CreateLabel(tabContent, "3. Custom buffs now display accurately in combat", 11, C.text)
+            step3:SetPoint("TOPLEFT", PAD, y)
+            step3:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            step3:SetJustifyH("LEFT")
+            y = y - 22
+
+            -- Scan Mode Toggle
+            local scanModeContainer = CreateFrame("Frame", nil, tabContent)
+            scanModeContainer:SetHeight(FORM_ROW)
+            scanModeContainer:SetPoint("TOPLEFT", PAD, y)
+            scanModeContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+
+            local scanLabel = scanModeContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            scanLabel:SetPoint("LEFT", 0, 0)
+            scanLabel:SetText("Scan Mode")
+            scanLabel:SetTextColor(C.text[1], C.text[2], C.text[3], 1)
+
+            local scanBtn = GUI:CreateButton(scanModeContainer, "Enable", 100, 24, function(self)
+                if scanner then
+                    local enabled = scanner.ToggleScanMode()
+                    if enabled then
+                        self.text:SetText("Disable")
+                        self:SetBackdropColor(0.2, 0.6, 0.2, 1)
+                    else
+                        self.text:SetText("Enable")
+                        self:SetBackdropColor(C.bg[1], C.bg[2], C.bg[3], 1)
+                    end
+                end
+            end)
+            scanBtn:SetPoint("LEFT", 180, 0)
+            -- Set initial state
+            if scanner and scanner.scanMode then
+                scanBtn.text:SetText("Disable")
+                scanBtn:SetBackdropColor(0.2, 0.6, 0.2, 1)
+            end
+
+            y = y - FORM_ROW
+
+            -- Auto-Scan Toggle (persistent setting) - using proper switch toggle
+            -- Ensure spellScanner db exists with proper defaults
+            if not QUI.db.global.spellScanner then
+                QUI.db.global.spellScanner = { spells = {}, items = {}, autoScan = false }
+            end
+            -- Ensure autoScan key exists (could be nil from older version)
+            if QUI.db.global.spellScanner.autoScan == nil then
+                QUI.db.global.spellScanner.autoScan = false
+            end
+
+            local autoScanToggle = GUI:CreateFormToggle(tabContent, "Auto-Scan (silent)", "autoScan", QUI.db.global.spellScanner, function(val)
+                if scanner then
+                    scanner.autoScan = val  -- Keep runtime state in sync
+                end
+            end)
+            autoScanToggle:SetPoint("TOPLEFT", PAD, y)
+            autoScanToggle:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+
+            y = y - FORM_ROW - 10
+
+            -- Scanned Spells Header
+            local scannedHeader = GUI:CreateSectionHeader(tabContent, "Scanned Spells & Items")
+            scannedHeader:SetPoint("TOPLEFT", PAD, y)
+            y = y - scannedHeader.gap
+
+            -- Refresh function for the list (matches Tracked Items pattern)
+            local function RefreshScannedList()
+                if not scannedListFrame then return end
+
+                -- Clear existing child frames
+                for _, child in ipairs({scannedListFrame:GetChildren()}) do
+                    child:Hide()
+                    child:SetParent(nil)
+                end
+
+                local scannerDB = QUI.db and QUI.db.global and QUI.db.global.spellScanner
+                local listY = 0
+                local rowHeight = 30
+
+                -- Helper to create a row (matches Tracked Items style)
+                local function CreateScannedRow(id, data, isItem)
+                    local entryFrame = CreateFrame("Frame", nil, scannedListFrame)
+                    entryFrame:SetSize(320, 28)
+                    entryFrame:SetPoint("TOPLEFT", 0, listY)
+
+                    -- Icon (24x24)
+                    local iconTex = entryFrame:CreateTexture(nil, "ARTWORK")
+                    iconTex:SetSize(24, 24)
+                    iconTex:SetPoint("LEFT", 0, 0)
+                    iconTex:SetTexture(data.icon or 134400)
+                    iconTex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+                    -- Name display (input-box style background)
+                    local nameBg = CreateFrame("Frame", nil, entryFrame, "BackdropTemplate")
+                    nameBg:SetPoint("LEFT", iconTex, "RIGHT", 6, 0)
+                    nameBg:SetSize(200, 22)
+                    nameBg:SetBackdrop({
+                        bgFile = "Interface\\Buttons\\WHITE8x8",
+                        edgeFile = "Interface\\Buttons\\WHITE8x8",
+                        edgeSize = 1,
+                    })
+                    nameBg:SetBackdropColor(0.05, 0.05, 0.05, 0.4)
+                    nameBg:SetBackdropBorderColor(0.25, 0.25, 0.25, 0.6)
+
+                    local nameText = nameBg:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+                    nameText:SetPoint("LEFT", 6, 0)
+                    nameText:SetPoint("RIGHT", -6, 0)
+                    nameText:SetJustifyH("LEFT")
+                    local displayName = data.name or (isItem and "Item " .. id or "Spell " .. id)
+                    local durationStr = string.format("%.1fs", data.duration or 0)
+                    nameText:SetText(displayName .. "  |cff888888" .. durationStr .. "|r")
+                    nameText:SetTextColor(C.text[1], C.text[2], C.text[3], 1)
+
+                    -- Delete button (X) - matches Tracked Items style
+                    local removeBtn = CreateFrame("Button", nil, entryFrame, "BackdropTemplate")
+                    removeBtn:SetSize(22, 22)
+                    removeBtn:SetPoint("LEFT", nameBg, "RIGHT", 6, 0)
+                    removeBtn:SetBackdrop({
+                        bgFile = "Interface\\Buttons\\WHITE8x8",
+                        edgeFile = "Interface\\Buttons\\WHITE8x8",
+                        edgeSize = 1,
+                    })
+                    removeBtn:SetBackdropColor(0.15, 0.15, 0.15, 1)
+                    removeBtn:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+
+                    local removeText = removeBtn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+                    removeText:SetPoint("CENTER", 0, 0)
+                    removeText:SetText("X")
+                    removeText:SetTextColor(C.accent[1], C.accent[2], C.accent[3], 1)
+
+                    removeBtn:SetScript("OnClick", function()
+                        if scannerDB then
+                            if isItem then
+                                scannerDB.items[id] = nil
+                            else
+                                scannerDB.spells[id] = nil
+                            end
+                            RefreshScannedList()
+                        end
+                    end)
+                    removeBtn:SetScript("OnEnter", function(self)
+                        self:SetBackdropBorderColor(C.accent[1], C.accent[2], C.accent[3], 1)
+                    end)
+                    removeBtn:SetScript("OnLeave", function(self)
+                        self:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+                    end)
+
+                    listY = listY - rowHeight
+                end
+
+                -- List spells
+                for spellID, data in pairs((scannerDB and scannerDB.spells) or {}) do
+                    CreateScannedRow(spellID, data, false)
+                end
+
+                -- List items
+                for itemID, data in pairs((scannerDB and scannerDB.items) or {}) do
+                    CreateScannedRow(itemID, data, true)
+                end
+
+                -- Update list frame height
+                local listHeight = math.max(20, math.abs(listY))
+                scannedListFrame:SetHeight(listHeight)
+            end
+
+            -- Scanned list container (no backdrop, matches Tracked Items style)
+            scannedListFrame = CreateFrame("Frame", nil, tabContent)
+            scannedListFrame:SetPoint("TOPLEFT", PAD, y)
+            scannedListFrame:SetSize(400, 20)
+
+            -- Register callback for real-time updates when spells are scanned
+            if scanner then
+                scanner.onScanCallback = RefreshScannedList
+            end
+
+            -- Populate the list
+            RefreshScannedList()
+
+            -- Lower container anchored to list (shifts down when list grows)
+            local lowerContainer = CreateFrame("Frame", nil, tabContent)
+            lowerContainer:SetPoint("TOPLEFT", scannedListFrame, "BOTTOMLEFT", 0, -15)
+            lowerContainer:SetPoint("RIGHT", tabContent, "RIGHT", 0, 0)
+            lowerContainer:SetHeight(100)
+            lowerContainer:EnableMouse(false)
+
+            -- Clear all button (in lower container)
+            local clearBtn = GUI:CreateButton(lowerContainer, "Clear All Scanned", 140, 24, function()
+                GUI:ShowConfirmation({
+                    title = "Clear All Scanned Spells?",
+                    message = "This will remove all scanned spell and item durations. You will need to cast them again to re-scan.",
+                    acceptText = "Clear All",
+                    cancelText = "Cancel",
+                    onAccept = function()
+                        local scannerDB = QUI.db and QUI.db.global and QUI.db.global.spellScanner
+                        if scannerDB then
+                            scannerDB.spells = {}
+                            scannerDB.items = {}
+                            RefreshScannedList()
+                        end
+                    end,
+                })
+            end)
+            clearBtn:SetPoint("TOPLEFT", 0, 0)
+
+            tabContent:SetHeight(500)
+        end,
+    })
+
     -- Add a tab for each existing bar
     for i, barConfig in ipairs(bars) do
         local tabName = barConfig.name or ("Tracker " .. i)
@@ -8722,13 +8906,14 @@ local function CreateCustomTrackersPage(parent)
         table.insert(tabDefs, {
             name = tabName,
             builder = function(tabContent)
-                BuildTrackerBarTab(tabContent, barConfig, i, subTabsRef)
+                -- Pass i+1 for subTabIndex since Spell Scanner is tab 1
+                BuildTrackerBarTab(tabContent, barConfig, i + 1, subTabsRef)
             end,
         })
     end
 
-    -- If no bars exist, show empty state
-    if #tabDefs == 0 then
+    -- If no bars exist (only Spell Scanner tab), show empty state
+    if #tabDefs == 1 then
         local emptyHeader = GUI:CreateSectionHeader(content, "Custom Tracker Bars")
         emptyHeader:SetPoint("TOPLEFT", PAD, -15)
 

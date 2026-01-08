@@ -1356,6 +1356,7 @@ local defaults = {
                     height = 25,
                     offsetX = 0,
                     offsetY = -35,
+                    widthAdjustment = 0,
                     fontSize = 14,
                     color = {0.404, 1, 0.984, 1},  -- Cyan color from your profile
                     anchor = "essential",
@@ -1532,6 +1533,7 @@ local defaults = {
                     height = 25,
                     offsetX = 0,
                     offsetY = 0,
+                    widthAdjustment = 0,
                     fontSize = 14,
                     color = {0.2, 0.6, 1, 1},
                     anchor = "unitframe",
@@ -1667,6 +1669,7 @@ local defaults = {
                     height = 12,
                     offsetX = 0,
                     offsetY = -20,
+                    widthAdjustment = 0,
                     fontSize = 10,
                     color = {1, 0.7, 0, 1},
                 },
@@ -1842,6 +1845,7 @@ local defaults = {
                     height = 20,
                     offsetX = 0,
                     offsetY = 0,
+                    widthAdjustment = 0,
                     fontSize = 14,
                     color = {0.2, 0.6, 1, 1},
                     anchor = "unitframe",
@@ -1935,6 +1939,7 @@ local defaults = {
                     height = 16,
                     offsetX = 0,
                     offsetY = 0,
+                    widthAdjustment = 0,
                     fontSize = 11,
                     color = {1, 0.7, 0, 1},
                     anchor = "unitframe",
@@ -2675,15 +2680,11 @@ local defaults = {
                     hideGCD = true,
                     hideNonUsable = false,
                     showOnlyOnCooldown = false,
-                    -- Active state visuals (glow when casting/channeling/buff active)
-                    showActiveState = false,
+                    -- Active state (buff/cast/channel display)
+                    showActiveState = true,
                     activeGlowEnabled = true,
                     activeGlowType = "Button Glow",
                     activeGlowColor = {1, 0.85, 0.3, 1},
-                    activeGlowLines = 8,
-                    activeGlowFrequency = 0.25,
-                    activeGlowThickness = 2,
-                    activeGlowScale = 1.0,
                     -- Pre-populated with Algari Healing Potion
                     entries = {
                         { type = "item", id = 224022 },
@@ -2709,6 +2710,12 @@ local defaults = {
     global = {
         -- Gold tracking per character (realm-name = copper)
         goldData = {},
+        -- Spell Scanner: cross-character spell/item duration mappings
+        spellScanner = {
+            spells = {},   -- [castSpellID] = { buffSpellID, duration, icon, name, scannedAt }
+            items = {},    -- [itemID] = { useSpellID, buffSpellID, duration, icon, name, scannedAt }
+            autoScan = false,  -- Auto-scan setting (off by default)
+        },
     },
 }
 

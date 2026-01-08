@@ -778,15 +778,30 @@ function GUI:CreateSubTabs(parent, tabs)
         local containerWidth = container:GetWidth()
         if containerWidth < 1 then return end  -- Not sized yet
 
+        local separatorSpacing = 15  -- Extra spacing after tabs with isSeparator
         local availableWidth = containerWidth - 20  -- 10px padding each side
-        local totalSpacing = (#tabButtons - 1) * spacing
+
+        -- Count separators to account for extra spacing
+        local separatorCount = 0
+        for _, tabInfo in ipairs(tabs) do
+            if tabInfo.isSeparator then separatorCount = separatorCount + 1 end
+        end
+
+        local totalSpacing = (#tabButtons - 1) * spacing + (separatorCount * separatorSpacing)
         local newButtonWidth = math.floor((availableWidth - totalSpacing) / #tabButtons)
         newButtonWidth = math.max(newButtonWidth, 50)  -- minimum 50px
 
+        local xOffset = 10
         for i, btn in ipairs(tabButtons) do
             btn:SetWidth(newButtonWidth)
             btn:ClearAllPoints()
-            btn:SetPoint("TOPLEFT", 10 + (i-1) * (newButtonWidth + spacing), 0)
+            btn:SetPoint("TOPLEFT", xOffset, 0)
+            xOffset = xOffset + newButtonWidth + spacing
+
+            -- Add extra spacing after separator tabs
+            if tabs[i] and tabs[i].isSeparator then
+                xOffset = xOffset + separatorSpacing
+            end
         end
     end
 
@@ -3154,7 +3169,7 @@ function GUI:CreateMainFrame()
     -- Version text (mint green, to the left of close button)
     local version = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     SetFont(version, 11, "", C.accentLight)  -- Same mint as title
-    version:SetText("Version 1.83")
+    version:SetText("Version 1.84")
     version:SetPoint("TOPRIGHT", -30, -10)
 
     -- Panel Scale (compact inline: label + editbox + slider)

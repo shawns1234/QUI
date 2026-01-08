@@ -42,13 +42,14 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
         y = y - castbarHeader.gap
 
         if not unitDB.castbar then
-            unitDB.castbar = { enabled = true, width = 250, height = 25, offsetX = 0, offsetY = -25, fontSize = 12, iconSize = 25, iconScale = 1.0, color = {1, 0.7, 0, 1}, bgColor = {0.149, 0.149, 0.149, 1}, borderSize = 1, iconBorderSize = 2, texture = "Solid" }
+            unitDB.castbar = { enabled = true, width = 250, height = 25, offsetX = 0, offsetY = -25, widthAdjustment = 0, fontSize = 12, iconSize = 25, iconScale = 1.0, color = {1, 0.7, 0, 1}, bgColor = {0.149, 0.149, 0.149, 1}, borderSize = 1, iconBorderSize = 2, texture = "Solid" }
         end
         local castDB = unitDB.castbar
         if not castDB.fontSize then castDB.fontSize = 12 end
         if not castDB.iconSize then castDB.iconSize = 25 end
         if not castDB.iconScale then castDB.iconScale = 1.0 end
         if not castDB.height then castDB.height = 25 end
+        if castDB.widthAdjustment == nil then castDB.widthAdjustment = 0 end
         if not castDB.color then
             castDB.color = {1, 0.7, 0, 1}
         elseif not castDB.color[4] or castDB.color[4] == 0 then
@@ -174,7 +175,7 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
         end
         
         -- Create slider references first (needed for UpdateCastbarSliders)
-        local castWidthSlider, castHeightSlider, castOffsetXSlider, castOffsetYSlider, anchorDropdown
+        local castWidthSlider, castWidthAdjSlider, castHeightSlider, castOffsetXSlider, castOffsetYSlider, anchorDropdown
         
         -- Helper to update all sliders and anchor label (defined early so it can be used in callbacks)
         local function UpdateCastbarSliders()
@@ -204,6 +205,12 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
                 else
                     castWidthSlider:SetEnabled(false)
                 end
+            end
+
+            -- Width Adjustment slider is the opposite: enabled when locked to a frame
+            if castWidthAdjSlider then
+                local isLocked = (castDB.anchor == "essential" or castDB.anchor == "utility" or castDB.anchor == "unitframe")
+                castWidthAdjSlider:SetEnabled(isLocked)
             end
             
             -- Disable offset sliders when anchor is "none" (position controlled by dragging)
@@ -478,6 +485,15 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
         castWidthSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
+        -- Width Adjustment On Lock: fine-tune width when locked to anchor (enabled only when locked)
+        castWidthAdjSlider = GUI:CreateFormSlider(tabContent, "Width Adjustment On Lock", -10, 10, 1, "widthAdjustment", castDB, RefreshUnit)
+        castWidthAdjSlider:SetPoint("TOPLEFT", PAD, y)
+        castWidthAdjSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+        -- Set initial enabled state (will be updated by UpdateCastbarSliders)
+        local isLocked = (castDB.anchor == "essential" or castDB.anchor == "utility" or castDB.anchor == "unitframe")
+        castWidthAdjSlider:SetEnabled(isLocked)
+
         castHeightSlider = GUI:CreateFormSlider(tabContent, "Bar Height", 4, 40, 1, "height", castDB, RefreshUnit)
         castHeightSlider:SetPoint("TOPLEFT", PAD, y)
         castHeightSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
@@ -496,6 +512,12 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
         castOffsetYSlider = GUI:CreateFormSlider(tabContent, "Y Offset", -3000, 3000, 1, "offsetY", castDB, RefreshUnit)
         castOffsetYSlider:SetPoint("TOPLEFT", PAD, y)
         castOffsetYSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        -- Channel fill direction toggle
+        local channelFillCheck = GUI:CreateFormCheckbox(tabContent, "Channel spells fill forward", "channelFillForward", castDB, RefreshUnit)
+        channelFillCheck:SetPoint("TOPLEFT", PAD, y)
+        channelFillCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
         -- ========================================

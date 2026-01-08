@@ -29,6 +29,7 @@
     <Script file="qui_blizzard_options.lua"/>
     <Script file="qui_ncdm.lua"/>
     <Script file="qui_buffbar.lua"/>
+    <Script file="qui_spellscanner.lua"/>
     <Script file="qui_customtrackers.lua"/>
     <Script file="qui_reticle.lua"/>
     <Script file="qui_combattext.lua"/>

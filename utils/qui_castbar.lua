@@ -319,28 +319,31 @@ local function PositionCastbarByAnchor(anchorFrame, castSettings, unitFrame, bar
     if anchor == "essential" then
         local offsetX = Scale(castSettings.offsetX or 0)
         local offsetY = math.floor(Scale(castSettings.offsetY or -25) + 0.5)
+        local widthAdj = Scale(castSettings.widthAdjustment or 0)
         local viewer = _G["EssentialCooldownViewer"]
         if viewer then
-            anchorFrame:SetPoint("TOPLEFT", viewer, "BOTTOMLEFT", offsetX, offsetY)
-            anchorFrame:SetPoint("TOPRIGHT", viewer, "BOTTOMRIGHT", offsetX, offsetY)
+            anchorFrame:SetPoint("TOPLEFT", viewer, "BOTTOMLEFT", offsetX - widthAdj, offsetY)
+            anchorFrame:SetPoint("TOPRIGHT", viewer, "BOTTOMRIGHT", offsetX + widthAdj, offsetY)
         else
             anchorFrame:SetPoint("TOPLEFT", unitFrame, "BOTTOMLEFT", offsetX, offsetY)
         end
     elseif anchor == "utility" then
         local offsetX = Scale(castSettings.offsetX or 0)
         local offsetY = math.floor(Scale(castSettings.offsetY or -25) + 0.5)
+        local widthAdj = Scale(castSettings.widthAdjustment or 0)
         local viewer = _G["UtilityCooldownViewer"]
         if viewer then
-            anchorFrame:SetPoint("TOPLEFT", viewer, "BOTTOMLEFT", offsetX, offsetY)
-            anchorFrame:SetPoint("TOPRIGHT", viewer, "BOTTOMRIGHT", offsetX, offsetY)
+            anchorFrame:SetPoint("TOPLEFT", viewer, "BOTTOMLEFT", offsetX - widthAdj, offsetY)
+            anchorFrame:SetPoint("TOPRIGHT", viewer, "BOTTOMRIGHT", offsetX + widthAdj, offsetY)
         else
             anchorFrame:SetPoint("TOPLEFT", unitFrame, "BOTTOMLEFT", offsetX, offsetY)
         end
     elseif anchor == "unitframe" then
         local offsetX = Scale(castSettings.offsetX or 0)
         local offsetY = math.floor(Scale(castSettings.offsetY or -25) + 0.5)
-        anchorFrame:SetPoint("TOPLEFT", unitFrame, "BOTTOMLEFT", offsetX, offsetY)
-        anchorFrame:SetPoint("TOPRIGHT", unitFrame, "BOTTOMRIGHT", offsetX, offsetY)
+        local widthAdj = Scale(castSettings.widthAdjustment or 0)
+        anchorFrame:SetPoint("TOPLEFT", unitFrame, "BOTTOMLEFT", offsetX - widthAdj, offsetY)
+        anchorFrame:SetPoint("TOPRIGHT", unitFrame, "BOTTOMRIGHT", offsetX + widthAdj, offsetY)
     else
         -- None: positioned independently on screen
         local offsetX = castSettings.offsetX or 0
@@ -535,10 +538,11 @@ end
 ---------------------------------------------------------------------------
 local function ClearEmpoweredState(bar)
     if not bar then return end
-    
+
     bar.isEmpowered = false
     bar.numStages = 0
     bar.stagePositions = nil
+    bar.isInHoldPhase = nil
     
     for _, stage in ipairs(bar.empoweredStages or {}) do
         if stage then stage:Hide() end
@@ -1077,13 +1081,16 @@ local function UpdateCastbarVisuals(castbar, castSettings, unitKey, texture, tex
     -- Update spell text
     UpdateSpellText(castbar, text, spellName, castSettings, unit)
     
-    -- Set reverse fill for channeled casts
-    castbar.statusBar:SetReverseFill(isChanneled)
-    
+    -- Never use reverse fill - drain effect achieved via progress calculation
+    local isEmpowered = castbar.isEmpowered
+    castbar.statusBar:SetReverseFill(false)
+
     -- Set initial bar value
     local now = GetTime()
     local duration = endTime - startTime
-    local progress = isChanneled and (endTime - now) or (now - startTime)
+    local channelFillForward = currentCastSettings and currentCastSettings.channelFillForward
+    local shouldDrain = isChanneled and not isEmpowered and not channelFillForward
+    local progress = shouldDrain and (endTime - now) or (now - startTime)
     
     if duration > 0 then
         castbar.statusBar:SetMinMaxValues(0, duration)
@@ -1185,22 +1192,14 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
             local duration = endTime - startTime
             if duration <= 0 then duration = 0.001 end
             
-            -- Ensure reverse fill is set correctly
-            self.statusBar:SetReverseFill(self.isChanneled)
-            
+            -- Never use reverse fill - drain effect achieved via progress calculation
+            self.statusBar:SetReverseFill(false)
+
             local remaining = endTime - now
-            local progress
-            
-            if self.isChanneled then
-                if isPlayer and self.isEmpowered then
-                    progress = now - startTime
-                else
-                    progress = remaining
-                end
-            else
-                progress = now - startTime
-            end
-            
+            local channelFillForward = castSettings and castSettings.channelFillForward
+            local shouldDrain = self.isChanneled and not self.isEmpowered and not channelFillForward
+            local progress = shouldDrain and remaining or (now - startTime)
+
             self.statusBar:SetMinMaxValues(0, duration)
             self.statusBar:SetValue(progress)
 
@@ -1398,12 +1397,20 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
         end
         eventHandlers.UNIT_SPELLCAST_EMPOWER_STOP = function(self, spellID)
             local name = UnitCastingInfo(self.unit)
-            ClearEmpoweredState(self)
             if name then
+                ClearEmpoweredState(self)
                 self:Cast(spellID, false)
             else
-                self:SetScript("OnUpdate", nil)
-                self:Hide()
+                -- Check if still in hold phase (endTime includes holdAtMaxTime)
+                local now = GetTime()
+                if self.isEmpowered and self.endTime and now < self.endTime then
+                    -- Still in hold phase - keep showing
+                    self.isInHoldPhase = true
+                else
+                    ClearEmpoweredState(self)
+                    self:SetScript("OnUpdate", nil)
+                    self:Hide()
+                end
             end
         end
     end
@@ -1478,21 +1485,17 @@ function QUI_Castbar:SetupBossCastbar(castbar, unit, bossIndex, castSettings)
             local duration = self.endTime - self.startTime
             if duration <= 0 then duration = 0.001 end
             
-            -- Ensure reverse fill is set correctly
-            self.statusBar:SetReverseFill(self.isChanneled)
-            
+            -- Never use reverse fill - drain effect achieved via progress calculation
+            self.statusBar:SetReverseFill(false)
+
             local remaining = self.endTime - now
-            local progress
-            
-            if self.isChanneled and not self.isEmpowered then
-                progress = remaining
-            else
-                progress = now - self.startTime
-            end
-            
+            local channelFillForward = castSettings and castSettings.channelFillForward
+            local shouldDrain = self.isChanneled and not self.isEmpowered and not channelFillForward
+            local progress = shouldDrain and remaining or (now - self.startTime)
+
             self.statusBar:SetMinMaxValues(0, duration)
             self.statusBar:SetValue(progress)
-            
+
             if self.isEmpowered then
                 UpdateEmpoweredFillColor(self, progress, duration)
             end
@@ -1676,9 +1679,16 @@ function QUI_Castbar:SetupBossCastbar(castbar, unit, bossIndex, castSettings)
                 ClearEmpoweredState(self)
                 self:Cast(spellID, false)
             else
-                ClearEmpoweredState(self)
-                self:SetScript("OnUpdate", nil)
-                self:Hide()
+                -- Check if still in hold phase (endTime includes holdAtMaxTime)
+                local now = GetTime()
+                if self.isEmpowered and self.endTime and now < self.endTime then
+                    -- Still in hold phase - keep showing
+                    self.isInHoldPhase = true
+                else
+                    ClearEmpoweredState(self)
+                    self:SetScript("OnUpdate", nil)
+                    self:Hide()
+                end
             end
         elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_CHANNEL_STOP"
             or event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
@@ -1790,19 +1800,21 @@ function QUI_Castbar:CreateBossCastbar(unitFrame, unit, bossIndex)
             local duration = self.endTime - self.startTime
             if duration <= 0 then return end
             
-            -- Ensure reverse fill is set correctly
-            self.statusBar:SetReverseFill(self.isChanneled)
-            
+            -- Never use reverse fill - drain effect achieved via progress calculation
+            self.statusBar:SetReverseFill(false)
+
+            local channelFillForward = castSettings and castSettings.channelFillForward
+            local shouldDrain = self.isChanneled and not self.isEmpowered and not channelFillForward
             local progress
-            if self.isChanneled then
+            if shouldDrain then
                 progress = (self.endTime - now) / duration
             else
                 progress = (now - self.startTime) / duration
             end
-            
+
             self.statusBar:SetMinMaxValues(0, 1)
             self.statusBar:SetValue(math.max(0, math.min(1, progress)))
-            
+
             local remaining = self.endTime - now
             if self.timeText then
                 self.timeText:SetText(string.format("%.1f", remaining))

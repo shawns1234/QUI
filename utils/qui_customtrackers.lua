@@ -337,6 +337,21 @@ end
 -- Returns: isActive, expirationTime, duration (or nil if no buff)
 local function GetSpellBuffInfo(spellID)
     if not spellID then return false end
+
+    -- During combat: use SpellScanner (combat-safe)
+    if InCombatLockdown() then
+        local scanner = QUI.SpellScanner
+        if scanner and scanner.IsSpellActive then
+            local isActive, expiration, duration = scanner.IsSpellActive(spellID)
+            if isActive then
+                return true, expiration, duration
+            end
+        end
+        -- SpellScanner doesn't have it - can't query API in combat
+        return false
+    end
+
+    -- Out of combat: use direct API (more accurate)
     if C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
         local auraData = C_UnitAuras.GetPlayerAuraBySpellID(spellID)
         if auraData then
@@ -346,8 +361,8 @@ local function GetSpellBuffInfo(spellID)
     return false
 end
 
--- Check if a spell is currently "active" (casting, channeling, or buff present)
--- Returns: isActive, startTime (seconds), duration (seconds), activeType
+-- Unified active state detection: casting → channeling → buff
+-- Returns: isActive, startTimeSec, durationSec, activeType ("cast"/"channel"/"buff")
 local function GetSpellActiveInfo(spellID)
     if not spellID then return false end
 
@@ -377,7 +392,8 @@ local function GetSpellActiveInfo(spellID)
     return false
 end
 
--- Check if an item's buff is active
+-- Check if an item's buff/effect is currently active
+-- Returns: isActive, startTimeSec, durationSec, activeType
 local function GetItemActiveInfo(itemID)
     if not itemID then return false end
     local itemSpellID = select(2, C_Item.GetItemSpell(itemID))
@@ -388,10 +404,10 @@ local function GetItemActiveInfo(itemID)
 end
 
 ---------------------------------------------------------------------------
--- ACTIVE STATE GLOW (using LibCustomGlow)
+-- ACTIVE STATE GLOW (LibCustomGlow integration)
 ---------------------------------------------------------------------------
+local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
 
--- Start active glow on an icon (supports multiple glow types)
 local function StartActiveGlow(icon, config)
     if not icon or not LCG then return end
     if icon._activeGlowShown then return end
@@ -417,7 +433,6 @@ local function StartActiveGlow(icon, config)
     icon._activeGlowType = glowType
 end
 
--- Stop active glow on an icon
 local function StopActiveGlow(icon)
     if not icon or not LCG then return end
     if not icon._activeGlowShown then return end
@@ -910,7 +925,7 @@ function CustomTrackers:StartCooldownPolling(bar)
         local config = bar.config
         local hideNonUsable = config.hideNonUsable
         local showOnlyOnCooldown = config.showOnlyOnCooldown
-        local showActiveState = config.showActiveState
+        local showActiveState = config.showActiveState ~= false  -- Default true
         local visibilityChanged = false
 
         for _, icon in ipairs(bar.icons or {}) do
@@ -929,38 +944,46 @@ function CustomTrackers:StartCooldownPolling(bar)
                     isOnGCD = false  -- Items don't have GCD
                 end
 
+                -- Check if spell/item is currently active (casting/channeling/buff)
+                local isActive, activeStartTime, activeDuration, activeType = false, nil, nil, nil
+                if showActiveState then
+                    if entry.type == "spell" then
+                        isActive, activeStartTime, activeDuration, activeType = GetSpellActiveInfo(entry.id)
+                    elseif entry.type == "item" then
+                        isActive, activeStartTime, activeDuration, activeType = GetItemActiveInfo(entry.id)
+                    end
+                end
+
                 -- Simplified cooldown handling - let Blizzard's Cooldown frame handle secrets
                 local hideGCD = config.hideGCD ~= false
-
-                -- Pass cooldown values directly to Blizzard's Cooldown frame
-                -- The CooldownFrameTemplate handles secret values internally
-                local setCDOk = pcall(function()
-                    if startTime and duration then
-                        icon.cooldown:SetCooldown(startTime, duration)
-                    end
-                end)
 
                 -- Determine if on cooldown using isOnGCD flag (the reliable way!)
                 -- No secret value comparisons needed - isOnGCD is a boolean
                 local isOnCD = false
-                if setCDOk then
+
+                -- If active, show active state progress instead of cooldown
+                if isActive and activeStartTime and activeDuration and activeDuration > 0 then
+                    -- Active state: show buff/cast duration (reverse fill)
+                    pcall(function()
+                        icon.cooldown:SetReverse(true)
+                        icon.cooldown:SetCooldown(activeStartTime, activeDuration)
+                    end)
+                    isOnCD = false  -- Active overrides cooldown state
+                else
+                    -- Normal cooldown display
+                    pcall(function()
+                        icon.cooldown:SetReverse(false)
+                        if startTime and duration then
+                            icon.cooldown:SetCooldown(startTime, duration)
+                        end
+                    end)
+
                     if hideGCD and isOnGCD then
                         -- It's just GCD - clear cooldown display, don't desaturate
                         icon.cooldown:Clear()
                     else
                         -- Not GCD (or hideGCD is off) - check if cooldown is visible
                         isOnCD = icon.cooldown:IsVisible()
-                    end
-                end
-
-                -- Check if spell/item is currently active (casting/channeling/buff)
-                local isActive = false
-                local activeStartTime, activeDuration, activeType
-                if showActiveState then
-                    if entry.type == "spell" then
-                        isActive, activeStartTime, activeDuration, activeType = GetSpellActiveInfo(entry.id)
-                    elseif entry.type == "item" then
-                        isActive, activeStartTime, activeDuration, activeType = GetItemActiveInfo(entry.id)
                     end
                 end
 
@@ -988,60 +1011,37 @@ function CustomTrackers:StartCooldownPolling(bar)
 
                 -- Apply visual state only if icon is visible
                 if shouldBeVisible then
-                    if showOnlyOnCooldown then
+                    if isActive then
+                        -- Active state: saturated + glow + full alpha
+                        icon:SetAlpha(1)
+                        icon.tex:SetDesaturated(false)
+                        StartActiveGlow(icon, config)
+                    elseif showOnlyOnCooldown then
                         -- Alpha-based visibility (preserves position)
-                        if isActive then
-                            -- Active state: saturated + glow + duration display
-                            icon:SetAlpha(1)
-                            icon.tex:SetDesaturated(false)
-                            StartActiveGlow(icon, config)
-                            if activeStartTime and activeDuration and activeDuration > 0 then
-                                icon.cooldown:SetReverse(true)
-                                icon.cooldown:SetCooldown(activeStartTime, activeDuration)
-                            end
-                        elseif isOnCD then
+                        StopActiveGlow(icon)
+                        if isOnCD then
                             icon:SetAlpha(1)
                             icon.tex:SetDesaturated(true)
-                            StopActiveGlow(icon)
-                            icon.cooldown:SetReverse(false)
                         else
                             icon:SetAlpha(0)
                             icon.tex:SetDesaturated(false)
-                            StopActiveGlow(icon)
-                            icon.cooldown:SetReverse(false)
                         end
                     else
                         -- Normal mode
+                        StopActiveGlow(icon)
                         icon:SetAlpha(1)
-                        if isActive then
-                            -- Active state: saturated + glow + duration display
-                            icon.tex:SetDesaturated(false)
-                            StartActiveGlow(icon, config)
-                            if activeStartTime and activeDuration and activeDuration > 0 then
-                                icon.cooldown:SetReverse(true)
-                                icon.cooldown:SetCooldown(activeStartTime, activeDuration)
-                            end
-                        elseif not isUsable then
+                        if not isUsable then
                             -- Not usable but visible (hideNonUsable off): desaturated
                             icon.tex:SetDesaturated(true)
                             icon.cooldown:Clear()
-                            StopActiveGlow(icon)
-                            icon.cooldown:SetReverse(false)
                         elseif isOnCD then
                             -- On cooldown: desaturate icon
                             icon.tex:SetDesaturated(true)
-                            StopActiveGlow(icon)
-                            icon.cooldown:SetReverse(false)
                         else
                             -- Ready to use: normal color
                             icon.tex:SetDesaturated(false)
-                            StopActiveGlow(icon)
-                            icon.cooldown:SetReverse(false)
                         end
                     end
-                else
-                    -- Icon not visible, stop any active glow
-                    StopActiveGlow(icon)
                 end
 
                 -- Duration text: Always use Blizzard's built-in countdown
@@ -1437,12 +1437,12 @@ initFrame:RegisterEvent("SPELL_UPDATE_USABLE")
 initFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")  -- Performance: event-driven cooldown updates
 initFrame:RegisterEvent("ACTIONBAR_UPDATE_COOLDOWN")  -- Performance: catches action bar cooldown changes
 -- Active state detection events (casting/channeling/buff)
+initFrame:RegisterEvent("UNIT_AURA")
 initFrame:RegisterEvent("UNIT_SPELLCAST_START")
 initFrame:RegisterEvent("UNIT_SPELLCAST_STOP")
 initFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 initFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 initFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
-initFrame:RegisterEvent("UNIT_AURA")
 initFrame:SetScript("OnEvent", function(self, event, ...)
     -- Event-driven cooldown updates (reduces ticker frequency)
     if event == "SPELL_UPDATE_COOLDOWN" or event == "ACTIONBAR_UPDATE_COOLDOWN" then
@@ -1455,14 +1455,14 @@ initFrame:SetScript("OnEvent", function(self, event, ...)
         return
     end
 
-    -- Active state events (casting/channeling/aura) - only update bars with showActiveState enabled
+    -- Active state events (casting/channeling/aura) - update bars with showActiveState enabled
     if event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_STOP" or
-       event == "UNIT_SPELLCAST_SUCCEEDED" or
-       event == "UNIT_SPELLCAST_CHANNEL_START" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
+       event == "UNIT_SPELLCAST_SUCCEEDED" or event == "UNIT_SPELLCAST_CHANNEL_START" or
+       event == "UNIT_SPELLCAST_CHANNEL_STOP" then
         local unit = ...
         if unit == "player" then
             for _, bar in pairs(CustomTrackers.activeBars) do
-                if bar and bar:IsShown() and bar.DoUpdate and bar.config and bar.config.showActiveState then
+                if bar and bar:IsShown() and bar.DoUpdate and bar.config and bar.config.showActiveState ~= false then
                     bar.DoUpdate()
                 end
             end
@@ -1474,7 +1474,7 @@ initFrame:SetScript("OnEvent", function(self, event, ...)
         local unit = ...
         if unit == "player" then
             for _, bar in pairs(CustomTrackers.activeBars) do
-                if bar and bar:IsShown() and bar.DoUpdate and bar.config and bar.config.showActiveState then
+                if bar and bar:IsShown() and bar.DoUpdate and bar.config and bar.config.showActiveState ~= false then
                     bar.DoUpdate()
                 end
             end
