@@ -129,16 +129,56 @@ local function GetTextureList()
     return textures
 end
 
+-- Hidden frame for pre-warming fonts (forces WoW to load font files)
+local fontPrewarmFrame = nil
+
 local function GetFontList()
     local fonts = {}
     if LSM then
+        -- Create a hidden frame for pre-warming fonts if needed
+        if not fontPrewarmFrame then
+            fontPrewarmFrame = CreateFrame("Frame", nil, UIParent)
+            fontPrewarmFrame:SetSize(1, 1)
+            fontPrewarmFrame:SetPoint("TOPLEFT", -9999, 9999)  -- Off-screen
+            fontPrewarmFrame.text = fontPrewarmFrame:CreateFontString(nil, "OVERLAY")
+            fontPrewarmFrame.text:SetPoint("CENTER")
+            fontPrewarmFrame.text:SetFont("Fonts\\FRIZQT__.TTF", 12, "")  -- Set default font first
+            fontPrewarmFrame.text:SetText("A")  -- Need some text for font to load
+        end
+
         for _, name in ipairs(LSM:List("font")) do
-            table.insert(fonts, {value = name, text = name})
+            local path = LSM:Fetch("font", name) or ""
+            local pathLower = path:lower()
+
+            -- Only allow fonts from WoW defaults, QuaziiUI, or SharedMedia
+            local isWoWFont = pathLower:find("^fonts\\") ~= nil or pathLower:find("^fonts/") ~= nil
+            local isQuaziiFont = pathLower:find("quaziiui") ~= nil
+            local isSharedMediaFont = pathLower:find("sharedmedia") ~= nil
+
+            if (isWoWFont or isQuaziiFont or isSharedMediaFont) and path ~= "" then
+                -- Pre-warm the font by actually applying it (forces WoW to load the font file)
+                local success = pcall(function()
+                    fontPrewarmFrame.text:SetFont(path, 12, "")
+                end)
+                if success then
+                    table.insert(fonts, {value = name, text = name})
+                end
+            end
         end
     else
         fonts = {{value = "Friz Quadrata TT", text = "Friz Quadrata TT"}}
     end
     return fonts
+end
+
+local function GetBorderList()
+    local borders = {{value = "None", text = "None (Solid)"}}
+    if LSM then
+        for _, name in ipairs(LSM:List("border")) do
+            table.insert(borders, {value = name, text = name})
+        end
+    end
+    return borders
 end
 
 ---------------------------------------------------------------------------
@@ -599,6 +639,193 @@ local function CreateGeneralQoLPage(parent)
             end)
             leaveColorPicker:SetPoint("TOPLEFT", PADDING, y)
             leaveColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+        end
+
+        y = y - 10
+
+        -- Combat Timer Section
+        local combatTimerHeader = GUI:CreateSectionHeader(tabContent, "Combat Timer")
+        combatTimerHeader:SetPoint("TOPLEFT", PADDING, y)
+        y = y - combatTimerHeader.gap
+
+        local combatTimerDesc = GUI:CreateLabel(tabContent,
+            "Displays elapsed combat time. Timer resets each time you leave combat.",
+            11, C.textMuted)
+        combatTimerDesc:SetPoint("TOPLEFT", PADDING, y)
+        combatTimerDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        combatTimerDesc:SetJustifyH("LEFT")
+        combatTimerDesc:SetWordWrap(true)
+        combatTimerDesc:SetHeight(15)
+        y = y - 25
+
+        local combatTimerDB = db.combatTimer
+        if combatTimerDB then
+            local combatTimerCheck = GUI:CreateFormCheckbox(tabContent, "Enable Combat Timer", "enabled", combatTimerDB, function(val)
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            combatTimerCheck:SetPoint("TOPLEFT", PADDING, y)
+            combatTimerCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            -- Preview toggle
+            local previewState = { enabled = _G.QuaziiUI_IsCombatTimerPreviewMode and _G.QuaziiUI_IsCombatTimerPreviewMode() or false }
+            local previewCheck = GUI:CreateFormCheckbox(tabContent, "Preview Combat Timer", "enabled", previewState, function(val)
+                if _G.QuaziiUI_ToggleCombatTimerPreview then
+                    _G.QuaziiUI_ToggleCombatTimerPreview(val)
+                end
+            end)
+            previewCheck:SetPoint("TOPLEFT", PADDING, y)
+            previewCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            -- Frame size settings
+            local timerWidthSlider = GUI:CreateFormSlider(tabContent, "Frame Width", 40, 200, 1, "width", combatTimerDB, function()
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            timerWidthSlider:SetPoint("TOPLEFT", PADDING, y)
+            timerWidthSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            local timerHeightSlider = GUI:CreateFormSlider(tabContent, "Frame Height", 20, 100, 1, "height", combatTimerDB, function()
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            timerHeightSlider:SetPoint("TOPLEFT", PADDING, y)
+            timerHeightSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            local timerFontSizeSlider = GUI:CreateFormSlider(tabContent, "Font Size", 12, 32, 1, "fontSize", combatTimerDB, function()
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            timerFontSizeSlider:SetPoint("TOPLEFT", PADDING, y)
+            timerFontSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            local timerXOffsetSlider = GUI:CreateFormSlider(tabContent, "X Position Offset", -2000, 2000, 1, "xOffset", combatTimerDB, function()
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            timerXOffsetSlider:SetPoint("TOPLEFT", PADDING, y)
+            timerXOffsetSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            local timerYOffsetSlider = GUI:CreateFormSlider(tabContent, "Y Position Offset", -2000, 2000, 1, "yOffset", combatTimerDB, function()
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            timerYOffsetSlider:SetPoint("TOPLEFT", PADDING, y)
+            timerYOffsetSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            -- Text color with class color toggle
+            local timerColorPicker  -- Forward declare
+
+            local useClassColorTextCheck = GUI:CreateFormCheckbox(tabContent, "Use Class Color for Text", "useClassColorText", combatTimerDB, function(val)
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+                -- Enable/disable text color picker based on toggle
+                if timerColorPicker and timerColorPicker.SetEnabled then
+                    timerColorPicker:SetEnabled(not val)
+                end
+            end)
+            useClassColorTextCheck:SetPoint("TOPLEFT", PADDING, y)
+            useClassColorTextCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            timerColorPicker = GUI:CreateFormColorPicker(tabContent, "Timer Text Color", "textColor", combatTimerDB, function()
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            timerColorPicker:SetPoint("TOPLEFT", PADDING, y)
+            timerColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            -- Initial state based on setting
+            if timerColorPicker.SetEnabled then
+                timerColorPicker:SetEnabled(not combatTimerDB.useClassColorText)
+            end
+            y = y - FORM_ROW
+
+            -- Font selection with custom toggle
+            -- Create font dropdown first, then the toggle (so toggle callback can reference it)
+            local fontList = GetFontList()
+            local timerFontDropdown  -- Forward declare
+
+            local useCustomFontCheck = GUI:CreateFormCheckbox(tabContent, "Use Custom Font", "useCustomFont", combatTimerDB, function(val)
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+                -- Enable/disable font dropdown based on toggle
+                if timerFontDropdown and timerFontDropdown.SetEnabled then
+                    timerFontDropdown:SetEnabled(val)
+                end
+            end)
+            useCustomFontCheck:SetPoint("TOPLEFT", PADDING, y)
+            useCustomFontCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            timerFontDropdown = GUI:CreateFormDropdown(tabContent, "Font", fontList, "font", combatTimerDB, function()
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            timerFontDropdown:SetPoint("TOPLEFT", PADDING, y)
+            timerFontDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            -- Limit dropdown height to 8 items (scrollable)
+            if timerFontDropdown.menuFrame then
+                timerFontDropdown.menuFrame:SetClipsChildren(true)
+            end
+            -- Initial state based on setting
+            if timerFontDropdown.SetEnabled then
+                timerFontDropdown:SetEnabled(combatTimerDB.useCustomFont == true)
+            end
+            y = y - FORM_ROW
+
+            -- Backdrop settings
+            local backdropCheck = GUI:CreateFormCheckbox(tabContent, "Show Backdrop", "showBackdrop", combatTimerDB, function(val)
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            backdropCheck:SetPoint("TOPLEFT", PADDING, y)
+            backdropCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            local backdropColorPicker = GUI:CreateFormColorPicker(tabContent, "Backdrop Color", "backdropColor", combatTimerDB, function()
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            backdropColorPicker:SetPoint("TOPLEFT", PADDING, y)
+            backdropColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            -- Border settings
+            local borderSizeSlider = GUI:CreateFormSlider(tabContent, "Border Size", 0, 5, 1, "borderSize", combatTimerDB, function()
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            borderSizeSlider:SetPoint("TOPLEFT", PADDING, y)
+            borderSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            local borderList = GetBorderList()
+            local borderTextureDropdown = GUI:CreateFormDropdown(tabContent, "Border Texture", borderList, "borderTexture", combatTimerDB, function()
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            borderTextureDropdown:SetPoint("TOPLEFT", PADDING, y)
+            borderTextureDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            -- Class color border toggle
+            -- Create border color picker first, then the toggle
+            local borderColorPicker  -- Forward declare
+
+            local useClassColorCheck = GUI:CreateFormCheckbox(tabContent, "Use Class Color for Border", "useClassColorBorder", combatTimerDB, function(val)
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+                -- Enable/disable border color picker based on toggle
+                if borderColorPicker and borderColorPicker.SetEnabled then
+                    borderColorPicker:SetEnabled(not val)
+                end
+            end)
+            useClassColorCheck:SetPoint("TOPLEFT", PADDING, y)
+            useClassColorCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            borderColorPicker = GUI:CreateFormColorPicker(tabContent, "Border Color", "borderColor", combatTimerDB, function()
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            borderColorPicker:SetPoint("TOPLEFT", PADDING, y)
+            borderColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            -- Initial state based on setting
+            if borderColorPicker.SetEnabled then
+                borderColorPicker:SetEnabled(not combatTimerDB.useClassColorBorder)
+            end
             y = y - FORM_ROW
         end
 
