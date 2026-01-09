@@ -381,6 +381,27 @@ local function SkinPVEFrame()
         end
     end
 
+    -- Reposition tabs: left justify and tighten spacing (ElvUI pattern)
+    -- Blizzard default: Tab1 at x=19, Tab2-3 at -16px overlap, Tab4 at +3px gap
+    -- QUI: Tab1 at x=-3, tabs at -5px spacing (matches ElvUI LFG.lua lines 331-347)
+    _G.PVEFrameTab1:ClearAllPoints()
+    _G.PVEFrameTab2:ClearAllPoints()
+    _G.PVEFrameTab3:ClearAllPoints()
+    _G.PVEFrameTab1:SetPoint("BOTTOMLEFT", PVEFrame, "BOTTOMLEFT", -3, -30)
+    _G.PVEFrameTab2:SetPoint("TOPLEFT", _G.PVEFrameTab1, "TOPRIGHT", -5, 0)
+    _G.PVEFrameTab3:SetPoint("TOPLEFT", _G.PVEFrameTab2, "TOPRIGHT", -5, 0)
+
+    -- Hook to reposition Tab4 (Delves) - Blizzard repositions it dynamically
+    -- Note: Tab4 may not exist in all WoW versions (e.g., 12.x beta)
+    hooksecurefunc("PVEFrame_ShowFrame", function()
+        local tab4 = _G.PVEFrameTab4
+        if not tab4 or not tab4:IsShown() then return end
+        local twoShown = _G.PVEFrameTab2:IsShown()
+        local threeShown = _G.PVEFrameTab3:IsShown()
+        tab4:ClearAllPoints()
+        tab4:SetPoint("TOPLEFT", (twoShown and threeShown and _G.PVEFrameTab3) or (twoShown and not threeShown and _G.PVEFrameTab2) or _G.PVEFrameTab1, "TOPRIGHT", -5, 0)
+    end)
+
     -- Style GroupFinder buttons
     local GroupFinderFrame = _G.GroupFinderFrame
     if GroupFinderFrame then
