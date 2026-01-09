@@ -2706,6 +2706,7 @@ local defaults = {
                     hideGCD = true,
                     hideNonUsable = false,
                     showOnlyOnCooldown = false,
+                    showOnlyWhenActive = false,
                     -- Active state (buff/cast/channel display)
                     showActiveState = true,
                     activeGlowEnabled = true,
