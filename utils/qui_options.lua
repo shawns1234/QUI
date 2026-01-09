@@ -8748,11 +8748,26 @@ local function CreateCustomTrackersPage(parent)
             {value = "LEFT", text = "Left"},
             {value = "UP", text = "Up"},
             {value = "DOWN", text = "Down"},
+            {value = "CENTER", text = "Center (Horizontal)"},
+            {value = "CENTER_VERTICAL", text = "Center (Vertical)"},
         }
         local growDropdown = GUI:CreateFormDropdown(lowerContainer, "Grow Direction", growOptions, "growDirection", barConfig, RefreshThisBar)
         growDropdown:SetPoint("TOPLEFT", 0, y)
         growDropdown:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
+
+        local dynamicLayoutCheck = GUI:CreateFormCheckbox(lowerContainer, "Dynamic Layout (WeakAuras-style)", "dynamicLayout", barConfig, RefreshThisBar)
+        dynamicLayoutCheck:SetPoint("TOPLEFT", 0, y)
+        dynamicLayoutCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local dynamicLayoutDesc = GUI:CreateLabel(lowerContainer, "When enabled, icons that are hidden by visibility rules (e.g. 'Show Only On Cooldown' or 'Show Only When Active') are removed from the layout, so the bar collapses/expands dynamically.", 11, C.textMuted)
+        dynamicLayoutDesc:SetPoint("TOPLEFT", 0, y)
+        dynamicLayoutDesc:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        dynamicLayoutDesc:SetJustifyH("LEFT")
+        dynamicLayoutDesc:SetWordWrap(true)
+        dynamicLayoutDesc:SetHeight(40)
+        y = y - 50
 
         -- Icon Shape slider
         local shapeSlider = GUI:CreateFormSlider(lowerContainer, "Icon Shape", 1.0, 2.0, 0.01, "aspectRatioCrop", barConfig, RefreshThisBar)
