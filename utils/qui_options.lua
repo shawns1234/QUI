@@ -8027,7 +8027,7 @@ local function CreateCustomTrackersPage(parent)
                         message = "Tracker deleted. Reload UI to see changes?",
                         acceptText = "Reload",
                         cancelText = "Later",
-                        onAccept = function() QuaziiUI:SafeReload() end,
+                onAccept = function() QuaziiUI:SafeReload() end,
                     })
                 end,
             })
@@ -8035,6 +8035,178 @@ local function CreateCustomTrackersPage(parent)
         deleteBtn:SetPoint("TOPLEFT", PAD, y)
         deleteBtn:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - 36
+
+        -----------------------------------------------------------------------
+        -- SPEC-SPECIFIC SPELLS SECTION
+        -----------------------------------------------------------------------
+        local specHeader = GUI:CreateSectionHeader(tabContent, "Spec-Specific Spells")
+        specHeader:SetPoint("TOPLEFT", PAD, y)
+        y = y - specHeader.gap
+
+        local specHint = GUI:CreateLabel(tabContent, "When enabled, the spell list for this bar is saved separately for each spec. The bar's layout settings remain shared.", 11, C.textMuted)
+        specHint:SetPoint("TOPLEFT", PAD, y)
+        specHint:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        specHint:SetJustifyH("LEFT")
+        specHint:SetWordWrap(true)
+        specHint:SetHeight(30)
+        y = y - 38
+
+        -- Forward declarations for spec-specific UI elements
+        local specInfoLabel = nil
+        local copyFromDropdown = nil
+
+        -- Get tracker module reference
+        local trackerModule = QUICore and QUICore.CustomTrackers
+
+        -- Helper to get current spec key (always uses actual current spec)
+        local function getCurrentSpecKey()
+            -- Use tracker module's helper if available
+            if trackerModule and trackerModule.GetCurrentSpecKey then
+                return trackerModule.GetCurrentSpecKey()
+            end
+            -- Fallback
+            local _, className = UnitClass("player")
+            local specIndex = GetSpecialization()
+            if specIndex then
+                local specID = GetSpecializationInfo(specIndex)
+                if specID and className then
+                    return className .. "-" .. specID
+                end
+            end
+            return nil
+        end
+
+        -- Helper to get readable spec name
+        local function getSpecDisplayName(specKey)
+            if trackerModule and trackerModule.GetClassSpecName then
+                return trackerModule.GetClassSpecName(specKey)
+            end
+            return specKey or "Unknown"
+        end
+
+        -- Update info label
+        local function updateSpecInfoLabel()
+            if specInfoLabel then
+                if barConfig.specSpecificSpells then
+                    local specKey = getCurrentSpecKey()
+                    specInfoLabel:SetText("Currently editing: " .. getSpecDisplayName(specKey))
+                    specInfoLabel:Show()
+                else
+                    specInfoLabel:Hide()
+                end
+            end
+        end
+
+        -- Refresh entry list when spec changes
+        local function refreshForSpec()
+            RefreshThisBar()
+            updateSpecInfoLabel()
+            -- Note: Entry list refresh is handled by entryListFrame recreation
+        end
+
+        -- Enable Spec-Specific Spells checkbox
+        local specEnableCheck = GUI:CreateFormCheckbox(tabContent, "Enable Spec-Specific Spells", "specSpecificSpells", barConfig, function()
+            if barConfig.specSpecificSpells then
+                -- Just enabled: copy current profile entries to this spec
+                local specKey = getCurrentSpecKey()
+                if specKey and trackerModule then
+                    trackerModule:CopyEntriesToSpec(barConfig, specKey)
+                end
+            end
+            refreshForSpec()
+            -- Show/hide copy-from dropdown based on toggle
+            if copyFromDropdown then
+                if barConfig.specSpecificSpells then
+                    copyFromDropdown:Show()
+                else
+                    copyFromDropdown:Hide()
+                end
+            end
+        end)
+        specEnableCheck:SetPoint("TOPLEFT", PAD, y)
+        specEnableCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        -- Build specs list (used by copy-from dropdown below)
+        local allSpecs = {}
+        if trackerModule and trackerModule.GetAllClassSpecs then
+            allSpecs = trackerModule.GetAllClassSpecs()
+        else
+            -- Fallback: use WoW API directly
+            local _, className = UnitClass("player")
+            local numSpecs = GetNumSpecializations()
+            for i = 1, numSpecs do
+                local specID, specName = GetSpecializationInfo(i)
+                if specID and specName then
+                    table.insert(allSpecs, {
+                        key = className .. "-" .. specID,
+                        name = className:sub(1, 1):upper() .. className:sub(2):lower() .. " - " .. specName,
+                    })
+                end
+            end
+        end
+
+        -- Info label (shows currently editing spec)
+        specInfoLabel = GUI:CreateLabel(tabContent, "", 11, C.accent)
+        specInfoLabel:SetPoint("TOPLEFT", PAD, y)
+        specInfoLabel:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        specInfoLabel:SetJustifyH("LEFT")
+        updateSpecInfoLabel()
+        y = y - 20
+
+        -- Copy From dropdown (only visible when spec-specific is enabled)
+        local copyContainer = CreateFrame("Frame", nil, tabContent)
+        copyContainer:SetHeight(FORM_ROW)
+        copyContainer:SetPoint("TOPLEFT", PAD, y)
+        copyContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+
+        local copyLabel = copyContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        copyLabel:SetPoint("LEFT", 0, 0)
+        copyLabel:SetText("Copy spells from")
+        copyLabel:SetTextColor(C.textMuted[1], C.textMuted[2], C.textMuted[3], 1)
+
+        -- Build copy options with spell counts
+        local copyOptions = {}
+        local targetSpec = getCurrentSpecKey()
+        for _, spec in ipairs(allSpecs) do
+            if spec.key ~= targetSpec then
+                local entryCount = 0
+                if trackerModule then
+                    local specEntries = trackerModule:GetSpecEntries(barConfig, spec.key)
+                    entryCount = specEntries and #specEntries or 0
+                end
+                local suffix = entryCount > 0 and (" (" .. entryCount .. " spells)") or " (empty)"
+                table.insert(copyOptions, { value = spec.key, text = spec.name .. suffix })
+            end
+        end
+
+        local copyDropdownWidget = GUI:CreateFormDropdown(copyContainer, "", copyOptions, nil, nil, function(selectedValue)
+            if selectedValue and trackerModule then
+                -- Copy entries from selected spec to current editing spec
+                local sourceEntries = trackerModule:GetSpecEntries(barConfig, selectedValue)
+                if sourceEntries and #sourceEntries > 0 then
+                    local destSpec = getCurrentSpecKey()
+                    local copiedEntries = {}
+                    for _, entry in ipairs(sourceEntries) do
+                        table.insert(copiedEntries, {
+                            type = entry.type,
+                            id = entry.id,
+                            customName = entry.customName,
+                        })
+                    end
+                    trackerModule:SetSpecEntries(barConfig, destSpec, copiedEntries)
+                    refreshForSpec()
+                end
+            end
+        end)
+        copyDropdownWidget:SetPoint("LEFT", copyLabel, "RIGHT", 10, 0)
+        copyDropdownWidget:SetPoint("RIGHT", copyContainer, "RIGHT", 0, 0)
+        -- Hide if spec-specific not enabled
+        if not barConfig.specSpecificSpells then
+            copyContainer:Hide()
+        end
+        copyFromDropdown = copyContainer  -- Use container for show/hide
+        y = y - FORM_ROW + 4
 
         -----------------------------------------------------------------------
         -- POSITIONING SECTION
@@ -8451,7 +8623,15 @@ local function CreateCustomTrackersPage(parent)
                 child:SetParent(nil)
             end
 
-            local entries = barConfig.entries or {}
+            -- Use GetBarEntries for spec-aware loading (always uses current spec)
+            local entries
+            local trackerMod = QUICore and QUICore.CustomTrackers
+            if trackerMod and trackerMod.GetBarEntries then
+                -- Pass nil to use current spec
+                entries = trackerMod.GetBarEntries(barConfig, nil)
+            else
+                entries = barConfig.entries or {}
+            end
             local listY = 0
             for j, entry in ipairs(entries) do
                 local entryFrame = CreateFrame("Frame", nil, entryListFrame)
@@ -8645,7 +8825,7 @@ local function CreateCustomTrackersPage(parent)
                 -- Move Up button (anchored after fixed-width name)
                 local upBtn = CreateChevronButton(entryFrame, "up", function()
                     if QUICore and QUICore.CustomTrackers then
-                        QUICore.CustomTrackers:MoveEntry(barConfig.id, j, -1)
+                        QUICore.CustomTrackers:MoveEntry(barConfig.id, j, -1, nil)
                     end
                     RefreshEntryList()
                 end)
@@ -8658,7 +8838,7 @@ local function CreateCustomTrackersPage(parent)
                 -- Move Down button
                 local downBtn = CreateChevronButton(entryFrame, "down", function()
                     if QUICore and QUICore.CustomTrackers then
-                        QUICore.CustomTrackers:MoveEntry(barConfig.id, j, 1)
+                        QUICore.CustomTrackers:MoveEntry(barConfig.id, j, 1, nil)
                     end
                     RefreshEntryList()
                 end)
@@ -8692,7 +8872,7 @@ local function CreateCustomTrackersPage(parent)
                 end)
                 removeBtn:SetScript("OnClick", function()
                     if QUICore and QUICore.CustomTrackers then
-                        QUICore.CustomTrackers:RemoveEntry(barConfig.id, entry.type, entry.id)
+                        QUICore.CustomTrackers:RemoveEntry(barConfig.id, entry.type, entry.id, nil)
                     end
                     RefreshEntryList()
                 end)

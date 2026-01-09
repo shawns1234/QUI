@@ -147,6 +147,11 @@ function QuaziiUI:BackwardsCompat()
         self.db.global.imports = {}
     end
     
+    -- Initialize spec-specific tracker spell storage
+    if not self.db.global.specTrackerSpells then
+        self.db.global.specTrackerSpells = {}
+    end
+    
     -- Ensure db.char exists and has debug table
     if self.db.char then
         if not self.db.char.debug then
