@@ -10961,7 +10961,7 @@ local function CreateActionBarsPage(parent)
         y = y - 40
 
         -- Button Padding (overrides Blizzard's minimum)
-        local minPaddingSlider = GUI:CreateFormSlider(tabContent, "Minimum Button Padding", 0, 10, 1,
+        local minPaddingSlider = GUI:CreateFormSlider(tabContent, "Minimum Button Padding", -10, 10, 1,
             "minButtonPadding", global, function()
                 if _G.QuaziiUI_ApplyPaddingToActionBars then
                     _G.QuaziiUI_ApplyPaddingToActionBars()

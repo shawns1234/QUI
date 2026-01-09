@@ -1106,7 +1106,7 @@ local defaults = {
                 barScale = 1.0,             -- Global scale multiplier (0.5 - 2.0)
                 hideEmptySlots = false,     -- Hide buttons with no ability assigned
                 lockButtons = false,        -- Prevent dragging abilities off buttons
-                minButtonPadding = 2,       -- Override Blizzard's minimum (allows tighter spacing)
+                minButtonPadding = 0,       -- Override Blizzard's minimum (allows tighter spacing)
                 buttonPadding = 2,          -- Default button padding (Blizzard default)
                 -- Range indicator settings
                 rangeIndicator = false,     -- Tint out-of-range buttons

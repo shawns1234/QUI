@@ -1980,11 +1980,39 @@ ApplyPaddingToActionBars = function()
 
     local bars = FindAllActionBars()
     for _, bar in ipairs(bars) do
-        -- Override Blizzard's hardcoded minimum (2) with custom value
         bar.minButtonPadding = minPadding
         if buttonPadding ~= nil then
             bar.buttonPadding = buttonPadding
         end
+
+        -- Hook UpdateGridLayout to persist the override (only hook once per bar)
+        if not bar._quiPaddingHooked then
+            bar._quiPaddingHooked = true
+            hooksecurefunc(bar, "UpdateGridLayout", function(self)
+                local currentSettings = GetGlobalSettings()
+                if not currentSettings then return end
+
+                local targetMin = currentSettings.minButtonPadding or 0
+                -- Only re-apply if Blizzard reset our value
+                if self.minButtonPadding ~= targetMin then
+                    self.minButtonPadding = targetMin
+                    if currentSettings.buttonPadding ~= nil then
+                        self.buttonPadding = currentSettings.buttonPadding
+                    end
+                    -- Defer re-layout to avoid recursion
+                    if not self._quiPaddingUpdatePending then
+                        self._quiPaddingUpdatePending = true
+                        C_Timer.After(0, function()
+                            self._quiPaddingUpdatePending = nil
+                            if self and self.UpdateGridLayout then
+                                self:UpdateGridLayout()
+                            end
+                        end)
+                    end
+                end
+            end)
+        end
+
         bar:UpdateGridLayout()
     end
 end
