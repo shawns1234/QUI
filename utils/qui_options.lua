@@ -1111,6 +1111,45 @@ local function CreateGeneralQoLPage(parent)
 
         y = y - 10
 
+        -- M+ Dungeons Section
+        local mplusHeader = GUI:CreateSectionHeader(tabContent, "M+ Dungeons")
+        mplusHeader:SetPoint("TOPLEFT", PADDING, y)
+        y = y - mplusHeader.gap
+
+        local mplusDesc = GUI:CreateLabel(tabContent,
+            "Click dungeon icons in the M+ tab to teleport (requires +20 achievement for that dungeon).",
+            11, C.textMuted)
+        mplusDesc:SetPoint("TOPLEFT", PADDING, y)
+        mplusDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        mplusDesc:SetJustifyH("LEFT")
+        mplusDesc:SetWordWrap(true)
+        mplusDesc:SetHeight(20)
+        y = y - 30
+
+        if db.general.mplusTeleportEnabled == nil then db.general.mplusTeleportEnabled = true end
+        local teleportCheck = GUI:CreateFormCheckbox(tabContent, "Click-to-Teleport on M+ Tab", "mplusTeleportEnabled", db.general, nil)
+        teleportCheck:SetPoint("TOPLEFT", PADDING, y)
+        teleportCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        if db.general.keyTrackerEnabled == nil then db.general.keyTrackerEnabled = true end
+        local keyTrackerCheck = GUI:CreateFormCheckbox(tabContent, "Show Party Keys on M+ Tab", "keyTrackerEnabled", db.general, nil)
+        keyTrackerCheck:SetPoint("TOPLEFT", PADDING, y)
+        keyTrackerCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        if db.general.keyTrackerFontSize == nil then db.general.keyTrackerFontSize = 9 end
+        local fontSizeSlider = GUI:CreateFormSlider(tabContent, "Key Tracker Font Size", 7, 12, 1, "keyTrackerFontSize", db.general, function()
+            if _G.QuaziiUI_RefreshKeyTrackerFonts then
+                _G.QuaziiUI_RefreshKeyTrackerFonts()
+            end
+        end)
+        fontSizeSlider:SetPoint("TOPLEFT", PADDING, y)
+        fontSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        y = y - 10
+
         -- Others Section
         local othersHeader = GUI:CreateSectionHeader(tabContent, "Others")
         othersHeader:SetPoint("TOPLEFT", PADDING, y)

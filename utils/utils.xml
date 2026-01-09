@@ -15,6 +15,7 @@
     <Script file="qui_castbar.lua"/>
     <Script file="qui_unitframes.lua"/>
     <Script file="quicore_minimap.lua"/>
+    <Script file="qui_dungeon_data.lua"/>
     <Script file="qui_datatexts.lua"/>
     <Script file="qui_datapanels.lua"/>
     <Script file="quicore_nudge.lua"/>
@@ -42,4 +43,6 @@
     <Script file="qui_chat.lua"/>
     <Script file="qui_tooltips.lua"/>
     <Script file="qui_mplus_timer.lua"/>
+    <Script file="qui_dungeon_teleport.lua"/>
+    <Script file="qui_key_tracker.lua"/>
 </Ui>
