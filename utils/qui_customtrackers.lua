@@ -338,16 +338,21 @@ end
 local function GetSpellBuffInfo(spellID)
     if not spellID then return false end
 
-    -- During combat: use SpellScanner (combat-safe)
-    if InCombatLockdown() then
-        local scanner = QUI.SpellScanner
-        if scanner and scanner.IsSpellActive then
-            local isActive, expiration, duration = scanner.IsSpellActive(spellID)
-            if isActive then
-                return true, expiration, duration
-            end
+    -- Prefer SpellScanner whenever available.
+    -- Reason: some spells apply a DIFFERENT aura spellID than the cast spellID
+    -- (e.g. Angelic Feather), and SpellScanner maintains that cast→buff mapping.
+    local scanner = QUI and QUI.SpellScanner
+    if scanner and scanner.IsSpellActive then
+        local isActive, expiration, duration = scanner.IsSpellActive(spellID)
+        if isActive then
+            return true, expiration, duration
         end
-        -- SpellScanner doesn't have it - can't query API in combat
+        -- If we're in combat and SpellScanner didn't detect it, we can't query auras safely.
+        if InCombatLockdown() then
+            return false
+        end
+    elseif InCombatLockdown() then
+        -- No SpellScanner available, and we can't query auras in combat.
         return false
     end
 
