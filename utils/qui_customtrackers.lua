@@ -1186,7 +1186,7 @@ function CustomTrackers:StartCooldownPolling(bar)
                 -- Base visibility (Hide Non-Usable)
                 local baseVisible = isUsable or (not hideNonUsable)
 
-                -- Dynamic layout visibility (WeakAuras-style): icons truly hide and the bar collapses.
+                -- Dynamic layout visibility: icons truly hide and the bar collapses.
                 -- Static layout: icons may use alpha=0 to preserve fixed slots.
                 local layoutVisible = baseVisible
                 if baseVisible then

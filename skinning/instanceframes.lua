@@ -381,9 +381,9 @@ local function SkinPVEFrame()
         end
     end
 
-    -- Reposition tabs: left justify and tighten spacing (ElvUI pattern)
+    -- Reposition tabs: left justify and tighten spacing
     -- Blizzard default: Tab1 at x=19, Tab2-3 at -16px overlap, Tab4 at +3px gap
-    -- QUI: Tab1 at x=-3, tabs at -5px spacing (matches ElvUI LFG.lua lines 331-347)
+    -- QUI: Tab1 at x=-3, tabs at -5px spacing
     _G.PVEFrameTab1:ClearAllPoints()
     _G.PVEFrameTab2:ClearAllPoints()
     _G.PVEFrameTab3:ClearAllPoints()

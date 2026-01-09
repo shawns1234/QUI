@@ -8936,7 +8936,7 @@ local function CreateCustomTrackersPage(parent)
         growDropdown:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
-        local dynamicLayoutCheck = GUI:CreateFormCheckbox(lowerContainer, "Dynamic Layout (WeakAuras-style)", "dynamicLayout", barConfig, RefreshThisBar)
+        local dynamicLayoutCheck = GUI:CreateFormCheckbox(lowerContainer, "Dynamic Layout (Collapsing)", "dynamicLayout", barConfig, RefreshThisBar)
         dynamicLayoutCheck:SetPoint("TOPLEFT", 0, y)
         dynamicLayoutCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
