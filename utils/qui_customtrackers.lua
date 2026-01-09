@@ -886,7 +886,6 @@ local function LayoutBarIcons(bar)
     if not bar or not bar.icons then return end
 
     local config = bar.config
-    local entries = config.entries or {}
     local growDir = config.growDirection or "RIGHT"
     local spacing = config.spacing or 4
 
@@ -921,6 +920,12 @@ local function LayoutBarIcons(bar)
             local startX = -totalWidth / 2 + iconWidth / 2
             local x = startX + (i - 1) * (iconWidth + spacing)
             icon:SetPoint("CENTER", bar, "CENTER", x, 0)
+        elseif growDir == "CENTER_VERTICAL" then
+            -- Center-based vertical positioning: icons spread equally from center (top to bottom)
+            local totalHeight = (numIcons * iconHeight) + ((numIcons - 1) * spacing)
+            local startY = totalHeight / 2 - iconHeight / 2
+            local y = startY - (i - 1) * (iconHeight + spacing)
+            icon:SetPoint("CENTER", bar, "CENTER", 0, y)
         end
 
         icon:Show()
@@ -990,6 +995,12 @@ local function LayoutVisibleIcons(bar)
             local startX = -totalWidth / 2 + iconWidth / 2
             local x = startX + (i - 1) * (iconWidth + spacing)
             icon:SetPoint("CENTER", bar, "CENTER", x, 0)
+        elseif growDir == "CENTER_VERTICAL" then
+            -- Center-based vertical positioning: icons spread equally from center (top to bottom)
+            local totalHeight = (numIcons * iconHeight) + ((numIcons - 1) * spacing)
+            local startY = totalHeight / 2 - iconHeight / 2
+            local y = startY - (i - 1) * (iconHeight + spacing)
+            icon:SetPoint("CENTER", bar, "CENTER", 0, y)
         end
     end
 
@@ -1101,6 +1112,7 @@ function CustomTrackers:StartCooldownPolling(bar)
         local hideNonUsable = config.hideNonUsable
         local showOnlyOnCooldown = config.showOnlyOnCooldown
         local showOnlyWhenActive = config.showOnlyWhenActive
+        local dynamicLayout = config.dynamicLayout == true
         local showActiveState = config.showActiveState ~= false  -- Default true
         local visibilityChanged = false
 
@@ -1171,49 +1183,80 @@ function CustomTrackers:StartCooldownPolling(bar)
                     isUsable = IsSpellUsable(entry.id)
                 end
 
-                -- Determine if icon should be visible (hideNonUsable mode)
-                local shouldBeVisible = isUsable or (not hideNonUsable)
+                -- Base visibility (Hide Non-Usable)
+                local baseVisible = isUsable or (not hideNonUsable)
 
-                -- Track visibility state change
-                if shouldBeVisible ~= icon.isVisible then
-                    visibilityChanged = true
-                    icon.isVisible = shouldBeVisible
-                    if shouldBeVisible then
-                        icon:Show()
-                    else
-                        icon:Hide()
+                -- Dynamic layout visibility (WeakAuras-style): icons truly hide and the bar collapses.
+                -- Static layout: icons may use alpha=0 to preserve fixed slots.
+                local layoutVisible = baseVisible
+                if baseVisible then
+                    if showOnlyWhenActive then
+                        layoutVisible = isActive
+                    elseif showOnlyOnCooldown then
+                        -- Show during cooldown OR while active (active overrides cooldown visuals)
+                        layoutVisible = isActive or isOnCD
                     end
                 end
 
-                -- Apply visual state only if icon is visible
-                if shouldBeVisible then
-                    if showOnlyWhenActive then
-                        -- "Show Only When Active" mode: hide icons unless buff/cast is active
-                        if isActive then
-                            -- Active state: visible, saturated, glow
-                            icon:SetAlpha(1)
-                            icon.tex:SetDesaturated(false)
-                            StartActiveGlow(icon, config)
+                if dynamicLayout then
+                    -- Track visibility state change (affects layout)
+                    if layoutVisible ~= icon.isVisible then
+                        visibilityChanged = true
+                        icon.isVisible = layoutVisible
+                        if layoutVisible then
+                            icon:Show()
                         else
-                            -- Not active: hide icon (alpha-based to preserve position)
-                            icon:SetAlpha(0)
-                            icon.tex:SetDesaturated(false)
                             StopActiveGlow(icon)
+                            icon:Hide()
                         end
-                    elseif isActive then
+                    end
+                else
+                    -- Static layout only tracks base visibility (hideNonUsable mode)
+                    if baseVisible ~= icon.isVisible then
+                        visibilityChanged = true
+                        icon.isVisible = baseVisible
+                        if baseVisible then
+                            icon:Show()
+                        else
+                            StopActiveGlow(icon)
+                            icon:Hide()
+                        end
+                    end
+                end
+
+                -- Apply visual state only if icon should render (baseVisible + (dynamicLayout? layoutVisible : baseVisible))
+                local shouldRender = dynamicLayout and layoutVisible or baseVisible
+                if shouldRender then
+                    if isActive then
                         -- Active state: saturated + glow + full alpha
                         icon:SetAlpha(1)
                         icon.tex:SetDesaturated(false)
                         StartActiveGlow(icon, config)
-                    elseif showOnlyOnCooldown then
-                        -- Alpha-based visibility (preserves position)
+                    elseif showOnlyWhenActive then
+                        -- Static "Show Only When Active": keep slot, hide via alpha
                         StopActiveGlow(icon)
-                        if isOnCD then
+                        if dynamicLayout then
+                            -- Dynamic layout would have hidden the icon already.
+                            icon:SetAlpha(1)
+                        else
+                            icon:SetAlpha(0)
+                        end
+                        icon.tex:SetDesaturated(false)
+                    elseif showOnlyOnCooldown then
+                        StopActiveGlow(icon)
+                        if dynamicLayout then
+                            -- Dynamic layout shows only when on cooldown (or active handled above)
                             icon:SetAlpha(1)
                             icon.tex:SetDesaturated(true)
                         else
-                            icon:SetAlpha(0)
-                            icon.tex:SetDesaturated(false)
+                            -- Static layout: alpha-based visibility (preserves position)
+                            if isOnCD then
+                                icon:SetAlpha(1)
+                                icon.tex:SetDesaturated(true)
+                            else
+                                icon:SetAlpha(0)
+                                icon.tex:SetDesaturated(false)
+                            end
                         end
                     else
                         -- Normal mode
