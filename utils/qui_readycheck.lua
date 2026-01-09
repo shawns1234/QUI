@@ -26,6 +26,8 @@ local FOOD_BUFFS = {
 }
 
 local FLASK_BUFFS = {
+    -- Midnight Flasks
+    [1235057] = true, [1235108] = true, [1235110] = true, [1235111] = true,
     -- TWW Flasks
     [432021] = true, [432473] = true, [431971] = true, [431972] = true,
     [431973] = true, [431974] = true,
@@ -48,8 +50,9 @@ local RUNE_BUFFS = {
 }
 
 
--- Flask item IDs for inventory check (TWW)
+-- Flask item IDs for inventory check
 local FLASK_ITEMS = {
+    241320, 241322, 241324, 241326,  -- Midnight Flasks
     212283, 212284, 212285, 212286, 212287, 212288,  -- TWW Flasks
     191318, 191319, 191320, 191321, 191322, 191323, 191324, 191325, 191326, 191327,  -- DF Flasks
 }
@@ -656,6 +659,21 @@ local function UpdateConsumables()
     end
 end
 
+-- Update consumables when player buffs change (must be after UpdateConsumables is defined)
+ConsumablesFrame:SetScript("OnEvent", function(self, event, unit)
+    if event == "UNIT_AURA" and unit == "player" then
+        UpdateConsumables()
+    end
+end)
+
+ConsumablesFrame:SetScript("OnShow", function(self)
+    self:RegisterUnitEvent("UNIT_AURA", "player")
+end)
+
+ConsumablesFrame:SetScript("OnHide", function(self)
+    self:UnregisterEvent("UNIT_AURA")
+end)
+
 ---------------------------------------------------------------------------
 -- POSITIONING
 ---------------------------------------------------------------------------
@@ -924,12 +942,7 @@ end
 
 -- Show QUI consumables window standalone
 _G.QUI_ShowConsumables = function()
-    InitializeButtons()
-    UpdateConsumables()
-    ConsumablesFrame:ClearAllPoints()
-    ConsumablesFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
-    ConsumablesFrame:SetParent(UIParent)
-    ConsumablesFrame:Show()
+    ShowConsumablesStandalone()
 end
 
 -- Hide QUI consumables window
@@ -952,11 +965,28 @@ _G.QuaziiUI_RefreshConsumables = function()
     end
 end
 
--- Reposition consumables (for offset changes - repositions relative to ReadyCheck)
+-- Reposition consumables (for offset changes - live update position)
 _G.QuaziiUI_RepositionConsumables = function()
     if ConsumablesFrame:IsShown() then
         InitializeButtons()
         UpdateConsumables()
-        PositionConsumablesFrame()
+
+        if ConsumablesFrame:GetParent() == ReadyCheckFrame then
+            -- Anchored to ReadyCheckFrame - use standard positioning
+            PositionConsumablesFrame()
+        else
+            -- Standalone mode - recalculate position with new offset
+            local settings = GetSettings()
+            local userOffset = (settings and settings.consumableIconOffset) or 5
+            local totalOffset = userOffset + CLOSE_BUTTON_HEIGHT + 2
+
+            local savedPos = settings and settings.readyCheckPosition
+            if savedPos then
+                local readyCheckHalfHeight = 55
+                ConsumablesFrame:ClearAllPoints()
+                ConsumablesFrame:SetPoint("BOTTOM", UIParent, savedPos.relativePoint, savedPos.x, savedPos.y + readyCheckHalfHeight + totalOffset)
+            end
+            -- If no saved position, preserve current position (user may have manually placed it)
+        end
     end
 end
