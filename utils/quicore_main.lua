@@ -2395,6 +2395,28 @@ local defaults = {
             leaveCombatColor = {1, 0.98, 0.2, 1},      -- -Combat text color (#FFFA33 yellow)
         },
 
+        -- Combat Timer (displays elapsed combat time)
+        combatTimer = {
+            enabled = false,       -- Opt-in feature (disabled by default)
+            xOffset = 0,           -- Horizontal offset from screen center
+            yOffset = -150,        -- Vertical offset (below center by default)
+            width = 80,            -- Frame width
+            height = 30,           -- Frame height
+            fontSize = 16,         -- Font size for timer text
+            useCustomFont = false, -- If false, use global addon font
+            font = "Quazii",       -- Font name (from LibSharedMedia)
+            useClassColorText = false,  -- If true, use player class color for text
+            textColor = {1, 1, 1, 1},  -- White text
+            -- Backdrop settings
+            showBackdrop = true,
+            backdropColor = {0, 0, 0, 0.6},  -- Semi-transparent black
+            -- Border settings
+            borderSize = 1,
+            borderTexture = "None", -- Border texture from LibSharedMedia (or "None" for solid)
+            useClassColorBorder = false,  -- If true, use player class color
+            borderColor = {0, 0, 0, 1},  -- Black border
+        },
+
         -- Cooldown Manager Effects
         cooldownSwipe = {
             showBuffSwipe = true,       -- Buff/aura duration swipe (Essential/Utility)

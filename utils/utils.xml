@@ -33,6 +33,7 @@
     <Script file="qui_customtrackers.lua"/>
     <Script file="qui_reticle.lua"/>
     <Script file="qui_combattext.lua"/>
+    <Script file="qui_combattimer.lua"/>
     <Script file="qui_keystone.lua"/>
     <Script file="qui_qol.lua"/>
     <Script file="qui_quicksalvage.lua"/>

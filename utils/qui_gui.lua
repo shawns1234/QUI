@@ -2570,7 +2570,34 @@ function GUI:CreateFormDropdown(parent, label, options, dbKey, dbTable, onChange
     menuFrame:SetBackdropColor(0.1, 0.1, 0.1, 0.98)
     menuFrame:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
     menuFrame:SetFrameStrata("TOOLTIP")
+    menuFrame:SetClipsChildren(true)
     menuFrame:Hide()
+
+    -- Scroll frame for long option lists
+    local scrollFrame = CreateFrame("ScrollFrame", nil, menuFrame)
+    scrollFrame:SetPoint("TOPLEFT", 0, 0)
+    scrollFrame:SetPoint("BOTTOMRIGHT", 0, 0)
+    scrollFrame:EnableMouseWheel(true)
+
+    -- Scroll content (child frame)
+    local scrollContent = CreateFrame("Frame", nil, scrollFrame)
+    scrollContent:SetWidth(menuFrame:GetWidth() or 200)
+    scrollFrame:SetScrollChild(scrollContent)
+    menuFrame.scrollContent = scrollContent
+
+    -- Mouse wheel scrolling
+    scrollFrame:SetScript("OnMouseWheel", function(self, delta)
+        local currentScroll = self:GetVerticalScroll()
+        local maxScroll = math.max(0, scrollContent:GetHeight() - menuFrame:GetHeight())
+        local newScroll = currentScroll - (delta * 20)
+        newScroll = math.max(0, math.min(newScroll, maxScroll))
+        self:SetVerticalScroll(newScroll)
+    end)
+
+    -- Update scroll content width when menu opens
+    menuFrame:SetScript("OnShow", function(self)
+        scrollContent:SetWidth(self:GetWidth() - 2)
+    end)
 
     container.dropdown = dropdown
     container.menuFrame = menuFrame
@@ -2594,11 +2621,20 @@ function GUI:CreateFormDropdown(parent, label, options, dbKey, dbTable, onChange
     end
 
     local function BuildMenu()
-        for _, child in ipairs({menuFrame:GetChildren()}) do child:Hide() end
+        -- Clear existing children from scroll content
+        local scrollContent = menuFrame.scrollContent
+        if scrollContent then
+            for _, child in ipairs({scrollContent:GetChildren()}) do child:Hide() end
+        end
+
         local yOff = -4
+        local itemHeight = 20
+        local maxVisibleItems = 8
+        local numItems = #container.options
+
         for i, opt in ipairs(container.options) do
-            local btn = CreateFrame("Button", nil, menuFrame)
-            btn:SetHeight(20)
+            local btn = CreateFrame("Button", nil, scrollContent or menuFrame)
+            btn:SetHeight(itemHeight)
             btn:SetPoint("TOPLEFT", 4, yOff)
             btn:SetPoint("TOPRIGHT", -4, yOff)
             local btnText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -2611,9 +2647,19 @@ function GUI:CreateFormDropdown(parent, label, options, dbKey, dbTable, onChange
             end)
             btn:SetScript("OnEnter", function() btnText:SetTextColor(unpack(C.accent)) end)
             btn:SetScript("OnLeave", function() btnText:SetTextColor(unpack(C.text)) end)
-            yOff = yOff - 20
+            yOff = yOff - itemHeight
         end
-        menuFrame:SetHeight(math.abs(yOff) + 4)
+
+        local totalHeight = math.abs(yOff) + 4
+        local maxHeight = (maxVisibleItems * itemHeight) + 8
+
+        -- Update scroll content height
+        if scrollContent then
+            scrollContent:SetHeight(totalHeight)
+        end
+
+        -- Set menu height (capped at maxHeight)
+        menuFrame:SetHeight(math.min(totalHeight, maxHeight))
     end
 
     dropdown:SetScript("OnClick", function()
