@@ -368,11 +368,19 @@ local function UpdateButton(button, keystoneInfo, unitName, unit, isLeader)
 
     UpdateButtonCooldown(button)
     button:Show()
+    -- Also show font strings (they're parented to the frame, not the button)
+    if button.dungeonName then button.dungeonName:Show() end
+    if button.playerName then button.playerName:Show() end
+    if button.score then button.score:Show() end
 end
 
 local function HideButton(button)
     if InCombatLockdown() then return end
     button:Hide()
+    -- Also hide font strings (they're parented to the frame, not the button)
+    if button.dungeonName then button.dungeonName:Hide() end
+    if button.playerName then button.playerName:Hide() end
+    if button.score then button.score:Hide() end
     button:SetAttribute("type", nil)
     button:SetAttribute("spell", nil)
     button.spellID = nil
