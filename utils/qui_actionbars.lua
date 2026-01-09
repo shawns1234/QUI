@@ -1975,7 +1975,7 @@ ApplyPaddingToActionBars = function()
     local settings = GetGlobalSettings()
     if not settings then return end
 
-    local minPadding = settings.minButtonPadding or 0
+    local minPadding = -10  -- Always override Blizzard's minimum
     local buttonPadding = settings.buttonPadding
 
     local bars = FindAllActionBars()
@@ -1989,14 +1989,10 @@ ApplyPaddingToActionBars = function()
         if not bar._quiPaddingHooked then
             bar._quiPaddingHooked = true
             hooksecurefunc(bar, "UpdateGridLayout", function(self)
-                local currentSettings = GetGlobalSettings()
-                if not currentSettings then return end
-
-                local targetMin = currentSettings.minButtonPadding or 0
-                -- Only re-apply if Blizzard reset our value
-                if self.minButtonPadding ~= targetMin then
-                    self.minButtonPadding = targetMin
-                    if currentSettings.buttonPadding ~= nil then
+                if self.minButtonPadding ~= -10 then
+                    self.minButtonPadding = -10
+                    local currentSettings = GetGlobalSettings()
+                    if currentSettings and currentSettings.buttonPadding ~= nil then
                         self.buttonPadding = currentSettings.buttonPadding
                     end
                     -- Defer re-layout to avoid recursion

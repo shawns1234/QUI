@@ -11226,18 +11226,8 @@ local function CreateActionBarsPage(parent)
         layoutTipText:SetWordWrap(true)
         y = y - 40
 
-        -- Button Padding (overrides Blizzard's minimum)
-        local minPaddingSlider = GUI:CreateFormSlider(tabContent, "Minimum Button Padding", -10, 10, 1,
-            "minButtonPadding", global, function()
-                if _G.QuaziiUI_ApplyPaddingToActionBars then
-                    _G.QuaziiUI_ApplyPaddingToActionBars()
-                end
-            end)
-        minPaddingSlider:SetPoint("TOPLEFT", PAD, y)
-        minPaddingSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        local buttonPaddingSlider = GUI:CreateFormSlider(tabContent, "Button Padding", -5, 20, 1,
+        -- Button Padding
+        local buttonPaddingSlider = GUI:CreateFormSlider(tabContent, "Button Padding", -10, 20, 1,
             "buttonPadding", global, function()
                 if _G.QuaziiUI_ApplyPaddingToActionBars then
                     _G.QuaziiUI_ApplyPaddingToActionBars()
@@ -11247,7 +11237,7 @@ local function CreateActionBarsPage(parent)
         buttonPaddingSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
-        local paddingDesc = GUI:CreateLabel(tabContent, "Adjust button spacing. Minimum Padding overrides Blizzard's hardcoded minimum of 2. Negative values allow overlap.", 11, C.muted)
+        local paddingDesc = GUI:CreateLabel(tabContent, "Adjust button spacing. Negative values allow overlap.", 11, C.muted)
         paddingDesc:SetPoint("TOPLEFT", PAD, y + 4)
         paddingDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         paddingDesc:SetJustifyH("LEFT")
