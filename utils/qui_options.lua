@@ -4607,7 +4607,7 @@ local function CreateCDMSetupPage(parent)
         countSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
-        local sizeSlider = GUI:CreateFormSlider(tabContent, "Icon Size", 20, 80, 1, "iconSize", rowData, RefreshNCDM)
+        local sizeSlider = GUI:CreateFormSlider(tabContent, "Icon Size", 5, 80, 1, "iconSize", rowData, RefreshNCDM)
         sizeSlider:SetPoint("TOPLEFT", PAD, y)
         sizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
@@ -10338,6 +10338,11 @@ local function CreateUnitFramesPage(parent)
             showDebuffsCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
 
+            local debuffHideSwipe = GUI:CreateFormCheckbox(tabContent, "Hide Duration Swipe", "debuffHideSwipe", auraDB, RefreshAuras)
+            debuffHideSwipe:SetPoint("TOPLEFT", PAD, y)
+            debuffHideSwipe:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
             -- Debuff Preview toggle (pill-shaped, matches Castbar Preview style)
             local debuffPreviewContainer = CreateFrame("Frame", nil, tabContent)
             debuffPreviewContainer:SetHeight(FORM_ROW)
@@ -10478,6 +10483,11 @@ local function CreateUnitFramesPage(parent)
             local showBuffsCheck = GUI:CreateFormCheckbox(tabContent, "Show Buffs", "showBuffs", auraDB, RefreshAuras)
             showBuffsCheck:SetPoint("TOPLEFT", PAD, y)
             showBuffsCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            local buffHideSwipe = GUI:CreateFormCheckbox(tabContent, "Hide Duration Swipe", "buffHideSwipe", auraDB, RefreshAuras)
+            buffHideSwipe:SetPoint("TOPLEFT", PAD, y)
+            buffHideSwipe:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
 
             -- Buff Preview toggle (pill-shaped, matches Castbar Preview style)
@@ -11961,48 +11971,102 @@ local function CreateActionBarsPage(parent)
 end
 
 ---------------------------------------------------------------------------
--- PAGE: Import/Export Profile
+-- HELPER: Scrollable text box for import strings
 ---------------------------------------------------------------------------
-local function CreateImportExportPage(parent)
-    local scroll, content = CreateScrollableContent(parent)
-    local y = -15
-    local PAD = PADDING
+local function CreateScrollableTextBox(parent, height, text)
+    local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    container:SetHeight(height)
+    container:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1,
+    })
+    container:SetBackdropColor(0.1, 0.1, 0.1, 1)
+    container:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
 
-    local info = GUI:CreateLabel(content, "Import and export QuaziiUI profiles", 11, C.textMuted)
+    -- ScrollFrame to contain the EditBox
+    local scrollFrame = CreateFrame("ScrollFrame", nil, container, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", 6, -6)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -26, 6)
+
+    -- Style the scroll bar
+    local scrollBar = scrollFrame.ScrollBar or _G[scrollFrame:GetName().."ScrollBar"]
+    if scrollBar then
+        scrollBar:ClearAllPoints()
+        scrollBar:SetPoint("TOPRIGHT", container, "TOPRIGHT", -4, -18)
+        scrollBar:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -4, 18)
+    end
+
+    -- EditBox inside ScrollFrame
+    local editBox = CreateFrame("EditBox", nil, scrollFrame)
+    editBox:SetMultiLine(true)
+    editBox:SetAutoFocus(false)
+    editBox:SetFontObject(GameFontHighlightSmall)
+    editBox:SetWidth(scrollFrame:GetWidth() or 400)
+    editBox:SetText(text or "")
+    editBox:SetCursorPosition(0)
+    editBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+
+    -- Update width when container is sized
+    container:SetScript("OnSizeChanged", function(self)
+        editBox:SetWidth(self:GetWidth() - 36)
+    end)
+
+    scrollFrame:SetScrollChild(editBox)
+
+    container.editBox = editBox
+    container.scrollFrame = scrollFrame
+    return container
+end
+
+---------------------------------------------------------------------------
+-- SUB-TAB BUILDER: Import/Export (user profile import/export)
+---------------------------------------------------------------------------
+local function BuildImportExportTab(tabContent)
+    local y = -10
+    local PAD = 10
+
+    GUI:SetSearchContext({tabIndex = 13, tabName = "QUI Import/Export", subTabIndex = 1, subTabName = "Import/Export"})
+
+    local info = GUI:CreateLabel(tabContent, "Import and export QuaziiUI profiles", 11, C.textMuted)
     info:SetPoint("TOPLEFT", PAD, y)
-    info:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    info:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
     info:SetJustifyH("LEFT")
     y = y - 28
 
     -- Export Section Header
-    local exportHeader = GUI:CreateSectionHeader(content, "Export Current Profile")
+    local exportHeader = GUI:CreateSectionHeader(tabContent, "Export Current Profile")
     exportHeader:SetPoint("TOPLEFT", PAD, y)
     y = y - exportHeader.gap
-    
+
     -- Create a scroll frame for the export box
-    local exportScroll = CreateFrame("ScrollFrame", nil, content, "UIPanelScrollFrameTemplate")
+    local exportScroll = CreateFrame("ScrollFrame", nil, tabContent, "UIPanelScrollFrameTemplate")
     exportScroll:SetPoint("TOPLEFT", PAD, y)
     exportScroll:SetPoint("TOPRIGHT", -PAD - 20, y)
     exportScroll:SetHeight(100)
-    
+
     local exportEditBox = CreateFrame("EditBox", nil, exportScroll)
     exportEditBox:SetMultiLine(true)
     exportEditBox:SetAutoFocus(false)
     exportEditBox:SetFont(GUI.FONT_PATH, 11, "")
     exportEditBox:SetTextColor(0.8, 0.85, 0.9, 1)
-    exportEditBox:SetWidth(exportScroll:GetWidth() - 10)
     exportEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     exportEditBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
     exportScroll:SetScrollChild(exportEditBox)
-    
+
+    -- Set width dynamically when scroll frame is sized
+    exportScroll:SetScript("OnSizeChanged", function(self)
+        exportEditBox:SetWidth(self:GetWidth() - 10)
+    end)
+
     -- Background for export box
-    local exportBg = content:CreateTexture(nil, "BACKGROUND")
+    local exportBg = tabContent:CreateTexture(nil, "BACKGROUND")
     exportBg:SetPoint("TOPLEFT", exportScroll, -5, 5)
     exportBg:SetPoint("BOTTOMRIGHT", exportScroll, 25, -5)
     exportBg:SetColorTexture(0.05, 0.07, 0.1, 0.9)
-    
+
     -- Border for export box
-    local exportBorder = CreateFrame("Frame", nil, content, "BackdropTemplate")
+    local exportBorder = CreateFrame("Frame", nil, tabContent, "BackdropTemplate")
     exportBorder:SetPoint("TOPLEFT", exportScroll, -6, 6)
     exportBorder:SetPoint("BOTTOMRIGHT", exportScroll, 26, -6)
     exportBorder:SetBackdrop({
@@ -12010,7 +12074,7 @@ local function CreateImportExportPage(parent)
         edgeSize = 1,
     })
     exportBorder:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
-    
+
     -- Populate export string
     local function RefreshExportString()
         local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
@@ -12022,61 +12086,65 @@ local function CreateImportExportPage(parent)
         end
     end
     RefreshExportString()
-    
+
     y = y - 115
-    
+
     -- SELECT ALL button (themed)
-    local selectBtn = GUI:CreateButton(content, "SELECT ALL", 120, 28, function()
+    local selectBtn = GUI:CreateButton(tabContent, "SELECT ALL", 120, 28, function()
         RefreshExportString()
         exportEditBox:SetFocus()
         exportEditBox:HighlightText()
     end)
     selectBtn:SetPoint("TOPLEFT", PAD, y)
-    
+
     -- Hint text
-    local copyHint = GUI:CreateLabel(content, "then press Ctrl+C to copy", 11, C.textMuted)
+    local copyHint = GUI:CreateLabel(tabContent, "then press Ctrl+C to copy", 11, C.textMuted)
     copyHint:SetPoint("LEFT", selectBtn, "RIGHT", 12, 0)
-    
+
     y = y - 50
-    
+
     -- Import Section Header
-    local importHeader = GUI:CreateSectionHeader(content, "Import Profile String")
+    local importHeader = GUI:CreateSectionHeader(tabContent, "Import Profile String")
     importHeader:SetPoint("TOPLEFT", PAD, y)
 
     -- Paste hint next to header
-    local pasteHint = GUI:CreateLabel(content, "press Ctrl+V to paste", 11, C.textMuted)
+    local pasteHint = GUI:CreateLabel(tabContent, "press Ctrl+V to paste", 11, C.textMuted)
     pasteHint:SetPoint("LEFT", importHeader, "RIGHT", 12, 0)
 
     y = y - importHeader.gap
-    
+
     -- Import EditBox (user pastes string here)
-    local importScroll = CreateFrame("ScrollFrame", nil, content, "UIPanelScrollFrameTemplate")
+    local importScroll = CreateFrame("ScrollFrame", nil, tabContent, "UIPanelScrollFrameTemplate")
     importScroll:SetPoint("TOPLEFT", PAD, y)
     importScroll:SetPoint("TOPRIGHT", -PAD - 20, y)
     importScroll:SetHeight(100)
-    
+
     local importEditBox = CreateFrame("EditBox", nil, importScroll)
     importEditBox:SetMultiLine(true)
     importEditBox:SetAutoFocus(false)
     importEditBox:SetFont(GUI.FONT_PATH, 11, "")
     importEditBox:SetTextColor(0.8, 0.85, 0.9, 1)
-    importEditBox:SetWidth(importScroll:GetWidth() - 10)
-    importEditBox:SetHeight(100)  -- Set explicit height for better click target
+    importEditBox:SetHeight(100)
     importEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     importScroll:SetScrollChild(importEditBox)
-    
+
+    -- Set width dynamically when scroll frame is sized
+    importScroll:SetScript("OnSizeChanged", function(self)
+        importEditBox:SetWidth(self:GetWidth() - 10)
+    end)
+
     -- Background for import box - make it clickable to focus the editbox
-    local importBg = CreateFrame("Button", nil, content)
+    local importBg = CreateFrame("Button", nil, tabContent)
     importBg:SetPoint("TOPLEFT", importScroll, -5, 5)
     importBg:SetPoint("BOTTOMRIGHT", importScroll, 25, -5)
     importBg:SetScript("OnClick", function() importEditBox:SetFocus() end)
-    
+
     local importBgTex = importBg:CreateTexture(nil, "BACKGROUND")
     importBgTex:SetAllPoints()
     importBgTex:SetColorTexture(0.05, 0.07, 0.1, 0.9)
-    
+
     -- Border for import box
-    local importBorder = CreateFrame("Frame", nil, content, "BackdropTemplate")
+    local importBorder = CreateFrame("Frame", nil, tabContent, "BackdropTemplate")
     importBorder:SetPoint("TOPLEFT", importScroll, -6, 6)
     importBorder:SetPoint("BOTTOMRIGHT", importScroll, 26, -6)
     importBorder:SetBackdrop({
@@ -12084,11 +12152,11 @@ local function CreateImportExportPage(parent)
         edgeSize = 1,
     })
     importBorder:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
-    
+
     y = y - 115
-    
+
     -- IMPORT AND RELOAD button (themed)
-    local importBtn = GUI:CreateButton(content, "IMPORT AND RELOAD", 200, 28, function()
+    local importBtn = GUI:CreateButton(tabContent, "IMPORT AND RELOAD", 200, 28, function()
         local str = importEditBox:GetText()
         if not str or str == "" then
             print("|cffff0000QuaziiUI: No import string provided.|r")
@@ -12109,8 +12177,171 @@ local function CreateImportExportPage(parent)
     end)
     importBtn:SetPoint("TOPLEFT", PAD, y)
     y = y - 40
-    
-    content:SetHeight(math.abs(y) + 20)
+
+    tabContent:SetHeight(math.abs(y) + 20)
+end
+
+---------------------------------------------------------------------------
+-- SUB-TAB BUILDER: Quazii's Strings (preset import strings)
+---------------------------------------------------------------------------
+local function BuildQuaziiStringsTab(tabContent)
+    local y = -10
+    local PAD = 10
+    local BOX_HEIGHT = 70
+
+    GUI:SetSearchContext({tabIndex = 13, tabName = "QUI Import/Export", subTabIndex = 2, subTabName = "Quazii's Strings"})
+
+    local info = GUI:CreateLabel(tabContent, "Quazii's personal import strings - select all and copy", 11, C.textMuted)
+    info:SetPoint("TOPLEFT", PAD, y)
+    info:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+    info:SetJustifyH("LEFT")
+    y = y - 28
+
+    -- Store all text boxes for clearing selections
+    local allTextBoxes = {}
+
+    -- Helper to clear all selections except the target
+    local function selectOnly(targetEditBox)
+        for _, editBox in ipairs(allTextBoxes) do
+            if editBox ~= targetEditBox then
+                editBox:ClearFocus()
+                editBox:HighlightText(0, 0)
+            end
+        end
+        targetEditBox:SetFocus()
+        targetEditBox:HighlightText()
+    end
+
+    -- =====================================================
+    -- EDIT MODE STRING
+    -- =====================================================
+    local editModeHeader = GUI:CreateSectionHeader(tabContent, "Quazii Edit Mode String")
+    editModeHeader:SetPoint("TOPLEFT", PAD, y)
+    y = y - editModeHeader.gap
+
+    local editModeString = ""
+    if _G.QuaziiUI and _G.QuaziiUI.imports and _G.QuaziiUI.imports.EditMode then
+        editModeString = _G.QuaziiUI.imports.EditMode.data or ""
+    end
+
+    local editModeContainer = CreateScrollableTextBox(tabContent, BOX_HEIGHT, editModeString)
+    editModeContainer:SetPoint("TOPLEFT", PAD, y)
+    editModeContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+    table.insert(allTextBoxes, editModeContainer.editBox)
+
+    y = y - BOX_HEIGHT - 8
+
+    local editModeBtn = GUI:CreateButton(tabContent, "SELECT ALL", 120, 24, function()
+        selectOnly(editModeContainer.editBox)
+    end)
+    editModeBtn:SetPoint("TOPLEFT", PAD, y)
+
+    local editModeTip = GUI:CreateLabel(tabContent, "then press Ctrl+C to copy", 11, C.textMuted)
+    editModeTip:SetPoint("LEFT", editModeBtn, "RIGHT", 10, 0)
+    y = y - 40
+
+    -- =====================================================
+    -- QUI IMPORT/EXPORT STRING - DEFAULT PROFILE
+    -- =====================================================
+    local quiHeader = GUI:CreateSectionHeader(tabContent, "QUI Import/Export String - Default Profile")
+    quiHeader:SetPoint("TOPLEFT", PAD, y)
+    y = y - quiHeader.gap
+
+    local quiString = ""
+    if _G.QuaziiUI and _G.QuaziiUI.imports and _G.QuaziiUI.imports.QUIProfile then
+        quiString = _G.QuaziiUI.imports.QUIProfile.data or ""
+    end
+
+    local quiContainer = CreateScrollableTextBox(tabContent, BOX_HEIGHT, quiString)
+    quiContainer:SetPoint("TOPLEFT", PAD, y)
+    quiContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+    table.insert(allTextBoxes, quiContainer.editBox)
+
+    y = y - BOX_HEIGHT - 8
+
+    local quiBtn = GUI:CreateButton(tabContent, "SELECT ALL", 120, 24, function()
+        selectOnly(quiContainer.editBox)
+    end)
+    quiBtn:SetPoint("TOPLEFT", PAD, y)
+
+    local quiTip = GUI:CreateLabel(tabContent, "then press Ctrl+C to copy", 11, C.textMuted)
+    quiTip:SetPoint("LEFT", quiBtn, "RIGHT", 10, 0)
+    y = y - 40
+
+    -- =====================================================
+    -- QUI IMPORT/EXPORT STRING - DARK MODE
+    -- =====================================================
+    local quiDarkHeader = GUI:CreateSectionHeader(tabContent, "QUI Import/Export String - Dark Mode")
+    quiDarkHeader:SetPoint("TOPLEFT", PAD, y)
+    y = y - quiDarkHeader.gap
+
+    local quiDarkString = ""
+    if _G.QuaziiUI and _G.QuaziiUI.imports and _G.QuaziiUI.imports.QUIProfileDarkMode then
+        quiDarkString = _G.QuaziiUI.imports.QUIProfileDarkMode.data or ""
+    end
+
+    local quiDarkContainer = CreateScrollableTextBox(tabContent, BOX_HEIGHT, quiDarkString)
+    quiDarkContainer:SetPoint("TOPLEFT", PAD, y)
+    quiDarkContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+    table.insert(allTextBoxes, quiDarkContainer.editBox)
+
+    y = y - BOX_HEIGHT - 8
+
+    local quiDarkBtn = GUI:CreateButton(tabContent, "SELECT ALL", 120, 24, function()
+        selectOnly(quiDarkContainer.editBox)
+    end)
+    quiDarkBtn:SetPoint("TOPLEFT", PAD, y)
+
+    local quiDarkTip = GUI:CreateLabel(tabContent, "then press Ctrl+C to copy", 11, C.textMuted)
+    quiDarkTip:SetPoint("LEFT", quiDarkBtn, "RIGHT", 10, 0)
+    y = y - 40
+
+    -- =====================================================
+    -- PLATYNATOR STRING
+    -- =====================================================
+    local platHeader = GUI:CreateSectionHeader(tabContent, "Platynator String")
+    platHeader:SetPoint("TOPLEFT", PAD, y)
+    y = y - platHeader.gap
+
+    local platString = ""
+    if _G.QuaziiUI and _G.QuaziiUI.imports and _G.QuaziiUI.imports.Platynator then
+        platString = _G.QuaziiUI.imports.Platynator.data or ""
+    end
+
+    local platContainer = CreateScrollableTextBox(tabContent, BOX_HEIGHT, platString)
+    platContainer:SetPoint("TOPLEFT", PAD, y)
+    platContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+    table.insert(allTextBoxes, platContainer.editBox)
+
+    y = y - BOX_HEIGHT - 8
+
+    local platBtn = GUI:CreateButton(tabContent, "SELECT ALL", 120, 24, function()
+        selectOnly(platContainer.editBox)
+    end)
+    platBtn:SetPoint("TOPLEFT", PAD, y)
+
+    local platTip = GUI:CreateLabel(tabContent, "then press Ctrl+C to copy", 11, C.textMuted)
+    platTip:SetPoint("LEFT", platBtn, "RIGHT", 10, 0)
+    y = y - 30
+
+    tabContent:SetHeight(math.abs(y) + 20)
+end
+
+---------------------------------------------------------------------------
+-- PAGE: QUI Import/Export (with sub-tabs)
+---------------------------------------------------------------------------
+local function CreateImportExportPage(parent)
+    local scroll, content = CreateScrollableContent(parent)
+
+    local subTabs = GUI:CreateSubTabs(content, {
+        {name = "Import/Export", builder = BuildImportExportTab},
+        {name = "Quazii's Strings", builder = BuildQuaziiStringsTab},
+    })
+    subTabs:SetPoint("TOPLEFT", 5, -5)
+    subTabs:SetPoint("TOPRIGHT", -5, -5)
+    subTabs:SetHeight(550)
+
+    content:SetHeight(600)
 end
 
 ---------------------------------------------------------------------------
@@ -12649,201 +12880,6 @@ local function CreateSpecProfilesPage(parent)
 end
 
 ---------------------------------------------------------------------------
--- PAGE: Quazii Strings (Edit Mode, QUI Profile, Platynator)
----------------------------------------------------------------------------
--- Helper to create a scrollable text box with fixed height
-local function CreateScrollableTextBox(parent, height, text)
-    local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    container:SetHeight(height)
-    container:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = 1,
-    })
-    container:SetBackdropColor(0.1, 0.1, 0.1, 1)
-    container:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
-    
-    -- ScrollFrame to contain the EditBox
-    local scrollFrame = CreateFrame("ScrollFrame", nil, container, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 6, -6)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -26, 6)
-    
-    -- Style the scroll bar
-    local scrollBar = scrollFrame.ScrollBar or _G[scrollFrame:GetName().."ScrollBar"]
-    if scrollBar then
-        scrollBar:ClearAllPoints()
-        scrollBar:SetPoint("TOPRIGHT", container, "TOPRIGHT", -4, -18)
-        scrollBar:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -4, 18)
-    end
-    
-    -- EditBox inside ScrollFrame
-    local editBox = CreateFrame("EditBox", nil, scrollFrame)
-    editBox:SetMultiLine(true)
-    editBox:SetAutoFocus(false)
-    editBox:SetFontObject(GameFontHighlightSmall)
-    editBox:SetWidth(scrollFrame:GetWidth() or 400)
-    editBox:SetText(text or "")
-    editBox:SetCursorPosition(0)
-    editBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    
-    -- Update width when container is sized
-    container:SetScript("OnSizeChanged", function(self)
-        editBox:SetWidth(self:GetWidth() - 36)
-    end)
-    
-    scrollFrame:SetScrollChild(editBox)
-    
-    container.editBox = editBox
-    container.scrollFrame = scrollFrame
-    return container
-end
-
----------------------------------------------------------------------------
--- PAGE: Quazii Strings
----------------------------------------------------------------------------
-local function CreateQuaziiStringsPage(parent)
-    local scroll, content = CreateScrollableContent(parent)
-    local y = -15
-    local PAD = PADDING
-    local BOX_HEIGHT = 70
-
-    local info = GUI:CreateLabel(content, "Quazii's personal import strings - select all and copy", 11, C.textMuted)
-    info:SetPoint("TOPLEFT", PAD, y)
-    info:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
-    info:SetJustifyH("LEFT")
-    y = y - 28
-    
-    -- Store all text boxes for clearing selections
-    local allTextBoxes = {}
-    
-    -- Helper to clear all selections except the target
-    local function selectOnly(targetEditBox)
-        for _, editBox in ipairs(allTextBoxes) do
-            if editBox ~= targetEditBox then
-                editBox:ClearFocus()
-                editBox:HighlightText(0, 0)  -- Clear highlight
-            end
-        end
-        targetEditBox:SetFocus()
-        targetEditBox:HighlightText()
-    end
-    
-    -- =====================================================
-    -- EDIT MODE STRING
-    -- =====================================================
-    local editModeHeader = GUI:CreateSectionHeader(content, "Quazii Edit Mode String")
-    editModeHeader:SetPoint("TOPLEFT", PAD, y)
-    y = y - editModeHeader.gap
-    
-    local editModeString = ""
-    if _G.QuaziiUI and _G.QuaziiUI.imports and _G.QuaziiUI.imports.EditMode then
-        editModeString = _G.QuaziiUI.imports.EditMode.data or ""
-    end
-    
-    local editModeContainer = CreateScrollableTextBox(content, BOX_HEIGHT, editModeString)
-    editModeContainer:SetPoint("TOPLEFT", PAD, y)
-    editModeContainer:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
-    table.insert(allTextBoxes, editModeContainer.editBox)
-    
-    y = y - BOX_HEIGHT - 8
-    
-    local editModeBtn = GUI:CreateButton(content, "SELECT ALL", 120, 24, function()
-        selectOnly(editModeContainer.editBox)
-    end)
-    editModeBtn:SetPoint("TOPLEFT", PAD, y)
-    
-    local editModeTip = GUI:CreateLabel(content, "then press Ctrl+C to copy", 11, C.textMuted)
-    editModeTip:SetPoint("LEFT", editModeBtn, "RIGHT", 10, 0)
-    y = y - 40
-    
-    -- =====================================================
-    -- QUI IMPORT/EXPORT STRING - DEFAULT PROFILE
-    -- =====================================================
-    local quiHeader = GUI:CreateSectionHeader(content, "QUI Import/Export String - Default Profile")
-    quiHeader:SetPoint("TOPLEFT", PAD, y)
-    y = y - quiHeader.gap
-    
-    local quiString = ""
-    if _G.QuaziiUI and _G.QuaziiUI.imports and _G.QuaziiUI.imports.QUIProfile then
-        quiString = _G.QuaziiUI.imports.QUIProfile.data or ""
-    end
-    
-    local quiContainer = CreateScrollableTextBox(content, BOX_HEIGHT, quiString)
-    quiContainer:SetPoint("TOPLEFT", PAD, y)
-    quiContainer:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
-    table.insert(allTextBoxes, quiContainer.editBox)
-    
-    y = y - BOX_HEIGHT - 8
-    
-    local quiBtn = GUI:CreateButton(content, "SELECT ALL", 120, 24, function()
-        selectOnly(quiContainer.editBox)
-    end)
-    quiBtn:SetPoint("TOPLEFT", PAD, y)
-    
-    local quiTip = GUI:CreateLabel(content, "then press Ctrl+C to copy", 11, C.textMuted)
-    quiTip:SetPoint("LEFT", quiBtn, "RIGHT", 10, 0)
-    y = y - 40
-
-    -- =====================================================
-    -- QUI IMPORT/EXPORT STRING - DARK MODE
-    -- =====================================================
-    local quiDarkHeader = GUI:CreateSectionHeader(content, "QUI Import/Export String - Dark Mode")
-    quiDarkHeader:SetPoint("TOPLEFT", PAD, y)
-    y = y - quiDarkHeader.gap
-
-    local quiDarkString = ""
-    if _G.QuaziiUI and _G.QuaziiUI.imports and _G.QuaziiUI.imports.QUIProfileDarkMode then
-        quiDarkString = _G.QuaziiUI.imports.QUIProfileDarkMode.data or ""
-    end
-
-    local quiDarkContainer = CreateScrollableTextBox(content, BOX_HEIGHT, quiDarkString)
-    quiDarkContainer:SetPoint("TOPLEFT", PAD, y)
-    quiDarkContainer:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
-    table.insert(allTextBoxes, quiDarkContainer.editBox)
-
-    y = y - BOX_HEIGHT - 8
-
-    local quiDarkBtn = GUI:CreateButton(content, "SELECT ALL", 120, 24, function()
-        selectOnly(quiDarkContainer.editBox)
-    end)
-    quiDarkBtn:SetPoint("TOPLEFT", PAD, y)
-
-    local quiDarkTip = GUI:CreateLabel(content, "then press Ctrl+C to copy", 11, C.textMuted)
-    quiDarkTip:SetPoint("LEFT", quiDarkBtn, "RIGHT", 10, 0)
-    y = y - 40
-
-    -- =====================================================
-    -- PLATYNATOR STRING
-    -- =====================================================
-    local platHeader = GUI:CreateSectionHeader(content, "Platynator String")
-    platHeader:SetPoint("TOPLEFT", PAD, y)
-    y = y - platHeader.gap
-    
-    local platString = ""
-    if _G.QuaziiUI and _G.QuaziiUI.imports and _G.QuaziiUI.imports.Platynator then
-        platString = _G.QuaziiUI.imports.Platynator.data or ""
-    end
-    
-    local platContainer = CreateScrollableTextBox(content, BOX_HEIGHT, platString)
-    platContainer:SetPoint("TOPLEFT", PAD, y)
-    platContainer:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
-    table.insert(allTextBoxes, platContainer.editBox)
-    
-    y = y - BOX_HEIGHT - 8
-    
-    local platBtn = GUI:CreateButton(content, "SELECT ALL", 120, 24, function()
-        selectOnly(platContainer.editBox)
-    end)
-    platBtn:SetPoint("TOPLEFT", PAD, y)
-    
-    local platTip = GUI:CreateLabel(content, "then press Ctrl+C to copy", 11, C.textMuted)
-    platTip:SetPoint("LEFT", platBtn, "RIGHT", 10, 0)
-    y = y - 30
-    
-    content:SetHeight(math.abs(y) + 20)
-end
-
----------------------------------------------------------------------------
 -- SEARCH TAB - Search settings across all tabs
 ---------------------------------------------------------------------------
 local function CreateSearchPage(tabContent)
@@ -12890,6 +12926,204 @@ local function CreateSearchPage(tabContent)
 end
 
 ---------------------------------------------------------------------------
+-- HUD LAYERING PAGE
+---------------------------------------------------------------------------
+local function CreateHUDLayeringPage(parent)
+    local scroll, content = CreateScrollableContent(parent)
+    local y = -15
+    local PAD = PADDING
+    local FORM_ROW = 32
+
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    local db = QUICore and QUICore.db and QUICore.db.profile
+
+    -- Helper to get hudLayering table (with fallback initialization)
+    local function GetLayeringDB()
+        if not db then return nil end
+        if not db.hudLayering then
+            db.hudLayering = {
+                essential = 5, utility = 5, buffIcon = 5,
+                primaryPowerBar = 7, secondaryPowerBar = 6,
+                playerFrame = 4, targetFrame = 4, totFrame = 3, petFrame = 3, focusFrame = 4, bossFrames = 4,
+                playerCastbar = 5, targetCastbar = 5,
+                customBars = 5,
+            }
+        end
+        return db.hudLayering
+    end
+
+    -- Refresh functions for each component type
+    local function RefreshCDM()
+        if NCDM and NCDM.ApplySettings then
+            NCDM:ApplySettings("essential")
+            NCDM:ApplySettings("utility")
+        end
+        if _G.QuaziiUI_RefreshBuffBar then
+            _G.QuaziiUI_RefreshBuffBar()
+        end
+    end
+
+    local function RefreshPowerBars()
+        if QUICore and QUICore.UpdatePowerBar then
+            QUICore:UpdatePowerBar()
+        end
+        if QUICore and QUICore.UpdateSecondaryPowerBar then
+            QUICore:UpdateSecondaryPowerBar()
+        end
+    end
+
+    local function RefreshUnitFrames()
+        if _G.QuaziiUI_RefreshUnitFrames then
+            _G.QuaziiUI_RefreshUnitFrames()
+        end
+    end
+
+    local function RefreshCastbars()
+        if _G.QuaziiUI_RefreshCastbars then
+            _G.QuaziiUI_RefreshCastbars()
+        end
+    end
+
+    local function RefreshCustomTrackers()
+        if _G.QuaziiUI_RefreshCustomTrackers then
+            _G.QuaziiUI_RefreshCustomTrackers()
+        end
+    end
+
+    -- Header description
+    local info = GUI:CreateLabel(content, "Control which HUD elements appear above others. Higher values render on top of lower values.", 11, C.textMuted)
+    info:SetPoint("TOPLEFT", PAD, y)
+    info:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    info:SetJustifyH("LEFT")
+    y = y - 28
+
+    local layeringDB = GetLayeringDB()
+    if not layeringDB then
+        local errorLabel = GUI:CreateLabel(content, "Database not loaded. Please reload UI.", 12, {1, 0.3, 0.3, 1})
+        errorLabel:SetPoint("TOPLEFT", PAD, y)
+        return scroll
+    end
+
+    -- =====================================================
+    -- COOLDOWN DISPLAY MANAGER SECTION
+    -- =====================================================
+    local cdmHeader = GUI:CreateSectionHeader(content, "Cooldown Display Manager")
+    cdmHeader:SetPoint("TOPLEFT", PAD, y)
+    y = y - cdmHeader.gap
+
+    local essentialSlider = GUI:CreateFormSlider(content, "Essential Viewer", 0, 10, 1, "essential", layeringDB, RefreshCDM)
+    essentialSlider:SetPoint("TOPLEFT", PAD, y)
+    essentialSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    local utilitySlider = GUI:CreateFormSlider(content, "Utility Viewer", 0, 10, 1, "utility", layeringDB, RefreshCDM)
+    utilitySlider:SetPoint("TOPLEFT", PAD, y)
+    utilitySlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    local buffIconSlider = GUI:CreateFormSlider(content, "Buff Icon Viewer", 0, 10, 1, "buffIcon", layeringDB, RefreshCDM)
+    buffIconSlider:SetPoint("TOPLEFT", PAD, y)
+    buffIconSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    y = y - 10  -- Section spacing
+
+    -- =====================================================
+    -- POWER BARS SECTION
+    -- =====================================================
+    local powerHeader = GUI:CreateSectionHeader(content, "Power Bars")
+    powerHeader:SetPoint("TOPLEFT", PAD, y)
+    y = y - powerHeader.gap
+
+    local primaryPowerSlider = GUI:CreateFormSlider(content, "Primary Power Bar", 0, 10, 1, "primaryPowerBar", layeringDB, RefreshPowerBars)
+    primaryPowerSlider:SetPoint("TOPLEFT", PAD, y)
+    primaryPowerSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    local secondaryPowerSlider = GUI:CreateFormSlider(content, "Secondary Power Bar", 0, 10, 1, "secondaryPowerBar", layeringDB, RefreshPowerBars)
+    secondaryPowerSlider:SetPoint("TOPLEFT", PAD, y)
+    secondaryPowerSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    y = y - 10  -- Section spacing
+
+    -- =====================================================
+    -- UNIT FRAMES SECTION
+    -- =====================================================
+    local ufHeader = GUI:CreateSectionHeader(content, "Unit Frames")
+    ufHeader:SetPoint("TOPLEFT", PAD, y)
+    y = y - ufHeader.gap
+
+    local playerFrameSlider = GUI:CreateFormSlider(content, "Player Frame", 0, 10, 1, "playerFrame", layeringDB, RefreshUnitFrames)
+    playerFrameSlider:SetPoint("TOPLEFT", PAD, y)
+    playerFrameSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    local targetFrameSlider = GUI:CreateFormSlider(content, "Target Frame", 0, 10, 1, "targetFrame", layeringDB, RefreshUnitFrames)
+    targetFrameSlider:SetPoint("TOPLEFT", PAD, y)
+    targetFrameSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    local totFrameSlider = GUI:CreateFormSlider(content, "Target of Target", 0, 10, 1, "totFrame", layeringDB, RefreshUnitFrames)
+    totFrameSlider:SetPoint("TOPLEFT", PAD, y)
+    totFrameSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    local petFrameSlider = GUI:CreateFormSlider(content, "Pet Frame", 0, 10, 1, "petFrame", layeringDB, RefreshUnitFrames)
+    petFrameSlider:SetPoint("TOPLEFT", PAD, y)
+    petFrameSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    local focusFrameSlider = GUI:CreateFormSlider(content, "Focus Frame", 0, 10, 1, "focusFrame", layeringDB, RefreshUnitFrames)
+    focusFrameSlider:SetPoint("TOPLEFT", PAD, y)
+    focusFrameSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    local bossFramesSlider = GUI:CreateFormSlider(content, "Boss Frames", 0, 10, 1, "bossFrames", layeringDB, RefreshUnitFrames)
+    bossFramesSlider:SetPoint("TOPLEFT", PAD, y)
+    bossFramesSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    y = y - 10  -- Section spacing
+
+    -- =====================================================
+    -- CASTBARS SECTION
+    -- =====================================================
+    local castbarHeader = GUI:CreateSectionHeader(content, "Castbars")
+    castbarHeader:SetPoint("TOPLEFT", PAD, y)
+    y = y - castbarHeader.gap
+
+    local playerCastbarSlider = GUI:CreateFormSlider(content, "Player Castbar", 0, 10, 1, "playerCastbar", layeringDB, RefreshCastbars)
+    playerCastbarSlider:SetPoint("TOPLEFT", PAD, y)
+    playerCastbarSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    local targetCastbarSlider = GUI:CreateFormSlider(content, "Target Castbar", 0, 10, 1, "targetCastbar", layeringDB, RefreshCastbars)
+    targetCastbarSlider:SetPoint("TOPLEFT", PAD, y)
+    targetCastbarSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    y = y - 10  -- Section spacing
+
+    -- =====================================================
+    -- CUSTOM TRACKERS SECTION
+    -- =====================================================
+    local customHeader = GUI:CreateSectionHeader(content, "Custom Trackers")
+    customHeader:SetPoint("TOPLEFT", PAD, y)
+    y = y - customHeader.gap
+
+    local customBarsSlider = GUI:CreateFormSlider(content, "Custom Item/Spell Bars", 0, 10, 1, "customBars", layeringDB, RefreshCustomTrackers)
+    customBarsSlider:SetPoint("TOPLEFT", PAD, y)
+    customBarsSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    -- Set content height
+    content:SetHeight(math.abs(y) + 20)
+
+    return scroll
+end
+
+---------------------------------------------------------------------------
 -- INITIALIZE OPTIONS - Main tabs
 ---------------------------------------------------------------------------
 function GUI:InitializeOptions()
@@ -12907,9 +13141,9 @@ function GUI:InitializeOptions()
     GUI:AddTab(frame, "CDM GCD & Effects", CreateCDEffectsPage)
     GUI:AddTab(frame, "CDM Keybind & Rotation", CreateCDKeybindsPage)
     GUI:AddTab(frame, "Custom Items/Spells", CreateCustomTrackersPage)
-    GUI:AddTab(frame, "Quazii's Strings", CreateQuaziiStringsPage)
 
     -- Row 3: Utilities + Action Buttons
+    GUI:AddTab(frame, "HUD Layering", CreateHUDLayeringPage)
     GUI:AddTab(frame, "Spec Profiles", CreateSpecProfilesPage)
     GUI:AddTab(frame, "QUI Import/Export", CreateImportExportPage)
     GUI:AddTab(frame, "Search", CreateSearchPage)

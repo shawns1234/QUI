@@ -789,6 +789,10 @@ function QUICore:GetPowerBar()
     -- Always parent to UIParent so power bar works independently of Essential Cooldowns
     local bar = CreateFrame("Frame", ADDON_NAME .. "PowerBar", UIParent)
     bar:SetFrameStrata("MEDIUM")
+    -- Apply HUD layer priority
+    local layerPriority = self.db.profile.hudLayering and self.db.profile.hudLayering.primaryPowerBar or 7
+    local frameLevel = self:GetHUDFrameLevel(layerPriority)
+    bar:SetFrameLevel(frameLevel)
     bar:SetHeight(cfg.useRawPixels and (cfg.height or 6) or Scale(cfg.height or 6))
     local offsetX = cfg.useRawPixels and (cfg.offsetX or 0) or Scale(cfg.offsetX or 0)
     local offsetY = cfg.useRawPixels and (cfg.offsetY or 6) or Scale(cfg.offsetY or 6)
@@ -835,11 +839,11 @@ function QUICore:GetPowerBar()
     })
     bar.Border:SetBackdropBorderColor(0, 0, 0, 1)
 
-    -- TEXT FRAME (MEDIUM strata with high frame level to render above castbar)
+    -- TEXT FRAME (same strata, +2 levels to render above bar content but stay within element's layer band)
     bar.TextFrame = CreateFrame("Frame", nil, bar)
     bar.TextFrame:SetAllPoints(bar)
     bar.TextFrame:SetFrameStrata("MEDIUM")
-    bar.TextFrame:SetFrameLevel(300)
+    bar.TextFrame:SetFrameLevel(frameLevel + 2)
 
     bar.TextValue = bar.TextFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     bar.TextValue:SetPoint("CENTER", bar.TextFrame, "CENTER", Scale(cfg.textX or 0), Scale(cfg.textY or 0))
@@ -866,10 +870,18 @@ function QUICore:UpdatePowerBar()
 
     local bar = self:GetPowerBar()
     local resource = GetPrimaryResource()
-    
+
     if not resource then
         bar:Hide()
         return
+    end
+
+    -- Update HUD layer priority dynamically
+    local layerPriority = self.db.profile.hudLayering and self.db.profile.hudLayering.primaryPowerBar or 7
+    local frameLevel = self:GetHUDFrameLevel(layerPriority)
+    bar:SetFrameLevel(frameLevel)
+    if bar.TextFrame then
+        bar.TextFrame:SetFrameLevel(frameLevel + 2)
     end
 
     -- Determine effective orientation (AUTO/HORIZONTAL/VERTICAL)
@@ -1477,10 +1489,14 @@ function QUICore:GetSecondaryPowerBar()
     if self.secondaryPowerBar then return self.secondaryPowerBar end
 
     local cfg = self.db.profile.secondaryPowerBar
-    
+
     -- Always parent to UIParent so secondary power bar works independently
     local bar = CreateFrame("Frame", ADDON_NAME .. "SecondaryPowerBar", UIParent)
     bar:SetFrameStrata("MEDIUM")
+    -- Apply HUD layer priority
+    local layerPriority = self.db.profile.hudLayering and self.db.profile.hudLayering.secondaryPowerBar or 6
+    local frameLevel = self:GetHUDFrameLevel(layerPriority)
+    bar:SetFrameLevel(frameLevel)
     bar:SetHeight(Scale(cfg.height or 4))
     bar:SetPoint("CENTER", UIParent, "CENTER", Scale(cfg.offsetX or 0), Scale(cfg.offsetY or 12))
 
@@ -1524,11 +1540,11 @@ function QUICore:GetSecondaryPowerBar()
     })
     bar.Border:SetBackdropBorderColor(0, 0, 0, 1)
 
-    -- TEXT FRAME (MEDIUM strata with high frame level to render above castbar)
+    -- TEXT FRAME (same strata, +2 levels to render above bar content but stay within element's layer band)
     bar.TextFrame = CreateFrame("Frame", nil, bar)
     bar.TextFrame:SetAllPoints(bar)
     bar.TextFrame:SetFrameStrata("MEDIUM")
-    bar.TextFrame:SetFrameLevel(300)
+    bar.TextFrame:SetFrameLevel(frameLevel + 2)
 
     bar.TextValue = bar.TextFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     bar.TextValue:SetPoint("CENTER", bar.TextFrame, "CENTER", Scale(cfg.textX or 0), Scale(cfg.textY or 0))
@@ -1918,6 +1934,14 @@ function QUICore:UpdateSecondaryPowerBar()
     if not resource then
         bar:Hide()
         return
+    end
+
+    -- Update HUD layer priority dynamically
+    local layerPriority = self.db.profile.hudLayering and self.db.profile.hudLayering.secondaryPowerBar or 6
+    local frameLevel = self:GetHUDFrameLevel(layerPriority)
+    bar:SetFrameLevel(frameLevel)
+    if bar.TextFrame then
+        bar.TextFrame:SetFrameLevel(frameLevel + 2)
     end
 
     -- Determine effective orientation (AUTO/HORIZONTAL/VERTICAL)

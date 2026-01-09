@@ -540,6 +540,14 @@ local function LayoutViewer(viewerName, trackerKey)
     NCDM.applying[trackerKey] = true
     viewer.__cdmLayoutRunning = true
 
+    -- Apply HUD layer priority
+    local hudLayering = QUICore and QUICore.db and QUICore.db.profile and QUICore.db.profile.hudLayering
+    local layerPriority = hudLayering and hudLayering[trackerKey] or 5
+    if QUICore and QUICore.GetHUDFrameLevel then
+        local frameLevel = QUICore:GetHUDFrameLevel(layerPriority)
+        viewer:SetFrameLevel(frameLevel)
+    end
+
     -- Check for vertical layout mode
     local layoutDirection = settings.layoutDirection or "HORIZONTAL"
     local isVertical = (layoutDirection == "VERTICAL")

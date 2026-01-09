@@ -486,7 +486,7 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
         y = y - FORM_ROW
 
         -- Width Adjustment On Lock: fine-tune width when locked to anchor (enabled only when locked)
-        castWidthAdjSlider = GUI:CreateFormSlider(tabContent, "Width Adjustment On Lock", -10, 10, 1, "widthAdjustment", castDB, RefreshUnit)
+        castWidthAdjSlider = GUI:CreateFormSlider(tabContent, "Width Adjustment On Lock", -500, 500, 1, "widthAdjustment", castDB, RefreshUnit)
         castWidthAdjSlider:SetPoint("TOPLEFT", PAD, y)
         castWidthAdjSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW

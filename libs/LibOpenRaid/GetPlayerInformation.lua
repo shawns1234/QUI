@@ -878,7 +878,7 @@ local handleBuffAura = function(aura)
     local auraInfo = C_UnitAuras.GetAuraDataByAuraInstanceID(auraUnitId, aura.auraInstanceID)
     if (auraInfo) then
         local spellId = auraInfo.spellId
-        if (auraSpellID == spellId) then
+        if spellId and not issecretvalue(spellId) and (auraSpellID == spellId) then
             auraSpellID = nil
             auraDurationTime = auraInfo.duration
             return true
@@ -936,6 +936,10 @@ function openRaidLib.CooldownManager.GetPlayerCooldownStatus(spellId)
         local buffDuration = getAuraDuration(spellId)
         local chargesAvailable, chargesTotal, start, duration = GetSpellCharges(spellId)
         if chargesAvailable then
+            -- Guard against secret values
+            if issecretvalue(chargesAvailable) or issecretvalue(chargesTotal) or issecretvalue(start) or issecretvalue(duration) then
+                return 0, 1, 0, 0, 0
+            end
             if (chargesAvailable == chargesTotal) then
                 return 0, chargesTotal, 0, 0, 0 --all charges are ready to use
             else
@@ -950,12 +954,18 @@ function openRaidLib.CooldownManager.GetPlayerCooldownStatus(spellId)
                 local spellCooldownInfo = GetSpellCooldown(spellId)
                 local start = spellCooldownInfo.startTime
                 local duration = spellCooldownInfo.duration
+                -- Guard against secret values
+                if issecretvalue(start) or issecretvalue(duration) then
+                    return 0, 1, 0, 0, 0
+                end
                 if (start == 0) then --cooldown is ready
                     return 0, 1, 0, 0, 0 --time left, charges, startTime
                 else
                     local timeLeft = start + duration - GetTime()
                     local globalCooldownInfo = GetSpellCooldown(CONST_GLOBALCOOLDOWN_SPELLID)
-                    if (globalCooldownInfo.startTime ~= 0 and globalCooldownInfo.duration >= timeLeft) then
+                    local gcdStart = globalCooldownInfo.startTime
+                    local gcdDuration = globalCooldownInfo.duration
+                    if not issecretvalue(gcdStart) and not issecretvalue(gcdDuration) and (gcdStart ~= 0 and gcdDuration >= timeLeft) then
                         return 0, 1, 0, 0, 0 --time left, charges, startTime
                     else
                         local startTimeOffset = start - GetTime()
@@ -964,12 +974,16 @@ function openRaidLib.CooldownManager.GetPlayerCooldownStatus(spellId)
                 end
             else
                 local start, duration = GetSpellCooldown(spellId)
+                -- Guard against secret values
+                if issecretvalue(start) or issecretvalue(duration) then
+                    return 0, 1, 0, 0, 0
+                end
                 if (start == 0) then --cooldown is ready
                     return 0, 1, 0, 0, 0 --time left, charges, startTime
                 else
                     local timeLeft = start + duration - GetTime()
                     local gcStart, gcDuration = GetSpellCooldown(CONST_GLOBALCOOLDOWN_SPELLID)
-                    if (gcStart ~= 0 and gcDuration >= timeLeft) then
+                    if not issecretvalue(gcStart) and not issecretvalue(gcDuration) and (gcStart ~= 0 and gcDuration >= timeLeft) then
                         return 0, 1, 0, 0, 0 --time left, charges, startTime
                     else
                         local startTimeOffset = start - GetTime()

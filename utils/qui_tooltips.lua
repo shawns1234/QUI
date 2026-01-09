@@ -184,6 +184,12 @@ local function SetupTooltipHook()
             return  -- Module disabled, use default behavior
         end
 
+        -- Early exit in combat to avoid triggering Blizzard MoneyFrame secret value bug
+        if settings.hideInCombat and InCombatLockdown() then
+            tooltip:Hide()
+            return
+        end
+
         -- Get context from parent (owner)
         local context = GetTooltipContext(parent)
 
@@ -244,6 +250,20 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         -- Delay hook setup to ensure database is ready
         C_Timer.After(0.5, function()
             SetupTooltipHook()
+
+            -- Wrap MoneyFrame functions in pcall to suppress Blizzard secret value bug
+            if MoneyFrame_Update then
+                local originalMoneyFrameUpdate = MoneyFrame_Update
+                MoneyFrame_Update = function(...)
+                    pcall(originalMoneyFrameUpdate, ...)
+                end
+            end
+            if SetTooltipMoney then
+                local originalSetTooltipMoney = SetTooltipMoney
+                SetTooltipMoney = function(...)
+                    pcall(originalSetTooltipMoney, ...)
+                end
+            end
         end)
     elseif event == "MODIFIER_STATE_CHANGED" then
         OnModifierStateChanged()

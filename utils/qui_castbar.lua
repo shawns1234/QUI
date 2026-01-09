@@ -923,7 +923,23 @@ function QUI_Castbar:CreateCastbar(unitFrame, unit, unitKey)
     
     local anchorFrame = CreateAnchorFrame(nil, UIParent)
     anchorFrame:SetSize(1, barHeight)
-    
+
+    -- Apply HUD layer priority
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    local hudLayering = QUICore and QUICore.db and QUICore.db.profile and QUICore.db.profile.hudLayering
+    local layerPriority
+    if unitKey == "player" then
+        layerPriority = hudLayering and hudLayering.playerCastbar or 5
+    elseif unitKey == "target" then
+        layerPriority = hudLayering and hudLayering.targetCastbar or 5
+    else
+        layerPriority = 5  -- Default for any other castbar
+    end
+    if QUICore and QUICore.GetHUDFrameLevel then
+        local frameLevel = QUICore:GetHUDFrameLevel(layerPriority)
+        anchorFrame:SetFrameLevel(frameLevel)
+    end
+
     CreateIcon(anchorFrame, iconSize, iconBorderSize, castSettings.iconBorderColor)
     local statusBar = CreateStatusBar(anchorFrame)
     
@@ -2073,6 +2089,16 @@ _G.QuaziiUI_RefreshCastbar = function(unitKey)
     local QUI_UF = QUI_Castbar.unitFramesModule
     if not QUI_UF then return end
     QUI_UF:RefreshFrame(unitKey)
+end
+
+-- Refresh all castbars (used by HUD Layering options)
+_G.QuaziiUI_RefreshCastbars = function()
+    local QUI_UF = QUI_Castbar.unitFramesModule
+    if not QUI_UF then return end
+    -- Refresh player and target castbars
+    for _, unitKey in ipairs({"player", "target"}) do
+        QUI_UF:RefreshFrame(unitKey)
+    end
 end
 
 _G.QuaziiUI_Castbars = QUI_Castbar.castbars

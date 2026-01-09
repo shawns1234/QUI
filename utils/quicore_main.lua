@@ -159,6 +159,17 @@ function QUICore:ImportProfileFromString(str)
 end
 
 ---=================================================================================
+--- HUD LAYERING UTILITY
+---=================================================================================
+
+-- Convert layer priority (0-10) to frame level
+-- Base 100, step 20 = range 100-300
+-- Higher priority = rendered on top of lower priority elements
+function QUICore:GetHUDFrameLevel(priority)
+    return 100 + (priority or 5) * 20
+end
+
+---=================================================================================
 --- SAFE BACKDROP UTILITY (Combat/Secret Value Protection)
 ---=================================================================================
 
@@ -2729,6 +2740,30 @@ local defaults = {
                 trinketData = {},
                 learnedBuffs = {},
             },
+        },
+
+        -- HUD Layering: Control frame level ordering for HUD elements
+        -- Higher values appear above lower values (range 0-10)
+        hudLayering = {
+            -- CDM viewers (default 5 - middle)
+            essential = 5,
+            utility = 5,
+            buffIcon = 5,
+            -- Power bars (higher defaults so text visible above CDM)
+            primaryPowerBar = 7,
+            secondaryPowerBar = 6,
+            -- Unit frames (lower defaults, background elements)
+            playerFrame = 4,
+            targetFrame = 4,
+            totFrame = 3,
+            petFrame = 3,
+            focusFrame = 4,
+            bossFrames = 4,
+            -- Castbars (middle)
+            playerCastbar = 5,
+            targetCastbar = 5,
+            -- Custom trackers
+            customBars = 5,
         },
     },
     -- Account-wide storage (shared across all characters)

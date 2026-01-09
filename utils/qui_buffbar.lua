@@ -868,6 +868,15 @@ LayoutBuffIcons = function()
         return
     end
 
+    -- Apply HUD layer priority
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    local hudLayering = QUICore and QUICore.db and QUICore.db.profile and QUICore.db.profile.hudLayering
+    local layerPriority = hudLayering and hudLayering.buffIcon or 5
+    if QUICore and QUICore.GetHUDFrameLevel then
+        local frameLevel = QUICore:GetHUDFrameLevel(layerPriority)
+        BuffIconCooldownViewer:SetFrameLevel(frameLevel)
+    end
+
     local icons = GetBuffIconFrames()
     local currentCount = #icons
 

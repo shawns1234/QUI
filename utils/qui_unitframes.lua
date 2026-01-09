@@ -567,7 +567,8 @@ local function UpdateHealth(frame)
 end
 
 ---------------------------------------------------------------------------
--- UPDATE: Absorb shields (uses StatusBar to avoid secret value comparisons)
+-- UPDATE: Absorb shields (attached + overflow mode to prevent left overflow)
+-- Uses CreateUnitHealPredictionCalculator to detect when absorb would overflow
 ---------------------------------------------------------------------------
 local function UpdateAbsorbs(frame)
     if not frame or not frame.unit or not frame.healthBar then return end
@@ -579,12 +580,14 @@ local function UpdateAbsorbs(frame)
     -- Check if enabled
     if not settings or not settings.absorbs or settings.absorbs.enabled == false then
         frame.absorbBar:Hide()
+        if frame.absorbOverflowBar then frame.absorbOverflowBar:Hide() end
         if frame.healAbsorbBar then frame.healAbsorbBar:Hide() end
         return
     end
 
     if not UnitExists(unit) then
         frame.absorbBar:Hide()
+        if frame.absorbOverflowBar then frame.absorbOverflowBar:Hide() end
         if frame.healAbsorbBar then frame.healAbsorbBar:Hide() end
         return
     end
@@ -592,40 +595,129 @@ local function UpdateAbsorbs(frame)
     -- Get values (StatusBar handles secret values natively)
     local maxHealth = UnitHealthMax(unit)
     local absorbAmount = UnitGetTotalAbsorbs(unit)
-
-    -- Anchor absorb's right edge to health fill's right edge (absorb backs up health)
     local healthTexture = frame.healthBar:GetStatusBarTexture()
-    frame.absorbBar:ClearAllPoints()
-    frame.absorbBar:SetPoint("TOPRIGHT", healthTexture, "TOPRIGHT", 0, 0)
-    frame.absorbBar:SetPoint("BOTTOMRIGHT", healthTexture, "BOTTOMRIGHT", 0, 0)
-    frame.absorbBar:SetWidth(frame.healthBar:GetWidth())
-    frame.absorbBar:SetReverseFill(true)  -- Fill from RIGHT to LEFT (grows leftward)
 
-    -- Set values (StatusBar handles secret values)
-    frame.absorbBar:SetMinMaxValues(0, maxHealth or 1)
-    frame.absorbBar:SetValue(absorbAmount or 0)
-
-    -- Secret value handling: if secret, show (data exists). If not secret, compare safely.
-    local showAbsorb = false
-    if absorbAmount then
-        if IsSecretValue(absorbAmount) then
-            showAbsorb = true  -- Secret value exists = absorb data present
-        else
-            showAbsorb = absorbAmount > 0  -- Safe to compare non-secret
-        end
-    end
-    if showAbsorb then
-        frame.absorbBar:Show()
-    else
-        frame.absorbBar:Hide()
-    end
-
-    -- Update color from settings (apply to stripe texture)
+    -- Get color settings upfront
     local absorbSettings = settings.absorbs or {}
     local c = absorbSettings.color or { 1, 1, 1 }
     local a = absorbSettings.opacity or 0.7
-    if frame.absorbStripeTexture then
-        frame.absorbStripeTexture:SetVertexColor(c[1], c[2], c[3], a)
+
+    -- Safe check for zero absorb using pcall (secret values throw on comparison)
+    -- If absorbAmount is nil, treat as zero
+    -- If comparison succeeds and equals 0, hide bars
+    -- If comparison fails (secret value), let StatusBar handle it (renders 0-width for 0)
+    local hideAbsorb = false
+    if not absorbAmount then
+        hideAbsorb = true
+    else
+        local success, isZero = pcall(function() return absorbAmount == 0 end)
+        if success and isZero then
+            hideAbsorb = true
+        end
+    end
+
+    if hideAbsorb then
+        frame.absorbBar:Hide()
+        if frame.absorbOverflowBar then frame.absorbOverflowBar:Hide() end
+        return
+    end
+
+    -- For secret values OR non-zero absorbs, proceed with display
+    do
+        -- Create overflow bar once if needed (for overlay mode when absorb too big)
+        -- Use stripe texture directly on StatusBar (no overlay) to avoid 1px sliver at 0 width
+        if not frame.absorbOverflowBar then
+            frame.absorbOverflowBar = CreateFrame("StatusBar", nil, frame.healthBar)
+            frame.absorbOverflowBar:SetStatusBarTexture("Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe")
+            local overflowBarTex = frame.absorbOverflowBar:GetStatusBarTexture()
+            if overflowBarTex then
+                overflowBarTex:SetHorizTile(true)
+                overflowBarTex:SetVertTile(true)
+            end
+            frame.absorbOverflowBar:SetFrameLevel(frame.healthBar:GetFrameLevel() + 2)
+            frame.absorbOverflowBar:EnableMouse(false)
+        end
+
+        -- Create visibility helper textures once if needed (for secret boolean → alpha conversion)
+        if not frame.attachedVisHelper then
+            frame.attachedVisHelper = frame.absorbBar:CreateTexture(nil, "BACKGROUND")
+            frame.attachedVisHelper:SetSize(1, 1)
+            frame.attachedVisHelper:SetColorTexture(0, 0, 0, 0)
+        end
+        if not frame.overflowVisHelper then
+            frame.overflowVisHelper = frame.absorbOverflowBar:CreateTexture(nil, "BACKGROUND")
+            frame.overflowVisHelper:SetSize(1, 1)
+            frame.overflowVisHelper:SetColorTexture(0, 0, 0, 0)
+        end
+
+        -- Get clamped absorbs using prediction calculator
+        local clampedAbsorbs = absorbAmount  -- Default to full absorb if no calculator
+
+        -- Default visibility: attached bar visible, overflow bar hidden
+        frame.attachedVisHelper:SetAlpha(1)
+        frame.overflowVisHelper:SetAlpha(0)
+
+        if CreateUnitHealPredictionCalculator and unit then
+            -- Create calculator once per frame
+            if not frame.absorbCalculator then
+                frame.absorbCalculator = CreateUnitHealPredictionCalculator()
+            end
+            local calc = frame.absorbCalculator
+
+            -- Clamp mode 1 = Missing Health (clamp to space between current HP and 0)
+            pcall(function() calc:SetDamageAbsorbClampMode(1) end)
+
+            -- Populate calculator with unit data
+            UnitGetDetailedHealPrediction(unit, nil, calc)
+
+            -- Get clamped absorbs + isClamped boolean (both can be secret values)
+            -- CRITICAL: We cannot do ANY tests on secret values - no if, or, and, comparisons
+            local results = { pcall(function() return calc:GetDamageAbsorbs() end) }
+            local success = results[1]
+            -- results[2] = clampedValue (secret number), results[3] = isClamped (secret boolean)
+
+            if success then
+                -- Store clampedValue directly - it goes straight to StatusBar which handles secrets
+                clampedAbsorbs = results[2]
+
+                -- Use SetAlphaFromBoolean to convert secret boolean → alpha
+                -- isClamped = true → attached alpha=0, overflow alpha=1
+                -- isClamped = false → attached alpha=1, overflow alpha=0
+                -- We pass the result directly to SetAlpha without reading it
+                pcall(function()
+                    frame.attachedVisHelper:SetAlphaFromBoolean(results[3], 0, 1)
+                    frame.overflowVisHelper:SetAlphaFromBoolean(results[3], 1, 0)
+                end)
+            end
+        end
+
+        -- ALWAYS position and show BOTH bars - alpha controls which is visible
+        -- No branching based on secret values - just pass alpha directly
+
+        -- ATTACHED BAR: Starts where health ENDS, grows RIGHTWARD into empty space
+        -- Anchor LEFT edge of absorb bar to RIGHT edge of health fill texture
+        frame.absorbBar:ClearAllPoints()
+        frame.absorbBar:SetPoint("LEFT", healthTexture, "RIGHT", 0, 0)
+        frame.absorbBar:SetHeight(frame.healthBar:GetHeight())
+        frame.absorbBar:SetWidth(frame.healthBar:GetWidth())  -- Full width available for absorb to fill
+        frame.absorbBar:SetReverseFill(false)  -- Grows LEFT to RIGHT (rightward into empty space)
+        frame.absorbBar:SetMinMaxValues(0, maxHealth or 1)
+        frame.absorbBar:SetValue(clampedAbsorbs)  -- Clamped value (secret-safe via StatusBar)
+        frame.absorbBar:SetStatusBarColor(c[1], c[2], c[3], a)  -- Apply color directly to StatusBar
+        frame.absorbBar:SetAlpha(frame.attachedVisHelper:GetAlpha())  -- Secret alpha passed directly
+        frame.absorbBar:Show()
+
+        -- OVERFLOW BAR: Overlay mode - fills from RIGHT to LEFT
+        -- Shows absorb starting from the RIGHT side (max health edge) going left
+        frame.absorbOverflowBar:ClearAllPoints()
+        frame.absorbOverflowBar:SetPoint("TOPLEFT", frame.healthBar, "TOPLEFT", 0, 0)
+        frame.absorbOverflowBar:SetPoint("BOTTOMRIGHT", frame.healthBar, "BOTTOMRIGHT", 0, 0)
+        frame.absorbOverflowBar:SetReverseFill(true)  -- CRITICAL: Fill from RIGHT to LEFT
+        frame.absorbOverflowBar:SetMinMaxValues(0, maxHealth or 1)
+        frame.absorbOverflowBar:SetValue(absorbAmount)  -- Full unclamped absorb value
+        frame.absorbOverflowBar:SetStatusBarColor(c[1], c[2], c[3], a)  -- Apply color directly to StatusBar
+        frame.absorbOverflowBar:SetAlpha(frame.overflowVisHelper:GetAlpha())  -- Secret alpha passed directly
+        frame.absorbOverflowBar:Show()
     end
 
     -- Heal absorbs (fills from left, overlays on health)
@@ -638,19 +730,21 @@ local function UpdateAbsorbs(frame)
         frame.healAbsorbBar:SetMinMaxValues(0, maxHealth or 1)
         frame.healAbsorbBar:SetValue(healAbsorbAmount or 0)
 
-        -- Secret value handling for heal absorbs
-        local showHealAbsorb = false
-        if healAbsorbAmount then
-            if IsSecretValue(healAbsorbAmount) then
-                showHealAbsorb = true
-            else
-                showHealAbsorb = healAbsorbAmount > 0
+        -- Safe check for zero using pcall (secret values throw on comparison)
+        local hideHealAbsorb = false
+        if not healAbsorbAmount then
+            hideHealAbsorb = true
+        else
+            local success, isZero = pcall(function() return healAbsorbAmount == 0 end)
+            if success and isZero then
+                hideHealAbsorb = true
             end
         end
-        if showHealAbsorb then
-            frame.healAbsorbBar:Show()
-        else
+
+        if hideHealAbsorb then
             frame.healAbsorbBar:Hide()
+        else
+            frame.healAbsorbBar:Show()
         end
     end
 end
@@ -661,15 +755,15 @@ end
 local function UpdatePower(frame)
     if not frame or not frame.unit or not frame.powerBar then return end
     local unit = frame.unit
-    
+
     if not UnitExists(unit) then return end
-    
+
     local settings = GetUnitSettings(frame.unitKey)
     if not settings or not settings.showPowerBar then
         frame.powerBar:Hide()
         return
     end
-    
+
     -- Get power values directly - StatusBar can handle secret values
     local p = UnitPower(unit)
     local pMax = UnitPowerMax(unit)
@@ -1144,27 +1238,25 @@ local function CreateBossFrame(unit, frameKey, bossIndex)
     frame.healthBar = healthBar
 
     -- Absorb bar (StatusBar handles secret values via SetValue)
+    -- Use stripe texture directly on StatusBar (no overlay) to avoid 1px sliver at 0 width
     local absorbBar = CreateFrame("StatusBar", nil, healthBar)
-    absorbBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-    absorbBar:SetStatusBarColor(0, 0, 0, 0)  -- Invisible base
+    absorbBar:SetStatusBarTexture("Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe")
+    local absorbBarTex = absorbBar:GetStatusBarTexture()
+    if absorbBarTex then
+        absorbBarTex:SetHorizTile(true)
+        absorbBarTex:SetVertTile(true)
+    end
+    local absorbSettings = settings.absorbs or {}
+    local ac = absorbSettings.color or { 1, 1, 1 }
+    local aa = absorbSettings.opacity or 0.7
+    absorbBar:SetStatusBarColor(ac[1], ac[2], ac[3], aa)
     absorbBar:SetFrameLevel(healthBar:GetFrameLevel() + 1)
     absorbBar:SetPoint("TOP", healthBar, "TOP", 0, 0)
     absorbBar:SetPoint("BOTTOM", healthBar, "BOTTOM", 0, 0)
     absorbBar:SetMinMaxValues(0, 1)
     absorbBar:SetValue(0)
+    absorbBar:Hide()  -- Start hidden until UpdateAbsorbs shows it
     frame.absorbBar = absorbBar
-
-    -- Stripe overlay (tiled diagonal pattern)
-    local stripeTexture = absorbBar:CreateTexture(nil, "OVERLAY")
-    stripeTexture:SetTexture("Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe", "REPEAT", "REPEAT")
-    stripeTexture:SetHorizTile(true)
-    stripeTexture:SetVertTile(true)
-    stripeTexture:SetAllPoints(absorbBar:GetStatusBarTexture())
-    local absorbSettings = settings.absorbs or {}
-    local ac = absorbSettings.color or { 1, 1, 1 }
-    local aa = absorbSettings.opacity or 0.7
-    stripeTexture:SetVertexColor(ac[1], ac[2], ac[3], aa)
-    frame.absorbStripeTexture = stripeTexture
 
     -- Heal absorb bar (fills from right side of current health)
     local healAbsorbBar = CreateFrame("StatusBar", nil, healthBar)
@@ -1451,27 +1543,25 @@ local function CreateUnitFrame(unit, unitKey)
     frame.healthBar = healthBar
 
     -- Absorb bar (StatusBar handles secret values via SetValue)
+    -- Use stripe texture directly on StatusBar (no overlay) to avoid 1px sliver at 0 width
     local absorbBar = CreateFrame("StatusBar", nil, healthBar)
-    absorbBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-    absorbBar:SetStatusBarColor(0, 0, 0, 0)  -- Invisible base
+    absorbBar:SetStatusBarTexture("Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe")
+    local absorbBarTex = absorbBar:GetStatusBarTexture()
+    if absorbBarTex then
+        absorbBarTex:SetHorizTile(true)
+        absorbBarTex:SetVertTile(true)
+    end
+    local absorbSettings = settings.absorbs or {}
+    local ac = absorbSettings.color or { 1, 1, 1 }
+    local aa = absorbSettings.opacity or 0.7
+    absorbBar:SetStatusBarColor(ac[1], ac[2], ac[3], aa)
     absorbBar:SetFrameLevel(healthBar:GetFrameLevel() + 1)
     absorbBar:SetPoint("TOP", healthBar, "TOP", 0, 0)
     absorbBar:SetPoint("BOTTOM", healthBar, "BOTTOM", 0, 0)
     absorbBar:SetMinMaxValues(0, 1)
     absorbBar:SetValue(0)
+    absorbBar:Hide()  -- Start hidden until UpdateAbsorbs shows it
     frame.absorbBar = absorbBar
-
-    -- Stripe overlay (tiled diagonal pattern)
-    local stripeTexture = absorbBar:CreateTexture(nil, "OVERLAY")
-    stripeTexture:SetTexture("Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe", "REPEAT", "REPEAT")
-    stripeTexture:SetHorizTile(true)
-    stripeTexture:SetVertTile(true)
-    stripeTexture:SetAllPoints(absorbBar:GetStatusBarTexture())
-    local absorbSettings = settings.absorbs or {}
-    local ac = absorbSettings.color or { 1, 1, 1 }
-    local aa = absorbSettings.opacity or 0.7
-    stripeTexture:SetVertexColor(ac[1], ac[2], ac[3], aa)
-    frame.absorbStripeTexture = stripeTexture
 
     -- Heal absorb bar (fills from right side of current health)
     local healAbsorbBar = CreateFrame("StatusBar", nil, healthBar)
@@ -1852,6 +1942,13 @@ local function ApplyAuraIconSettings(icon, auraSettings, isDebuff)
         icon.count:SetTextColor(stackColor[1] or 1, stackColor[2] or 1, stackColor[3] or 1, stackColor[4] or 1)
     end
     icon._showStack = showStack
+
+    -- Swipe toggle (per-type: debuffHideSwipe or buffHideSwipe)
+    local hideSwipe = auraSettings[prefix .. "HideSwipe"]
+    if hideSwipe == nil then hideSwipe = false end  -- default: show swipe
+    if icon.cooldown then
+        icon.cooldown:SetDrawSwipe(not hideSwipe)
+    end
 end
 
 local function CreateAuraIcon(parent, index, size, auraSettings, isDebuff)
@@ -2074,21 +2171,21 @@ local function UpdateAuras(frame)
         return applied
     end
     
-    -- Helper to safely get applications count (comparison must be inside pcall)
-    local function SafeGetApplications(auraData)
-        if not auraData.applications then return 0 end
-        -- Do the comparison INSIDE pcall to handle secret values
-        local ok, result = pcall(function()
-            local apps = auraData.applications
-            if apps and apps > 1 then
-                return apps
-            end
-            return 0
-        end)
-        if ok then
-            return result or 0
+    -- Helper to safely display stack count using combat-safe API
+    -- Passes directly to SetText without comparing (return value may be secret-derived)
+    local function DisplayStackCount(countText, unit, auraInstanceID)
+        if not auraInstanceID or not C_UnitAuras.GetAuraApplicationDisplayCount then
+            countText:SetText("")
+            return
         end
-        return 0
+        -- stackMinimum=2 means don't show "1", stackMaximum=99 for normal display
+        -- API returns "" for <2 stacks, number string for 2-99, "*" for 100+
+        local ok, stackText = pcall(C_UnitAuras.GetAuraApplicationDisplayCount, unit, auraInstanceID, 2, 99)
+        if ok then
+            countText:SetText(stackText)
+        else
+            countText:SetText("")
+        end
     end
 
     -- Populate debuffs (skip if preview is active)
@@ -2125,15 +2222,10 @@ local function UpdateAuras(frame)
                 icon.cooldown:Hide()
             end
 
-            -- Stack count (safely, respects showStack setting)
+            -- Stack count (using combat-safe API, no comparisons on result)
             if icon._showStack then
-                local stacks = SafeGetApplications(auraData)
-                if stacks > 1 then
-                    icon.count:SetText(stacks)
-                    icon.count:Show()
-                else
-                    icon.count:Hide()
-                end
+                DisplayStackCount(icon.count, unit, auraData.auraInstanceID)
+                icon.count:Show()
             else
                 icon.count:Hide()
             end
@@ -2205,15 +2297,10 @@ local function UpdateAuras(frame)
                 icon.cooldown:Hide()
             end
 
-            -- Stack count (safely, respects showStack setting)
+            -- Stack count (using combat-safe API, no comparisons on result)
             if icon._showStack then
-                local stacks = SafeGetApplications(auraData)
-                if stacks > 1 then
-                    icon.count:SetText(stacks)
-                    icon.count:Show()
-                else
-                    icon.count:Hide()
-                end
+                DisplayStackCount(icon.count, unit, auraData.auraInstanceID)
+                icon.count:Show()
             else
                 icon.count:Hide()
             end
@@ -2791,10 +2878,23 @@ function QUI_UF:RefreshFrame(unitKey)
         local separatorHeight = (settings.showPowerBar and settings.powerBarBorder ~= false) and 1 or 0
         local texturePath = GetTexturePath(settings.texture)
 
+        -- Get HUD layer priority for boss frames
+        local hudLayering = QUICore and QUICore.db and QUICore.db.profile and QUICore.db.profile.hudLayering
+        local bossLayerPriority = hudLayering and hudLayering.bossFrames or 4
+        local bossFrameLevel
+        if QUICore and QUICore.GetHUDFrameLevel then
+            bossFrameLevel = QUICore:GetHUDFrameLevel(bossLayerPriority)
+        end
+
         for i = 1, 5 do
             local bossKey = "boss" .. i
             local frame = self.frames[bossKey]
             if frame then
+                -- Apply HUD layer priority
+                if bossFrameLevel then
+                    frame:SetFrameLevel(bossFrameLevel)
+                end
+
                 -- Update size
                 frame:SetSize(settings.width or 220, settings.height or 35)
 
@@ -2916,18 +3016,41 @@ function QUI_UF:RefreshFrame(unitKey)
     
     local frame = self.frames[unitKey]
     if not frame then return end
-    
+
     -- Skip frame modifications during combat (secure frames are protected)
     if InCombatLockdown() then
         -- Only update non-secure elements (colors, text)
         UpdateFrame(frame)
         return
     end
-    
+
     local settings = GetUnitSettings(unitKey)
     local general = GetGeneralSettings()
     if not settings then return end
-    
+
+    -- Apply HUD layer priority
+    local hudLayering = QUICore and QUICore.db and QUICore.db.profile and QUICore.db.profile.hudLayering
+    local layerKey = unitKey .. "Frame"
+    -- Map unitKey to hudLayering key (player -> playerFrame, target -> targetFrame, etc.)
+    local layerPriority
+    if unitKey == "player" then
+        layerPriority = hudLayering and hudLayering.playerFrame or 4
+    elseif unitKey == "target" then
+        layerPriority = hudLayering and hudLayering.targetFrame or 4
+    elseif unitKey == "targettarget" then
+        layerPriority = hudLayering and hudLayering.totFrame or 3
+    elseif unitKey == "pet" then
+        layerPriority = hudLayering and hudLayering.petFrame or 3
+    elseif unitKey == "focus" then
+        layerPriority = hudLayering and hudLayering.focusFrame or 4
+    else
+        layerPriority = 4  -- Default for any other unit type
+    end
+    if QUICore and QUICore.GetHUDFrameLevel then
+        local frameLevel = QUICore:GetHUDFrameLevel(layerPriority)
+        frame:SetFrameLevel(frameLevel)
+    end
+
     -- Update size
     frame:SetSize(settings.width or 220, settings.height or 35)
     
@@ -2974,27 +3097,47 @@ function QUI_UF:RefreshFrame(unitKey)
     frame.healthBar:SetPoint("TOPLEFT", frame, "TOPLEFT", borderSize, -borderSize)
     frame.healthBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -borderSize, borderSize + powerHeight + separatorHeight)
     
-    -- Update power bar
-    if frame.powerBar then
-        if settings.showPowerBar then
-            frame.powerBar:SetStatusBarTexture(texturePath)
-            frame.powerBar:ClearAllPoints()
-            frame.powerBar:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", borderSize, borderSize)
-            frame.powerBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -borderSize, borderSize)
-            frame.powerBar:SetHeight(powerHeight)
-            frame.powerBar:Show()
-        else
-            frame.powerBar:Hide()
+    -- Update power bar (create dynamically if needed)
+    if settings.showPowerBar then
+        if not frame.powerBar then
+            -- Create power bar dynamically when setting is enabled
+            local powerBar = CreateFrame("StatusBar", nil, frame)
+            powerBar:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", borderSize, borderSize)
+            powerBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -borderSize, borderSize)
+            powerBar:SetHeight(powerHeight)
+            powerBar:SetStatusBarTexture(texturePath)
+            powerBar:SetMinMaxValues(0, 100)
+            powerBar:SetValue(100)
+            powerBar:SetStatusBarColor(0, 0.5, 1, 1)
+            powerBar:EnableMouse(false)
+            frame.powerBar = powerBar
         end
+        -- Update existing power bar
+        frame.powerBar:SetStatusBarTexture(texturePath)
+        frame.powerBar:ClearAllPoints()
+        frame.powerBar:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", borderSize, borderSize)
+        frame.powerBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -borderSize, borderSize)
+        frame.powerBar:SetHeight(powerHeight)
+        frame.powerBar:Show()
+    elseif frame.powerBar then
+        frame.powerBar:Hide()
     end
 
-    -- Update power bar separator
-    if frame.powerBarSeparator then
-        if settings.showPowerBar and settings.powerBarBorder ~= false then
-            frame.powerBarSeparator:Show()
-        else
-            frame.powerBarSeparator:Hide()
+    -- Update power bar separator (create dynamically if needed)
+    if settings.showPowerBar and settings.powerBarBorder ~= false then
+        if not frame.powerBarSeparator then
+            -- Create separator dynamically
+            local separator = frame.powerBar:CreateTexture(nil, "OVERLAY")
+            separator:SetHeight(1)
+            separator:SetPoint("BOTTOMLEFT", frame.powerBar, "TOPLEFT", 0, 0)
+            separator:SetPoint("BOTTOMRIGHT", frame.powerBar, "TOPRIGHT", 0, 0)
+            separator:SetTexture("Interface\\Buttons\\WHITE8x8")
+            separator:SetVertexColor(0, 0, 0, 1)
+            frame.powerBarSeparator = separator
         end
+        frame.powerBarSeparator:Show()
+    elseif frame.powerBarSeparator then
+        frame.powerBarSeparator:Hide()
     end
 
     -- Update fonts and text positions
@@ -4210,6 +4353,13 @@ _G.QuaziiUI_UpdateAnchoredUnitFrames = function()
                 frame:ClearAllPoints()
                 frame:SetPoint("CENTER", UIParent, "CENTER", frameX, frameY)
             end
+        else
+            -- Fallback: anchor target doesn't exist, use standard offset positioning
+            local frame = QUI_UF.frames.player
+            frame:ClearAllPoints()
+            frame:SetPoint("CENTER", UIParent, "CENTER",
+                Scale(playerSettings.offsetX or 0),
+                Scale(playerSettings.offsetY or 0))
         end
     end
 
@@ -4235,6 +4385,13 @@ _G.QuaziiUI_UpdateAnchoredUnitFrames = function()
                 frame:ClearAllPoints()
                 frame:SetPoint("CENTER", UIParent, "CENTER", frameX, frameY)
             end
+        else
+            -- Fallback: anchor target doesn't exist, use standard offset positioning
+            local frame = QUI_UF.frames.target
+            frame:ClearAllPoints()
+            frame:SetPoint("CENTER", UIParent, "CENTER",
+                Scale(targetSettings.offsetX or 0),
+                Scale(targetSettings.offsetY or 0))
         end
     end
 end

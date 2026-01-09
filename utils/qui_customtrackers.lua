@@ -352,9 +352,10 @@ local function GetSpellBuffInfo(spellID)
     end
 
     -- Out of combat: use direct API (more accurate)
+    -- pcall guards against unexpected protection in instanced content
     if C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
-        local auraData = C_UnitAuras.GetPlayerAuraBySpellID(spellID)
-        if auraData then
+        local ok, auraData = pcall(C_UnitAuras.GetPlayerAuraBySpellID, spellID)
+        if ok and auraData then
             return true, auraData.expirationTime, auraData.duration
         end
     end
@@ -499,7 +500,8 @@ local function CreateTrackerIcon(parent)
             if self.entry.type == "spell" then
                 GameTooltip:SetSpellByID(self.entry.id)
             elseif self.entry.type == "item" then
-                GameTooltip:SetItemByID(self.entry.id)
+                -- pcall to handle Blizzard MoneyFrame secret value bug in Midnight beta
+                pcall(GameTooltip.SetItemByID, GameTooltip, self.entry.id)
             end
         end
     end)
@@ -1215,7 +1217,16 @@ function CustomTrackers:CreateBar(barID, config)
 
     local bar = CreateFrame("Frame", "QUI_CustomTracker_" .. barID, UIParent, "BackdropTemplate")
     bar:SetFrameStrata("MEDIUM")
-    bar:SetFrameLevel(50)
+
+    -- Apply HUD layer priority
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    local hudLayering = QUICore and QUICore.db and QUICore.db.profile and QUICore.db.profile.hudLayering
+    local layerPriority = hudLayering and hudLayering.customBars or 5
+    local frameLevel = 50  -- Default fallback
+    if QUICore and QUICore.GetHUDFrameLevel then
+        frameLevel = QUICore:GetHUDFrameLevel(layerPriority)
+    end
+    bar:SetFrameLevel(frameLevel)
 
     -- Store references (needed before PositionBar)
     bar.barID = barID
