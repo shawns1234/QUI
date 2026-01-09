@@ -8992,11 +8992,44 @@ local function CreateCustomTrackersPage(parent)
         cooldownOnlyDesc:SetWordWrap(true)
         cooldownOnlyDesc:SetHeight(50)
         y = y - 60
-
-        local showOnlyOnCooldownCheck = GUI:CreateFormCheckbox(lowerContainer, "Show Only On Cooldown", "showOnlyOnCooldown", barConfig, RefreshThisBar)
+        -- These two options are mutually exclusive:
+        -- NOTE: QUI GUI widgets expose SetValue/GetValue as plain functions (NOT methods),
+        -- so call them with dot syntax (check.SetValue(...)), not colon (check:SetValue(...)).
+        local showOnlyOnCooldownCheck = GUI:CreateFormCheckbox(lowerContainer, "Show Only On Cooldown", "showOnlyOnCooldown", barConfig, nil)
         showOnlyOnCooldownCheck:SetPoint("TOPLEFT", 0, y)
         showOnlyOnCooldownCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
+
+        local showOnlyWhenActiveCheck = GUI:CreateFormCheckbox(lowerContainer, "Show Only When Active", "showOnlyWhenActive", barConfig, nil)
+        showOnlyWhenActiveCheck:SetPoint("TOPLEFT", 0, y)
+        showOnlyWhenActiveCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        -- REPLACE the track OnClick handlers for mutual exclusion
+        if showOnlyOnCooldownCheck.track then
+            showOnlyOnCooldownCheck.track:SetScript("OnClick", function()
+                -- Toggle this one
+                local newVal = not showOnlyOnCooldownCheck.GetValue()
+                showOnlyOnCooldownCheck.SetValue(newVal, true)  -- Update visual + DB, skip callback
+                -- If turning ON, turn off the other one
+                if newVal then
+                    showOnlyWhenActiveCheck.SetValue(false, true)
+                end
+                RefreshThisBar()
+            end)
+        end
+        if showOnlyWhenActiveCheck.track then
+            showOnlyWhenActiveCheck.track:SetScript("OnClick", function()
+                -- Toggle this one
+                local newVal = not showOnlyWhenActiveCheck.GetValue()
+                showOnlyWhenActiveCheck.SetValue(newVal, true)  -- Update visual + DB, skip callback
+                -- If turning ON, turn off the other one
+                if newVal then
+                    showOnlyOnCooldownCheck.SetValue(false, true)
+                end
+                RefreshThisBar()
+            end)
+        end
 
         -----------------------------------------------------------------------
         -- ICON STYLE SECTION
@@ -11365,7 +11398,7 @@ local function CreateActionBarsPage(parent)
         lockDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         -- Refresh from Blizzard settings on show
         lockDropdown:HookScript("OnShow", function(self)
-            self:SetValue(lockProxy.buttonLock, true)
+            self.SetValue(lockProxy.buttonLock, true)
         end)
         y = y - FORM_ROW
 

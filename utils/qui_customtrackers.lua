@@ -1100,6 +1100,7 @@ function CustomTrackers:StartCooldownPolling(bar)
         local config = bar.config
         local hideNonUsable = config.hideNonUsable
         local showOnlyOnCooldown = config.showOnlyOnCooldown
+        local showOnlyWhenActive = config.showOnlyWhenActive
         local showActiveState = config.showActiveState ~= false  -- Default true
         local visibilityChanged = false
 
@@ -1186,7 +1187,20 @@ function CustomTrackers:StartCooldownPolling(bar)
 
                 -- Apply visual state only if icon is visible
                 if shouldBeVisible then
-                    if isActive then
+                    if showOnlyWhenActive then
+                        -- "Show Only When Active" mode: hide icons unless buff/cast is active
+                        if isActive then
+                            -- Active state: visible, saturated, glow
+                            icon:SetAlpha(1)
+                            icon.tex:SetDesaturated(false)
+                            StartActiveGlow(icon, config)
+                        else
+                            -- Not active: hide icon (alpha-based to preserve position)
+                            icon:SetAlpha(0)
+                            icon.tex:SetDesaturated(false)
+                            StopActiveGlow(icon)
+                        end
+                    elseif isActive then
                         -- Active state: saturated + glow + full alpha
                         icon:SetAlpha(1)
                         icon.tex:SetDesaturated(false)
