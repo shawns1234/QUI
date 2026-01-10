@@ -98,6 +98,16 @@ local IsShadowlands = function()
     end
 end
 
+-- Helper function to detect Midnight secret values
+-- Secret values pass type() checks but fail on comparison/arithmetic
+local function issecretvalue(value)
+    if value == nil then return false end
+    local success = pcall(function()
+        local _ = value > 0
+    end)
+    return not success
+end
+
 function openRaidLib.GetHeroTalentId()
     if (IsTWWExpansion()) then
         local configId = C_ClassTalents.GetActiveConfigID()

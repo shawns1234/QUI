@@ -300,7 +300,11 @@ local function UpdateButtonCooldown(button)
     if InCombatLockdown() then return end
     if button.spellID then
         local cooldownInfo = C_Spell.GetSpellCooldown(button.spellID)
-        if cooldownInfo and cooldownInfo.startTime > 0 and cooldownInfo.duration > 5 then
+        -- Use pcall to handle secret values in Midnight (startTime/duration can be protected)
+        local success, showCooldown = pcall(function()
+            return cooldownInfo and cooldownInfo.startTime > 0 and cooldownInfo.duration > 5
+        end)
+        if success and showCooldown then
             button.cooldownOverlay:Show()
         else
             button.cooldownOverlay:Hide()

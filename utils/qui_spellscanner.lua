@@ -127,22 +127,37 @@ local function ScanSpellFromBuffs(castSpellID, itemID)
         local aura = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
         if not aura then break end
 
-        -- Calculate how recently this buff was applied
+        -- Secret values in Midnight: reading doesn't error, but comparisons/arithmetic do
+        local spellId = aura.spellId
+        local duration = aura.duration
+        local expirationTime = aura.expirationTime
+        local icon = aura.icon
+        local name = aura.name
+
+        -- Calculate how recently this buff was applied - wrap arithmetic in pcall
         local buffAge = 999
-        if aura.expirationTime and aura.duration and aura.duration > 0 then
-            buffAge = aura.duration - (aura.expirationTime - now)
-        end
+        pcall(function()
+            if expirationTime and duration and duration > 0 then
+                buffAge = duration - (expirationTime - now)
+            end
+        end)
 
         -- Look for buffs applied in last 2 seconds with meaningful duration (>= 3s)
-        if buffAge < 2 and aura.duration and aura.duration >= 3 then
+        -- Wrap comparison in pcall
+        local isRecentBuff = false
+        pcall(function()
+            isRecentBuff = buffAge < 2 and duration and duration >= 3
+        end)
+
+        if isRecentBuff then
             if not bestMatch or buffAge < bestMatch.age then
                 bestMatch = {
-                    spellId = aura.spellId,
-                    duration = aura.duration,
-                    icon = aura.icon,
-                    name = aura.name,
+                    spellId = spellId,
+                    duration = duration,
+                    icon = icon,
+                    name = name,
                     age = buffAge,
-                    expirationTime = aura.expirationTime,
+                    expirationTime = expirationTime,
                 }
             end
         end

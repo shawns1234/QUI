@@ -257,6 +257,9 @@ end
 -- UPDATE ATTRIBUTE DRIVER
 ---------------------------------------------------------------------------
 function SalvageButton:UpdateAttributeDriver()
+    -- RegisterStateDriver is protected and cannot be called in combat
+    if InCombatLockdown() then return end
+
     local settings = GetSettings()
     if not settings or not settings.enabled then
         RegisterStateDriver(self, 'visibility', 'hide')

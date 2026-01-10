@@ -226,25 +226,38 @@ local function ScanPlayerBuffs()
         local auraData = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
         if not auraData then break end
 
-        -- Check food (by spell ID or icon)
+        -- Secret values in Midnight: reading doesn't error, but USING as table index does
+        local spellId = auraData.spellId
+        local icon = auraData.icon
+
+        -- Check food (by spell ID or icon) - wrap table index in pcall
         if not result.hasFood then
-            if FOOD_BUFFS[auraData.spellId] or auraData.icon == 136000 then
+            local success, isFood = pcall(function()
+                return FOOD_BUFFS[spellId] or icon == 136000
+            end)
+            if success and isFood then
                 result.hasFood = true
                 result.foodData = auraData
             end
         end
 
-        -- Check flask
+        -- Check flask - wrap table index in pcall
         if not result.hasFlask then
-            if FLASK_BUFFS[auraData.spellId] then
+            local success, isFlask = pcall(function()
+                return FLASK_BUFFS[spellId]
+            end)
+            if success and isFlask then
                 result.hasFlask = true
                 result.flaskData = auraData
             end
         end
 
-        -- Check rune
+        -- Check rune - wrap table index in pcall
         if not result.hasRune then
-            if RUNE_BUFFS[auraData.spellId] then
+            local success, isRune = pcall(function()
+                return RUNE_BUFFS[spellId]
+            end)
+            if success and isRune then
                 result.hasRune = true
                 result.runeData = auraData
             end
@@ -405,16 +418,18 @@ local function UpdateConsumables()
     local now = GetTime()
     local visibleCount = 0
 
-    -- Reset all buttons
+    -- Reset all buttons (skip Hide() during combat to avoid taint)
     for _, button in pairs(buttons) do
         if type(button) == "table" and button.icon then
             button.status:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
             button.icon:SetDesaturated(true)
             button.timeText:SetText("")
             button.countText:SetText("")
-            button:Hide()
-            if button.click then
-                button.click:Hide()
+            if not InCombatLockdown() then
+                button:Hide()
+                if button.click then
+                    button.click:Hide()
+                end
             end
             -- Stop glow
             StopButtonGlow(button)
@@ -430,41 +445,64 @@ local function UpdateConsumables()
         local auraData = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
         if not auraData then break end
 
+        -- Secret values in Midnight: reading doesn't error, but USING as table index does
+        -- Wrap the actual table lookups in pcall
         local spellId = auraData.spellId
         local expires = auraData.expirationTime
         local icon = auraData.icon
 
-        -- Food check (Well Fed icon = 136000)
-        if (settings.consumableFood ~= false) and (FOOD_BUFFS[spellId] or icon == 136000) then
-            hasFood = true
-            foodExpires = expires
-            buttons.food.status:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-            buttons.food.icon:SetDesaturated(false)
-            if expires > 0 then
-                buttons.food.timeText:SetText(FormatTimeRemaining(expires - now))
+        -- Food check (Well Fed icon = 136000) - wrap table index in pcall
+        if settings.consumableFood ~= false then
+            local success, isFood = pcall(function()
+                return FOOD_BUFFS[spellId] or icon == 136000
+            end)
+            if success and isFood then
+                hasFood = true
+                foodExpires = expires
+                buttons.food.status:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+                buttons.food.icon:SetDesaturated(false)
+                pcall(function()
+                    if expires and expires > 0 then
+                        buttons.food.timeText:SetText(FormatTimeRemaining(expires - now))
+                    end
+                end)
             end
         end
 
-        -- Flask check
-        if (settings.consumableFlask ~= false) and FLASK_BUFFS[spellId] then
-            hasFlask = true
-            flaskExpires = expires
-            buttons.flask.status:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-            buttons.flask.icon:SetDesaturated(false)
-            buttons.flask.icon:SetTexture(icon)  -- Show actual flask buff icon
-            if expires > 0 then
-                buttons.flask.timeText:SetText(FormatTimeRemaining(expires - now))
+        -- Flask check - wrap table index in pcall
+        if settings.consumableFlask ~= false then
+            local success, isFlask = pcall(function()
+                return FLASK_BUFFS[spellId]
+            end)
+            if success and isFlask then
+                hasFlask = true
+                flaskExpires = expires
+                buttons.flask.status:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+                buttons.flask.icon:SetDesaturated(false)
+                buttons.flask.icon:SetTexture(icon)  -- Show actual flask buff icon
+                pcall(function()
+                    if expires and expires > 0 then
+                        buttons.flask.timeText:SetText(FormatTimeRemaining(expires - now))
+                    end
+                end)
             end
         end
 
-        -- Rune check
-        if (settings.consumableRune ~= false) and RUNE_BUFFS[spellId] then
-            hasRune = true
-            runeExpires = expires
-            buttons.rune.status:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-            buttons.rune.icon:SetDesaturated(false)
-            if expires > 0 then
-                buttons.rune.timeText:SetText(FormatTimeRemaining(expires - now))
+        -- Rune check - wrap table index in pcall
+        if settings.consumableRune ~= false then
+            local success, isRune = pcall(function()
+                return RUNE_BUFFS[spellId]
+            end)
+            if success and isRune then
+                hasRune = true
+                runeExpires = expires
+                buttons.rune.status:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+                buttons.rune.icon:SetDesaturated(false)
+                pcall(function()
+                    if expires and expires > 0 then
+                        buttons.rune.timeText:SetText(FormatTimeRemaining(expires - now))
+                    end
+                end)
             end
         end
 
@@ -598,64 +636,66 @@ local function UpdateConsumables()
         end
     end
 
-    -- Show/hide and position buttons based on settings
-    local xOffset = 0
-    local buttonSize = ConsumablesFrame.buttonSize or DEFAULT_BUTTON_SIZE
+    -- Show/hide and position buttons based on settings (skip during combat to avoid taint)
+    if not InCombatLockdown() then
+        local xOffset = 0
+        local buttonSize = ConsumablesFrame.buttonSize or DEFAULT_BUTTON_SIZE
 
-    if settings.consumableFood ~= false then
-        buttons.food:ClearAllPoints()
-        buttons.food:SetPoint("LEFT", ConsumablesFrame, "LEFT", xOffset, 0)
-        buttons.food:Show()
-        xOffset = xOffset + buttonSize + BUTTON_SPACING
-        visibleCount = visibleCount + 1
-    end
+        if settings.consumableFood ~= false then
+            buttons.food:ClearAllPoints()
+            buttons.food:SetPoint("LEFT", ConsumablesFrame, "LEFT", xOffset, 0)
+            buttons.food:Show()
+            xOffset = xOffset + buttonSize + BUTTON_SPACING
+            visibleCount = visibleCount + 1
+        end
 
-    if settings.consumableFlask ~= false then
-        buttons.flask:ClearAllPoints()
-        buttons.flask:SetPoint("LEFT", ConsumablesFrame, "LEFT", xOffset, 0)
-        buttons.flask:Show()
-        xOffset = xOffset + buttonSize + BUTTON_SPACING
-        visibleCount = visibleCount + 1
-    end
+        if settings.consumableFlask ~= false then
+            buttons.flask:ClearAllPoints()
+            buttons.flask:SetPoint("LEFT", ConsumablesFrame, "LEFT", xOffset, 0)
+            buttons.flask:Show()
+            xOffset = xOffset + buttonSize + BUTTON_SPACING
+            visibleCount = visibleCount + 1
+        end
 
-    if settings.consumableOilMH ~= false then
-        buttons.oilMH:ClearAllPoints()
-        buttons.oilMH:SetPoint("LEFT", ConsumablesFrame, "LEFT", xOffset, 0)
-        buttons.oilMH:Show()
-        xOffset = xOffset + buttonSize + BUTTON_SPACING
-        visibleCount = visibleCount + 1
-    end
+        if settings.consumableOilMH ~= false then
+            buttons.oilMH:ClearAllPoints()
+            buttons.oilMH:SetPoint("LEFT", ConsumablesFrame, "LEFT", xOffset, 0)
+            buttons.oilMH:Show()
+            xOffset = xOffset + buttonSize + BUTTON_SPACING
+            visibleCount = visibleCount + 1
+        end
 
-    if settings.consumableRune ~= false then
-        buttons.rune:ClearAllPoints()
-        buttons.rune:SetPoint("LEFT", ConsumablesFrame, "LEFT", xOffset, 0)
-        buttons.rune:Show()
-        xOffset = xOffset + buttonSize + BUTTON_SPACING
-        visibleCount = visibleCount + 1
-    end
+        if settings.consumableRune ~= false then
+            buttons.rune:ClearAllPoints()
+            buttons.rune:SetPoint("LEFT", ConsumablesFrame, "LEFT", xOffset, 0)
+            buttons.rune:Show()
+            xOffset = xOffset + buttonSize + BUTTON_SPACING
+            visibleCount = visibleCount + 1
+        end
 
-    if settings.consumableHealthstone ~= false and HasWarlockInGroup() then
-        buttons.healthstone:ClearAllPoints()
-        buttons.healthstone:SetPoint("LEFT", ConsumablesFrame, "LEFT", xOffset, 0)
-        buttons.healthstone:Show()
-        xOffset = xOffset + buttonSize + BUTTON_SPACING
-        visibleCount = visibleCount + 1
-    end
+        if settings.consumableHealthstone ~= false and HasWarlockInGroup() then
+            buttons.healthstone:ClearAllPoints()
+            buttons.healthstone:SetPoint("LEFT", ConsumablesFrame, "LEFT", xOffset, 0)
+            buttons.healthstone:Show()
+            xOffset = xOffset + buttonSize + BUTTON_SPACING
+            visibleCount = visibleCount + 1
+        end
 
-    if settings.consumableOilOH ~= false and IsDualWielding() then
-        buttons.oilOH:ClearAllPoints()
-        buttons.oilOH:SetPoint("LEFT", ConsumablesFrame, "LEFT", xOffset, 0)
-        buttons.oilOH:Show()
-        xOffset = xOffset + buttonSize + BUTTON_SPACING
-        visibleCount = visibleCount + 1
-    end
+        if settings.consumableOilOH ~= false and IsDualWielding() then
+            buttons.oilOH:ClearAllPoints()
+            buttons.oilOH:SetPoint("LEFT", ConsumablesFrame, "LEFT", xOffset, 0)
+            buttons.oilOH:Show()
+            xOffset = xOffset + buttonSize + BUTTON_SPACING
+            visibleCount = visibleCount + 1
+        end
 
-    -- Resize frame and close button to fit visible buttons
-    local frameWidth = visibleCount * buttonSize + (visibleCount - 1) * BUTTON_SPACING
-    local frameHeight = buttonSize
-    ConsumablesFrame:SetSize(frameWidth, frameHeight)
-    if ConsumablesFrame.closeButton then
-        ConsumablesFrame.closeButton:SetWidth(frameWidth)
+        -- Resize frame and close button to fit visible buttons
+        local frameWidth = visibleCount * buttonSize + (visibleCount - 1) * BUTTON_SPACING
+        local frameHeight = buttonSize
+        ConsumablesFrame:SetSize(frameWidth, frameHeight)
+        if ConsumablesFrame.closeButton then
+            ConsumablesFrame.closeButton:SetWidth(frameWidth)
+        end
     end
 end
 
