@@ -13185,6 +13185,7 @@ local function CreateHUDLayeringPage(parent)
                 primaryPowerBar = 7, secondaryPowerBar = 6,
                 playerFrame = 4, targetFrame = 4, totFrame = 3, petFrame = 3, focusFrame = 4, bossFrames = 4,
                 playerCastbar = 5, targetCastbar = 5,
+                playerIndicators = 6,  -- Player frame indicator icons (rested, combat, stance)
                 customBars = 5,
             }
         end
@@ -13296,6 +13297,11 @@ local function CreateHUDLayeringPage(parent)
     local playerFrameSlider = GUI:CreateFormSlider(content, "Player Frame", 0, 10, 1, "playerFrame", layeringDB, RefreshUnitFrames)
     playerFrameSlider:SetPoint("TOPLEFT", PAD, y)
     playerFrameSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    local playerIndicatorsSlider = GUI:CreateFormSlider(content, "Player Status Indicators", 0, 10, 1, "playerIndicators", layeringDB, RefreshUnitFrames)
+    playerIndicatorsSlider:SetPoint("TOPLEFT", PAD, y)
+    playerIndicatorsSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
     y = y - FORM_ROW
 
     local targetFrameSlider = GUI:CreateFormSlider(content, "Target Frame", 0, 10, 1, "targetFrame", layeringDB, RefreshUnitFrames)

@@ -3220,6 +3220,15 @@ function QUI_UF:RefreshFrame(unitKey)
         if frame.stanceText then
             UpdateStance(frame)
         end
+
+        -- Apply HUD layer priority to indicator frame (independent from player frame)
+        if frame.indicatorFrame then
+            local indicatorPriority = hudLayering and hudLayering.playerIndicators or 6
+            if QUICore and QUICore.GetHUDFrameLevel then
+                local indicatorLevel = QUICore:GetHUDFrameLevel(indicatorPriority)
+                frame.indicatorFrame:SetFrameLevel(indicatorLevel)
+            end
+        end
     end
 
     -- Update target marker (all unit frames)
