@@ -262,7 +262,7 @@ local function GetSalvageInfo(itemID, stackCount)
         return nil
     end
 
-    -- Similar to Molinari's disenchantability checks, but conservative.
+    -- Conservative disenchantability checks for armor/weapons
     if quality < Enum.ItemQuality.Uncommon or quality > Enum.ItemQuality.Epic then
         return nil
     end
