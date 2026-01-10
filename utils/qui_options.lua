@@ -1065,7 +1065,7 @@ local function CreateGeneralQoLPage(parent)
         y = y - quickSalvageHeader.gap
 
         local quickSalvageDesc = GUI:CreateLabel(tabContent,
-            "Mill, prospect, or disenchant items with a single click using a modifier key. Requires the corresponding profession.",
+            "Mill, prospect, or disenchant items with a single click using a modifier key. Requires the corresponding profession. If your salvaging profession skill is not recognised at first, try opening and closing the Professions UI.",
             11, C.textMuted)
         quickSalvageDesc:SetPoint("TOPLEFT", PADDING, y)
         quickSalvageDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
