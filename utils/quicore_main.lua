@@ -406,6 +406,16 @@ local defaults = {
             toastPosition = { point = "CENTER", relPoint = "CENTER", x = -5.833, y = 268.333 },
         },
 
+        -- Missing Raid Buffs Display Settings
+        raidBuffs = {
+            enabled = true,
+            showOnlyInGroup = true,
+            providerMode = false,
+            iconSize = 32,
+            labelFontSize = 12,
+            position = nil,
+        },
+
         -- Custom M+ Timer Settings
         mplusTimer = {
             enabled = false,
