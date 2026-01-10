@@ -1603,10 +1603,10 @@ function MPlusTimer:CompleteChallenge()
 
     self.state.challengeCompleted = true
 
-    if C_ChallengeMode.GetCompletionInfo then
-        local mapID, level, time, onTime = C_ChallengeMode.GetCompletionInfo()
-        self.state.completionTimeMs = time or 0
-        self.state.completedOnTime = onTime or false
+    local info = C_ChallengeMode.GetChallengeCompletionInfo()
+    if info then
+        self.state.completionTimeMs = info.time or 0
+        self.state.completedOnTime = info.onTime or false
     end
 
     self:StopTimerLoop()
