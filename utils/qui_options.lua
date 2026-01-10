@@ -668,6 +668,14 @@ local function CreateGeneralQoLPage(parent)
             combatTimerCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
             y = y - FORM_ROW
 
+            -- Encounters-only mode toggle
+            local encountersOnlyCheck = GUI:CreateFormCheckbox(tabContent, "Only Show In Encounters", "onlyShowInEncounters", combatTimerDB, function(val)
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+            end)
+            encountersOnlyCheck:SetPoint("TOPLEFT", PADDING, y)
+            encountersOnlyCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
             -- Preview toggle
             local previewState = { enabled = _G.QuaziiUI_IsCombatTimerPreviewMode and _G.QuaziiUI_IsCombatTimerPreviewMode() or false }
             local previewCheck = GUI:CreateFormCheckbox(tabContent, "Preview Combat Timer", "enabled", previewState, function(val)
@@ -787,7 +795,30 @@ local function CreateGeneralQoLPage(parent)
             y = y - FORM_ROW
 
             -- Border settings
-            local borderSizeSlider = GUI:CreateFormSlider(tabContent, "Border Size", 0, 5, 1, "borderSize", combatTimerDB, function()
+            -- Forward declare border controls so hide toggle can reference them
+            local borderSizeSlider, borderTextureDropdown, useClassColorCheck, borderColorPicker
+
+            -- Helper to update all border control states
+            local function UpdateBorderControlsEnabled(enabled)
+                if borderSizeSlider and borderSizeSlider.SetEnabled then borderSizeSlider:SetEnabled(enabled) end
+                if borderTextureDropdown and borderTextureDropdown.SetEnabled then borderTextureDropdown:SetEnabled(enabled) end
+                if useClassColorCheck and useClassColorCheck.SetEnabled then useClassColorCheck:SetEnabled(enabled) end
+                -- Border color picker is enabled if borders are shown AND class color is not used
+                if borderColorPicker and borderColorPicker.SetEnabled then 
+                    borderColorPicker:SetEnabled(enabled and not combatTimerDB.useClassColorBorder)
+                end
+            end
+
+            -- Hide Border toggle
+            local hideBorderCheck = GUI:CreateFormCheckbox(tabContent, "Hide Border", "hideBorder", combatTimerDB, function(val)
+                if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
+                UpdateBorderControlsEnabled(not val)
+            end)
+            hideBorderCheck:SetPoint("TOPLEFT", PADDING, y)
+            hideBorderCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            borderSizeSlider = GUI:CreateFormSlider(tabContent, "Border Size", 0, 5, 1, "borderSize", combatTimerDB, function()
                 if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
             end)
             borderSizeSlider:SetPoint("TOPLEFT", PADDING, y)
@@ -795,7 +826,7 @@ local function CreateGeneralQoLPage(parent)
             y = y - FORM_ROW
 
             local borderList = GetBorderList()
-            local borderTextureDropdown = GUI:CreateFormDropdown(tabContent, "Border Texture", borderList, "borderTexture", combatTimerDB, function()
+            borderTextureDropdown = GUI:CreateFormDropdown(tabContent, "Border Texture", borderList, "borderTexture", combatTimerDB, function()
                 if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
             end)
             borderTextureDropdown:SetPoint("TOPLEFT", PADDING, y)
@@ -803,14 +834,11 @@ local function CreateGeneralQoLPage(parent)
             y = y - FORM_ROW
 
             -- Class color border toggle
-            -- Create border color picker first, then the toggle
-            local borderColorPicker  -- Forward declare
-
-            local useClassColorCheck = GUI:CreateFormCheckbox(tabContent, "Use Class Color for Border", "useClassColorBorder", combatTimerDB, function(val)
+            useClassColorCheck = GUI:CreateFormCheckbox(tabContent, "Use Class Color for Border", "useClassColorBorder", combatTimerDB, function(val)
                 if _G.QuaziiUI_RefreshCombatTimer then _G.QuaziiUI_RefreshCombatTimer() end
-                -- Enable/disable border color picker based on toggle
+                -- Enable/disable border color picker based on toggle (only if borders are shown)
                 if borderColorPicker and borderColorPicker.SetEnabled then
-                    borderColorPicker:SetEnabled(not val)
+                    borderColorPicker:SetEnabled(not val and not combatTimerDB.hideBorder)
                 end
             end)
             useClassColorCheck:SetPoint("TOPLEFT", PADDING, y)
@@ -822,11 +850,11 @@ local function CreateGeneralQoLPage(parent)
             end)
             borderColorPicker:SetPoint("TOPLEFT", PADDING, y)
             borderColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
-            -- Initial state based on setting
-            if borderColorPicker.SetEnabled then
-                borderColorPicker:SetEnabled(not combatTimerDB.useClassColorBorder)
-            end
             y = y - FORM_ROW
+
+            -- Set initial enabled states based on current settings
+            local bordersVisible = not combatTimerDB.hideBorder
+            UpdateBorderControlsEnabled(bordersVisible)
         end
 
         y = y - 10

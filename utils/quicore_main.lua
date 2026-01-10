@@ -2450,6 +2450,8 @@ local defaults = {
             borderTexture = "None", -- Border texture from LibSharedMedia (or "None" for solid)
             useClassColorBorder = false,  -- If true, use player class color
             borderColor = {0, 0, 0, 1},  -- Black border
+            hideBorder = false,  -- If true, hide border completely (overrides other border settings)
+            onlyShowInEncounters = false,  -- If true, only show during boss encounters (not general combat)
         },
 
         -- Cooldown Manager Effects
