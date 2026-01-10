@@ -1689,6 +1689,47 @@ local function CreateGeneralQoLPage(parent)
             combatCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
             y = y - FORM_ROW
 
+            -- Out of melee range color change
+            local outOfRangeColorPicker  -- Forward declare
+            local rangeColorCombatOnlyCheck  -- Forward declare
+
+            local rangeColorCheck = GUI:CreateFormCheckbox(tabContent, "Out of Melee Range Check", "changeColorOnRange", ch, function(val)
+                RefreshCrosshair()
+                -- Enable/disable the related controls based on toggle
+                if outOfRangeColorPicker and outOfRangeColorPicker.SetEnabled then
+                    outOfRangeColorPicker:SetEnabled(val)
+                end
+                if rangeColorCombatOnlyCheck and rangeColorCombatOnlyCheck.SetEnabled then
+                    rangeColorCombatOnlyCheck:SetEnabled(val)
+                end
+            end)
+            rangeColorCheck:SetPoint("TOPLEFT", PADDING, y)
+            rangeColorCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            rangeColorCombatOnlyCheck = GUI:CreateFormCheckbox(tabContent, "Check Only In Combat", "rangeColorInCombatOnly", ch, RefreshCrosshair)
+            rangeColorCombatOnlyCheck:SetPoint("TOPLEFT", PADDING, y)
+            rangeColorCombatOnlyCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            -- Initial state based on setting
+            if rangeColorCombatOnlyCheck.SetEnabled then
+                rangeColorCombatOnlyCheck:SetEnabled(ch.changeColorOnRange == true)
+            end
+            y = y - FORM_ROW
+
+            if not ch.outOfRangeColor then
+                ch.outOfRangeColor = { 1, 0.2, 0.2, 1 }
+            end
+            outOfRangeColorPicker = GUI:CreateFormColorPicker(tabContent, "Out of Melee Range Color", "outOfRangeColor", ch, function()
+                RefreshCrosshair()
+            end)
+            outOfRangeColorPicker:SetPoint("TOPLEFT", PADDING, y)
+            outOfRangeColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            -- Initial state based on setting
+            if outOfRangeColorPicker.SetEnabled then
+                outOfRangeColorPicker:SetEnabled(ch.changeColorOnRange == true)
+            end
+            y = y - FORM_ROW
+
             if not ch.lineColor then
                 ch.lineColor = { ch.r or 0.286, ch.g or 0.929, ch.b or 1, ch.a or 1 }
             end
