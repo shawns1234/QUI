@@ -11,6 +11,12 @@ ns.QUI = QUI
 ---------------------------------------------------------------------------
 local skinnedFrames = {}        -- Track which frames have been styled
 local urlPopup = nil            -- Copy popup frame (created on demand)
+local chatCopyFrame = nil       -- Chat history copy frame (created on demand)
+local copyButtons = {}          -- Track copy buttons per chat frame
+
+-- Localized table functions for performance
+local tinsert = table.insert
+local tconcat = table.concat
 
 -- Blizzard texture names to strip for glass effect
 local CHAT_FRAME_TEXTURES = {
@@ -244,7 +250,9 @@ local function CreateCopyPopup()
     closeBtn:SetSize(24, 24)
 
     -- Add to special frames so ESC closes it
-    tinsert(UISpecialFrames, "QuaziiUI_ChatCopyPopup")
+    if not tContains(UISpecialFrames, "QuaziiUI_ChatCopyPopup") then
+        tinsert(UISpecialFrames, "QuaziiUI_ChatCopyPopup")
+    end
 
     return urlPopup
 end
@@ -274,6 +282,218 @@ local function SetupURLClickHandler()
             return true
         end
     end)
+end
+
+---------------------------------------------------------------------------
+-- Chat Copy Frame (full chat history copy)
+---------------------------------------------------------------------------
+
+-- Check if message contains protected/secure content
+local function IsMessageProtected(message)
+    if not message then return false end
+    -- Secret values use |K...|k pattern
+    if message:find("|K") then return true end
+    return false
+end
+
+-- Strip textures, icons, and hyperlink formatting from message
+local function CleanMessage(message)
+    if not message then return "" end
+
+    local cleaned = message
+    -- Remove texture escapes |T...|t
+    cleaned = cleaned:gsub("|T[^|]*|t", "")
+    -- Remove atlas textures |A...|a
+    cleaned = cleaned:gsub("|A[^|]*|a", "")
+    -- Convert raid icons to text
+    cleaned = cleaned:gsub("|TInterface\\TargetingFrame\\UI%-RaidTargetingIcon_(%d):[^|]*|t", "{rt%1}")
+    -- Strip hyperlink formatting but keep visible text |H...|h[text]|h -> text
+    cleaned = cleaned:gsub("|H[^|]*|h%[?([^%]|]*)%]?|h", "%1")
+    -- Remove color codes (strip start and end separately for robustness)
+    cleaned = cleaned:gsub("|c%x%x%x%x%x%x%x%x", "")
+    cleaned = cleaned:gsub("|r", "")
+    cleaned = cleaned:gsub("|n", "\n")
+
+    return cleaned
+end
+
+-- Extract all messages from a chat frame
+local function GetChatLines(chatFrame)
+    local lines = {}
+    local numMessages = chatFrame:GetNumMessages()
+
+    for i = 1, numMessages do
+        local message, r, g, b = chatFrame:GetMessageInfo(i)
+        if message and not IsMessageProtected(message) then
+            local cleaned = CleanMessage(message)
+            if cleaned and cleaned ~= "" then
+                tinsert(lines, cleaned)
+            end
+        end
+    end
+
+    return lines
+end
+
+-- Create the chat copy frame (on demand)
+local function CreateChatCopyFrame()
+    if chatCopyFrame then return chatCopyFrame end
+
+    chatCopyFrame = CreateFrame("Frame", "QuaziiUI_ChatCopyFrame", UIParent, "BackdropTemplate")
+    chatCopyFrame:SetSize(500, 400)
+    chatCopyFrame:SetPoint("CENTER")
+    chatCopyFrame:SetFrameStrata("DIALOG")
+    chatCopyFrame:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 2,
+    })
+    chatCopyFrame:SetBackdropColor(QUI_COLORS.bg[1], QUI_COLORS.bg[2], QUI_COLORS.bg[3], QUI_COLORS.bg[4])
+    chatCopyFrame:SetBackdropBorderColor(QUI_COLORS.accent[1], QUI_COLORS.accent[2], QUI_COLORS.accent[3], QUI_COLORS.accent[4])
+    chatCopyFrame:EnableMouse(true)
+    chatCopyFrame:SetMovable(true)
+    chatCopyFrame:SetResizable(true)
+    chatCopyFrame:SetResizeBounds(300, 200, 800, 600)
+    chatCopyFrame:RegisterForDrag("LeftButton")
+    chatCopyFrame:SetScript("OnDragStart", chatCopyFrame.StartMoving)
+    chatCopyFrame:SetScript("OnDragStop", chatCopyFrame.StopMovingOrSizing)
+    chatCopyFrame:Hide()
+
+    -- Title
+    local title = chatCopyFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("TOP", 0, -10)
+    title:SetText("Chat History - Select and Ctrl+C to copy")
+    title:SetTextColor(QUI_COLORS.accent[1], QUI_COLORS.accent[2], QUI_COLORS.accent[3], 1)
+
+    -- Scroll frame
+    local scrollFrame = CreateFrame("ScrollFrame", nil, chatCopyFrame, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", 12, -35)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -30, 40)
+
+    -- Edit box for text selection
+    local editBox = CreateFrame("EditBox", nil, scrollFrame)
+    editBox:SetMultiLine(true)
+    editBox:SetFontObject(ChatFontNormal)
+    editBox:SetWidth(scrollFrame:GetWidth())
+    editBox:SetAutoFocus(false)
+    editBox:SetTextColor(QUI_COLORS.text[1], QUI_COLORS.text[2], QUI_COLORS.text[3], 1)
+    editBox:SetScript("OnEscapePressed", function() chatCopyFrame:Hide() end)
+    scrollFrame:SetScrollChild(editBox)
+    chatCopyFrame.editBox = editBox
+    chatCopyFrame.scrollFrame = scrollFrame
+
+    -- Close button
+    local closeBtn = CreateFrame("Button", nil, chatCopyFrame, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", -2, -2)
+    closeBtn:SetSize(24, 24)
+
+    -- Select All button
+    local selectAllBtn = CreateFrame("Button", nil, chatCopyFrame, "UIPanelButtonTemplate")
+    selectAllBtn:SetSize(100, 22)
+    selectAllBtn:SetPoint("BOTTOMLEFT", 12, 10)
+    selectAllBtn:SetText("Select All")
+    selectAllBtn:SetScript("OnClick", function()
+        editBox:SetFocus()
+        editBox:HighlightText()
+    end)
+
+    -- Resize grip
+    local resizeBtn = CreateFrame("Button", nil, chatCopyFrame)
+    resizeBtn:SetSize(16, 16)
+    resizeBtn:SetPoint("BOTTOMRIGHT", -4, 4)
+    resizeBtn:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    resizeBtn:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    resizeBtn:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    resizeBtn:SetScript("OnMouseDown", function() chatCopyFrame:StartSizing("BOTTOMRIGHT") end)
+    resizeBtn:SetScript("OnMouseUp", function()
+        chatCopyFrame:StopMovingOrSizing()
+        editBox:SetWidth(scrollFrame:GetWidth())
+    end)
+
+    -- Add to special frames so ESC closes it
+    if not tContains(UISpecialFrames, "QuaziiUI_ChatCopyFrame") then
+        tinsert(UISpecialFrames, "QuaziiUI_ChatCopyFrame")
+    end
+
+    return chatCopyFrame
+end
+
+-- Show the chat copy frame with messages from a chat frame
+local function ShowChatCopyFrame(chatFrame)
+    local frame = CreateChatCopyFrame()
+    local lines = GetChatLines(chatFrame)
+
+    local text
+    if #lines == 0 then
+        text = "(No copyable messages in chat history)"
+    else
+        text = tconcat(lines, "\n")
+    end
+
+    frame.editBox:SetText(text)
+    frame.editBox:SetWidth(frame.scrollFrame:GetWidth())
+    frame:Show()
+    frame.editBox:SetFocus()
+    frame.editBox:HighlightText()
+end
+
+---------------------------------------------------------------------------
+-- Copy Button (per chat frame)
+---------------------------------------------------------------------------
+local function CreateCopyButton(chatFrame)
+    local settings = GetSettings()
+    if not settings or not settings.copyButton then return end
+
+    local frameName = chatFrame:GetName()
+    if not frameName then return end
+
+    -- Already created
+    if copyButtons[chatFrame] then
+        copyButtons[chatFrame]:Show()
+        return
+    end
+
+    local button = CreateFrame("Button", frameName .. "QuaziiCopyButton", chatFrame)
+    button:SetSize(20, 22)
+    -- Position at visual top-right (matching glass backdrop +8 offset, plus padding)
+    button:SetPoint("TOPRIGHT", chatFrame, "TOPRIGHT", 4, -2)
+    button:SetFrameLevel(chatFrame:GetFrameLevel() + 5)
+
+    -- Copy icon texture (simple document icon)
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
+    icon:SetTexture("Interface\\Buttons\\UI-GuildButton-PublicNote-Up")
+    button.icon = icon
+
+    -- Semi-transparent by default
+    button:SetAlpha(0.35)
+
+    -- Hover effect
+    button:SetScript("OnEnter", function(self)
+        self:SetAlpha(1)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("Copy Chat", 1, 1, 1)
+        GameTooltip:AddLine("Click to copy chat history", 0.8, 0.8, 0.8)
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function(self)
+        self:SetAlpha(0.35)
+        GameTooltip:Hide()
+    end)
+
+    -- Click handler
+    button:SetScript("OnClick", function()
+        ShowChatCopyFrame(chatFrame)
+    end)
+
+    copyButtons[chatFrame] = button
+end
+
+-- Hide copy button (when disabled)
+local function HideCopyButton(chatFrame)
+    if copyButtons[chatFrame] then
+        copyButtons[chatFrame]:Hide()
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -714,6 +934,11 @@ local function SkinChatFrame(chatFrame)
 
     -- Apply message padding
     ApplyMessagePadding(chatFrame)
+
+    -- Create copy button
+    if settings.copyButton then
+        CreateCopyButton(chatFrame)
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -791,6 +1016,13 @@ local function RefreshAll()
 
         -- Handle message fade (native API)
         SetupMessageFade(chatFrame)
+
+        -- Handle copy button visibility
+        if not settings or not settings.enabled or not settings.copyButton then
+            HideCopyButton(chatFrame)
+        else
+            CreateCopyButton(chatFrame)
+        end
     end
 
     -- Re-apply all styling if enabled

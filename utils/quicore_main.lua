@@ -406,6 +406,16 @@ local defaults = {
             toastPosition = { point = "CENTER", relPoint = "CENTER", x = -5.833, y = 268.333 },
         },
 
+        -- Missing Raid Buffs Display Settings
+        raidBuffs = {
+            enabled = true,
+            showOnlyInGroup = true,
+            providerMode = false,
+            iconSize = 32,
+            labelFontSize = 12,
+            position = nil,
+        },
+
         -- Custom M+ Timer Settings
         mplusTimer = {
             enabled = false,
@@ -1073,6 +1083,8 @@ local defaults = {
                 format = "24h",          -- "24h" or "12h"
                 color = {0.6, 0.6, 0.6}, -- Gray color
             },
+            -- Copy button (opens popup with full chat history)
+            copyButton = true,
         },
 
         -- Tooltip Management
