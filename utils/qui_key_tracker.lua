@@ -351,16 +351,6 @@ local function UpdateButton(button, keystoneInfo, unitName, unit, isLeader)
             button:SetAttribute("spell", nil)
             button.spellID = nil
         end
-    else
-        button.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-        button.keyLevel:SetText("")
-        button.dungeonName:SetText("No Key")
-        button.dungeonName:SetTextColor(0.5, 0.5, 0.5)
-        button.playerName:SetText("|c" .. classColor .. displayName .. "|r")
-        button.score:SetText("")
-        button:SetAttribute("type", nil)
-        button:SetAttribute("spell", nil)
-        button.spellID = nil
     end
 
     -- Leader icon
@@ -390,32 +380,33 @@ local function HideButton(button)
     button.spellID = nil
 end
 
-local function UpdateMyKeystone()
+local function UpdateAllKeystones()
     if InCombatLockdown() or not IsEnabled() then return end
 
-    local myKeystoneInfo = openRaidLib.GetKeystoneInfo("player")
-    local isLeader = UnitIsGroupLeader("player")
-    UpdateButton(keystoneButtons[0], myKeystoneInfo, UnitName("player"), "player", isLeader)
-end
-
-local function UpdatePartyKeystones()
-    if InCombatLockdown() or not IsEnabled() then return end
-
-    -- Hide all party buttons first
-    for i = 1, 4 do
+    -- Hide all buttons first
+    for i = 0, 4 do
         HideButton(keystoneButtons[i])
     end
 
     -- In raid, don't show party keys
     if IsInRaid() then
-        KeyTrackerFrame:SetHeight(HEADER_HEIGHT + ENTRY_HEIGHT)
+        KeyTrackerFrame:SetHeight(HEADER_HEIGHT)
         return
     end
 
     local allKeystoneInfo = openRaidLib.GetAllKeystonesInfo()
-    local numMembers = GetNumGroupMembers()
-    local buttonIndex = 1
+    local buttonIndex = 0
 
+    -- Check player's key first
+    local myKeystoneInfo = openRaidLib.GetKeystoneInfo("player")
+    if myKeystoneInfo and myKeystoneInfo.level and myKeystoneInfo.level > 0 then
+        local isLeader = UnitIsGroupLeader("player")
+        UpdateButton(keystoneButtons[buttonIndex], myKeystoneInfo, UnitName("player"), "player", isLeader)
+        buttonIndex = buttonIndex + 1
+    end
+
+    -- Check party members' keys (only show those with keys)
+    local numMembers = GetNumGroupMembers()
     for i = 1, numMembers - 1 do
         local unitId = "party" .. i
         local unitName, realm = UnitName(unitId)
@@ -427,16 +418,22 @@ local function UpdatePartyKeystones()
             end
 
             local keystoneInfo = allKeystoneInfo[fullName] or allKeystoneInfo[unitName]
-            local isLeader = UnitIsGroupLeader(unitId)
 
-            UpdateButton(keystoneButtons[buttonIndex], keystoneInfo, fullName, unitId, isLeader)
-            buttonIndex = buttonIndex + 1
+            -- Only show if they have a key
+            if keystoneInfo and keystoneInfo.level and keystoneInfo.level > 0 then
+                local isLeader = UnitIsGroupLeader(unitId)
+                UpdateButton(keystoneButtons[buttonIndex], keystoneInfo, fullName, unitId, isLeader)
+                buttonIndex = buttonIndex + 1
+            end
         end
     end
 
-    -- Resize frame based on number of entries
-    local totalEntries = buttonIndex -- includes player
-    KeyTrackerFrame:SetHeight(TITLE_HEIGHT + (totalEntries * ENTRY_HEIGHT) + ENTRY_PADDING_Y)
+    -- Resize frame based on number of entries with keys
+    if buttonIndex > 0 then
+        KeyTrackerFrame:SetHeight(TITLE_HEIGHT + (buttonIndex * ENTRY_HEIGHT) + ENTRY_PADDING_Y)
+    else
+        KeyTrackerFrame:SetHeight(HEADER_HEIGHT)
+    end
 end
 
 local function UpdateAll()
@@ -444,8 +441,7 @@ local function UpdateAll()
         KeyTrackerFrame:Hide()
         return
     end
-    UpdateMyKeystone()
-    UpdatePartyKeystones()
+    UpdateAllKeystones()
 end
 
 ---------------------------------------------------------------------------
@@ -473,6 +469,29 @@ end
 
 local function UpdateVisibility()
     if not IsEnabled() then
+        KeyTrackerFrame:Hide()
+        return
+    end
+
+    -- Check if anyone has a key (player or party)
+    local anyoneHasKey = false
+    local myKeystoneInfo = openRaidLib.GetKeystoneInfo("player")
+    if myKeystoneInfo and myKeystoneInfo.level and myKeystoneInfo.level > 0 then
+        anyoneHasKey = true
+    end
+
+    if not anyoneHasKey and IsInGroup() then
+        local allKeystoneInfo = openRaidLib.GetAllKeystonesInfo()
+        for _, info in pairs(allKeystoneInfo) do
+            if info and info.level and info.level > 0 then
+                anyoneHasKey = true
+                break
+            end
+        end
+    end
+
+    -- Hide if nobody has a key
+    if not anyoneHasKey then
         KeyTrackerFrame:Hide()
         return
     end
