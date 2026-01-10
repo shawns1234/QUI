@@ -605,7 +605,8 @@ function openRaidLib.GearManager.BuildPlayerEquipmentList()
 end
 
 local playerHasPetOfNpcId = function(npcId)
-    if (UnitExists("pet") and UnitHealth("pet") >= 1) then
+    local petHealth = UnitHealth("pet")
+    if (UnitExists("pet") and not issecretvalue(petHealth) and petHealth >= 1) then
         local guid = UnitGUID("pet")
         if (guid) then
             local split = {strsplit("-", guid)}
