@@ -1319,6 +1319,13 @@ local defaults = {
                 texture = "Quazii v5",
                 useClassColor = true,
                 customHealthColor = { 0.2, 0.6, 0.2, 1 },
+                -- Portrait
+                showPortrait = false,
+                portraitSide = "LEFT",
+                portraitScale = 1.0,
+                portraitBorderSize = 1,
+                portraitBorderUseClassColor = false,
+                portraitBorderColor = { 0, 0, 0, 1 },
                 -- Name text
                 showName = true,
                 nameTextUseClassColor = false,
@@ -1489,6 +1496,13 @@ local defaults = {
                 useClassColor = true,
                 useHostilityColor = true,  -- Use red/yellow/green based on unit hostility
                 customHealthColor = { 0.2, 0.6, 0.2, 1 },
+                -- Portrait
+                showPortrait = false,
+                portraitSide = "RIGHT",
+                portraitScale = 1.0,
+                portraitBorderSize = 1,
+                portraitBorderUseClassColor = false,
+                portraitBorderColor = { 0, 0, 0, 1 },
                 -- Name text
                 showName = true,
                 nameTextUseClassColor = false,
@@ -1808,6 +1822,13 @@ local defaults = {
                 useClassColor = true,
                 useHostilityColor = true,  -- Use red/yellow/green based on unit hostility
                 customHealthColor = { 0.2, 0.6, 0.2, 1 },
+                -- Portrait
+                showPortrait = false,
+                portraitSide = "RIGHT",
+                portraitScale = 1.0,
+                portraitBorderSize = 1,
+                portraitBorderUseClassColor = false,
+                portraitBorderColor = { 0, 0, 0, 1 },
                 -- Name text
                 showName = true,
                 nameTextUseClassColor = false,

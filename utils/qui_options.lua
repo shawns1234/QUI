@@ -4963,7 +4963,7 @@ local function CreateCDMSetupPage(parent)
         if buffData.padding == nil then buffData.padding = 0 end
         if buffData.durationSize == nil then buffData.durationSize = 12 end
         if buffData.stackSize == nil then buffData.stackSize = 12 end
-        
+
         -- Callback to refresh buff bar
         local function RefreshBuff()
             if _G.QuaziiUI_RefreshBuffBar then
@@ -5298,24 +5298,35 @@ local function CreateCDMSetupPage(parent)
         generalHeader:SetPoint("TOPLEFT", PAD, y)
         y = y - generalHeader.gap
 
+        -- Reload prompt for enable/standalone toggles
+        local function PromptResourceBarReload()
+            GUI:ShowConfirmation({
+                title = "Reload UI?",
+                message = "Changing resource bar settings requires a UI reload to take effect.",
+                acceptText = "Reload",
+                cancelText = "Later",
+                onAccept = function() QuaziiUI:SafeReload() end,
+            })
+        end
+
         -- Enable toggles
-        local enablePrimary = GUI:CreateFormToggle(tabContent, "Enable Primary Class Resource Bar", "enabled", primary, RefreshPowerBars)
+        local enablePrimary = GUI:CreateFormToggle(tabContent, "Enable Primary Class Resource Bar", "enabled", primary, PromptResourceBarReload)
         enablePrimary:SetPoint("TOPLEFT", PAD, y)
         enablePrimary:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
-        local enableSecondary = GUI:CreateFormToggle(tabContent, "Enable Secondary Class Resource Bar", "enabled", secondary, RefreshPowerBars)
+        local enableSecondary = GUI:CreateFormToggle(tabContent, "Enable Secondary Class Resource Bar", "enabled", secondary, PromptResourceBarReload)
         enableSecondary:SetPoint("TOPLEFT", PAD, y)
         enableSecondary:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
         -- Standalone toggles
-        local standalonePrimary = GUI:CreateFormToggle(tabContent, "Primary Standalone Mode", "standaloneMode", primary, RefreshPowerBars)
+        local standalonePrimary = GUI:CreateFormToggle(tabContent, "Primary Standalone Mode", "standaloneMode", primary, PromptResourceBarReload)
         standalonePrimary:SetPoint("TOPLEFT", PAD, y)
         standalonePrimary:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
-        local standaloneSecondary = GUI:CreateFormToggle(tabContent, "Secondary Standalone Mode", "standaloneMode", secondary, RefreshPowerBars)
+        local standaloneSecondary = GUI:CreateFormToggle(tabContent, "Secondary Standalone Mode", "standaloneMode", secondary, PromptResourceBarReload)
         standaloneSecondary:SetPoint("TOPLEFT", PAD, y)
         standaloneSecondary:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
@@ -10082,6 +10093,79 @@ local function CreateUnitFramesPage(parent)
             _G.QuaziiUI_RegisterEditModeSliders(unitKey, offsetXSlider, offsetYSlider)
         end
 
+        -- Portrait section (player, target, focus only)
+        if unitKey == "player" or unitKey == "target" or unitKey == "focus" then
+            local portraitHeader = GUI:CreateSectionHeader(tabContent, "Portrait")
+            portraitHeader:SetPoint("TOPLEFT", PAD, y)
+            y = y - portraitHeader.gap
+
+            -- Initialize defaults
+            if unitDB.showPortrait == nil then unitDB.showPortrait = false end
+            if unitDB.portraitSide == nil then
+                unitDB.portraitSide = (unitKey == "player") and "LEFT" or "RIGHT"
+            end
+            if unitDB.portraitScale == nil then unitDB.portraitScale = 1.0 end
+            if unitDB.portraitBorderSize == nil then unitDB.portraitBorderSize = 1 end
+
+            -- Show Portrait checkbox
+            local showPortraitCheck = GUI:CreateFormCheckbox(tabContent, "Show Portrait", "showPortrait", unitDB, RefreshUnit)
+            showPortraitCheck:SetPoint("TOPLEFT", PAD, y)
+            showPortraitCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Portrait Side dropdown
+            local sideOptions = {
+                {value = "LEFT", text = "Left"},
+                {value = "RIGHT", text = "Right"},
+            }
+            local sideDropdown = GUI:CreateFormDropdown(tabContent, "Portrait Side", sideOptions, "portraitSide", unitDB, RefreshUnit)
+            sideDropdown:SetPoint("TOPLEFT", PAD, y)
+            sideDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Portrait Scale slider
+            local scaleSlider = GUI:CreateFormSlider(tabContent, "Portrait Scale", 0.5, 4.0, 0.1, "portraitScale", unitDB, RefreshUnit)
+            scaleSlider:SetPoint("TOPLEFT", PAD, y)
+            scaleSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Portrait Border Size slider
+            local borderSlider = GUI:CreateFormSlider(tabContent, "Portrait Border", 0, 5, 1, "portraitBorderSize", unitDB, RefreshUnit)
+            borderSlider:SetPoint("TOPLEFT", PAD, y)
+            borderSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+
+            -- Initialize border color defaults
+            if unitDB.portraitBorderUseClassColor == nil then unitDB.portraitBorderUseClassColor = false end
+            if unitDB.portraitBorderColor == nil then unitDB.portraitBorderColor = { 0, 0, 0, 1 } end
+
+            -- Forward declare color picker for conditional enable/disable
+            local borderColorPicker
+
+            -- Use Class Color for Border checkbox
+            local useClassColorCheck = GUI:CreateFormCheckbox(tabContent, "Use Class Color for Border", "portraitBorderUseClassColor", unitDB, function(val)
+                RefreshUnit()
+                -- Enable/disable color picker based on toggle
+                if borderColorPicker and borderColorPicker.SetEnabled then
+                    borderColorPicker:SetEnabled(not val)
+                end
+            end)
+            useClassColorCheck:SetPoint("TOPLEFT", PAD, y)
+            useClassColorCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Custom Border Color picker
+            borderColorPicker = GUI:CreateFormColorPicker(tabContent, "Border Color", "portraitBorderColor", unitDB, RefreshUnit)
+            borderColorPicker:SetPoint("TOPLEFT", PAD, y)
+            borderColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            -- Initial state based on class color toggle
+            if borderColorPicker.SetEnabled then
+                borderColorPicker:SetEnabled(not unitDB.portraitBorderUseClassColor)
+            end
+            y = y - FORM_ROW
+        end
+
         -- Frame Anchoring section (only for player and target)
         if unitKey == "player" or unitKey == "target" then
             local anchorHeader = GUI:CreateSectionHeader(tabContent, "Frame Anchoring")
@@ -10375,6 +10459,8 @@ local function CreateUnitFramesPage(parent)
             {value = "absolute", text = "Value Only (45.2k)"},
             {value = "both", text = "Value | Percent"},
             {value = "both_reverse", text = "Percent | Value"},
+            {value = "missing_percent", text = "Missing Percent (-25%)"},
+            {value = "missing_value", text = "Missing Value (-12.5k)"},
         }
         local healthStyleDropdown = GUI:CreateFormDropdown(tabContent, "Display Style", healthStyleOptions, "healthDisplayStyle", unitDB, RefreshUnit)
         healthStyleDropdown:SetPoint("TOPLEFT", PAD, y)

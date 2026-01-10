@@ -393,7 +393,7 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
             end
             if sourceDB.empoweredStageColors then
                 targetDB.empoweredStageColors = {}
-                for i = 1, 4 do
+                for i = 1, 5 do
                     if sourceDB.empoweredStageColors[i] then
                         targetDB.empoweredStageColors[i] = {
                             sourceDB.empoweredStageColors[i][1],
@@ -406,7 +406,7 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
             end
             if sourceDB.empoweredFillColors then
                 targetDB.empoweredFillColors = {}
-                for i = 1, 4 do
+                for i = 1, 5 do
                     if sourceDB.empoweredFillColors[i] then
                         targetDB.empoweredFillColors[i] = {
                             sourceDB.empoweredFillColors[i][1],
@@ -690,7 +690,7 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
             stageColorLabel:SetPoint("TOPLEFT", PAD, y)
             y = y - 20
 
-            for i = 1, 4 do
+            for i = 1, 5 do
                 if not castDB.empoweredStageColors[i] and defaultStageColors[i] then
                     castDB.empoweredStageColors[i] = {defaultStageColors[i][1], defaultStageColors[i][2], defaultStageColors[i][3], defaultStageColors[i][4]}
                 end
@@ -708,7 +708,7 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
             fillColorLabel:SetPoint("TOPLEFT", PAD, y)
             y = y - 20
 
-            for i = 1, 4 do
+            for i = 1, 5 do
                 if not castDB.empoweredFillColors[i] and defaultFillColors[i] then
                     castDB.empoweredFillColors[i] = {defaultFillColors[i][1], defaultFillColors[i][2], defaultFillColors[i][3], defaultFillColors[i][4]}
                 end
@@ -756,7 +756,7 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
             end)
             resetBtn:SetScript("OnClick", function()
                 -- Reset stage colors
-                for i = 1, 4 do
+                for i = 1, 5 do
                     if defaultStageColors[i] then
                         castDB.empoweredStageColors[i] = {defaultStageColors[i][1], defaultStageColors[i][2], defaultStageColors[i][3], defaultStageColors[i][4]}
                         if stageColorPickers[i] and stageColorPickers[i].swatch then
@@ -766,7 +766,7 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
                 end
 
                 -- Reset fill colors
-                for i = 1, 4 do
+                for i = 1, 5 do
                     if defaultFillColors[i] then
                         castDB.empoweredFillColors[i] = {defaultFillColors[i][1], defaultFillColors[i][2], defaultFillColors[i][3], defaultFillColors[i][4]}
                         if fillColorPickers[i] and fillColorPickers[i].swatch then

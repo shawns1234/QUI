@@ -84,6 +84,49 @@ GUI._suppressSearchRegistration = false
 -- Deduplication keys to prevent duplicate registry entries when tabs are re-clicked
 GUI.SettingsRegistryKeys = {}
 
+-- Widget instance tracking for cross-widget synchronization (search results <-> original tabs)
+GUI.WidgetInstances = {}
+
+-- Generate unique key for widget instance tracking
+local function GetWidgetKey(dbTable, dbKey)
+    if not dbTable or not dbKey then return nil end
+    return tostring(dbTable) .. "_" .. dbKey
+end
+
+-- Register a widget instance for sync tracking
+local function RegisterWidgetInstance(widget, dbTable, dbKey)
+    local widgetKey = GetWidgetKey(dbTable, dbKey)
+    if not widgetKey then return end
+    GUI.WidgetInstances[widgetKey] = GUI.WidgetInstances[widgetKey] or {}
+    table.insert(GUI.WidgetInstances[widgetKey], widget)
+    widget._widgetKey = widgetKey
+end
+
+-- Unregister a widget instance (called during cleanup)
+local function UnregisterWidgetInstance(widget)
+    if not widget._widgetKey then return end
+    local instances = GUI.WidgetInstances[widget._widgetKey]
+    if not instances then return end
+    for i = #instances, 1, -1 do
+        if instances[i] == widget then
+            table.remove(instances, i)
+            break
+        end
+    end
+end
+
+-- Broadcast value change to all sibling widget instances
+local function BroadcastToSiblings(widget, val)
+    if not widget._widgetKey then return end
+    local instances = GUI.WidgetInstances[widget._widgetKey]
+    if not instances then return end
+    for _, sibling in ipairs(instances) do
+        if sibling ~= widget and sibling.UpdateVisual then
+            sibling.UpdateVisual(val)
+        end
+    end
+end
+
 -- Set search context for auto-registration (call at start of page builder)
 function GUI:SetSearchContext(info)
     self._searchContext.tabIndex = info.tabIndex
@@ -1982,11 +2025,17 @@ function GUI:CreateFormToggle(parent, label, dbKey, dbTable, onChange, registryI
         container.checked = val
         UpdateVisual(val)
         if dbTable and dbKey then dbTable[dbKey] = val end
+        BroadcastToSiblings(container, val)
         if onChange and not skipCallback then onChange(val) end
     end
 
     container.GetValue = GetValue
     container.SetValue = SetValue
+    container.UpdateVisual = UpdateVisual
+
+    -- Register for cross-widget sync
+    RegisterWidgetInstance(container, dbTable, dbKey)
+
     SetValue(GetValue(), true)  -- Skip callback on init
 
     -- Click to toggle
@@ -2105,11 +2154,17 @@ function GUI:CreateFormToggleInverted(parent, label, dbKey, dbTable, onChange)
         local dbVal = not isOn  -- Invert for storage
         UpdateVisual(isOn)
         if dbTable and dbKey then dbTable[dbKey] = dbVal end
+        BroadcastToSiblings(container, isOn)
         if onChange and not skipCallback then onChange(dbVal) end
     end
 
     container.GetValue = IsOn
     container.SetValue = SetOn
+    container.UpdateVisual = UpdateVisual
+
+    -- Register for cross-widget sync
+    RegisterWidgetInstance(container, dbTable, dbKey)
+
     SetOn(IsOn(), true)  -- Skip callback on init
 
     track:SetScript("OnClick", function() SetOn(not IsOn()) end)
@@ -2188,8 +2243,7 @@ function GUI:CreateFormCheckboxOriginal(parent, label, dbKey, dbTable, onChange)
         return container.checked
     end
 
-    local function SetValue(val)
-        container.checked = val
+    local function UpdateVisual(val)
         if val then
             box.check:Show()
             box:SetBackdropBorderColor(unpack(C.accent))
@@ -2199,13 +2253,24 @@ function GUI:CreateFormCheckboxOriginal(parent, label, dbKey, dbTable, onChange)
             box:SetBackdropBorderColor(unpack(C.border))
             box:SetBackdropColor(0.1, 0.1, 0.1, 1)
         end
+    end
+
+    local function SetValue(val, skipCallback)
+        container.checked = val
+        UpdateVisual(val)
         if dbTable and dbKey then dbTable[dbKey] = val end
-        if onChange then onChange(val) end
+        BroadcastToSiblings(container, val)
+        if onChange and not skipCallback then onChange(val) end
     end
 
     container.GetValue = GetValue
     container.SetValue = SetValue
-    SetValue(GetValue())
+    container.UpdateVisual = UpdateVisual
+
+    -- Register for cross-widget sync
+    RegisterWidgetInstance(container, dbTable, dbKey)
+
+    SetValue(GetValue(), true)
 
     box:SetScript("OnClick", function() SetValue(not GetValue()) end)
     box:SetScript("OnEnter", function(self) pcall(self.SetBackdropBorderColor, self, unpack(C.accentHover)) end)
@@ -2355,19 +2420,30 @@ function GUI:CreateFormSlider(parent, label, min, max, step, dbKey, dbTable, onC
         return container.value or container.min
     end
 
+    local function UpdateVisual(val)
+        val = math.max(container.min, math.min(container.max, val))
+        val = math.floor(val / container.step + 0.5) * container.step
+        slider:SetValue(val)
+        editBox:SetText(string.format(container.step < 1 and "%.2f" or "%d", val))
+        UpdateTrackFill(val)
+    end
+
     local function SetValue(val, skipOnChange)
         val = math.max(container.min, math.min(container.max, val))
         val = math.floor(val / container.step + 0.5) * container.step
         container.value = val
-        slider:SetValue(val)
-        editBox:SetText(string.format(container.step < 1 and "%.2f" or "%d", val))
-        UpdateTrackFill(val)
+        UpdateVisual(val)
         if dbTable and dbKey then dbTable[dbKey] = val end
+        BroadcastToSiblings(container, val)
         if not skipOnChange and onChange then onChange(val) end
     end
 
     container.GetValue = GetValue
     container.SetValue = SetValue
+    container.UpdateVisual = UpdateVisual
+
+    -- Register for cross-widget sync
+    RegisterWidgetInstance(container, dbTable, dbKey)
 
     slider:SetScript("OnValueChanged", function(self, value, userInput)
         -- Ignore user input if slider is disabled
@@ -2378,6 +2454,7 @@ function GUI:CreateFormSlider(parent, label, min, max, step, dbKey, dbTable, onC
         UpdateTrackFill(value)
         if dbTable and dbKey then dbTable[dbKey] = value end
         if userInput then
+            BroadcastToSiblings(container, value)
             if deferOnDrag and isDragging then return end
             if onChange then onChange(value) end
         end
@@ -2608,15 +2685,20 @@ function GUI:CreateFormDropdown(parent, label, options, dbKey, dbTable, onChange
         return container.selectedValue
     end
 
-    local function SetValue(val, skipOnChange)
-        container.selectedValue = val
-        if dbTable and dbKey then dbTable[dbKey] = val end
+    local function UpdateVisual(val)
         for _, opt in ipairs(container.options) do
             if opt.value == val then
                 dropdown.selected:SetText(opt.text)
                 break
             end
         end
+    end
+
+    local function SetValue(val, skipOnChange)
+        container.selectedValue = val
+        if dbTable and dbKey then dbTable[dbKey] = val end
+        UpdateVisual(val)
+        BroadcastToSiblings(container, val)
         if not skipOnChange and onChange then onChange(val) end
     end
 
@@ -2693,6 +2775,11 @@ function GUI:CreateFormDropdown(parent, label, options, dbKey, dbTable, onChange
     container.GetValue = GetValue
     container.SetValue = SetValue
     container.SetOptions = SetOptions
+    container.UpdateVisual = UpdateVisual
+
+    -- Register for cross-widget sync
+    RegisterWidgetInstance(container, dbTable, dbKey)
+
     SetValue(GetValue(), true)
 
     -- Enable/disable the dropdown (for conditional UI)
@@ -3013,8 +3100,9 @@ end
 function GUI:RenderSearchResults(content, results, searchTerm)
     if not content then return end
 
-    -- Clear previous child frames
+    -- Clear previous child frames (unregister from widget sync first)
     for _, child in ipairs({content:GetChildren()}) do
+        UnregisterWidgetInstance(child)
         child:Hide()
         child:SetParent(nil)
     end

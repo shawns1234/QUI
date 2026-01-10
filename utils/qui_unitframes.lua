@@ -320,7 +320,7 @@ end
 ---------------------------------------------------------------------------
 -- HELPER: Format health text based on display style
 ---------------------------------------------------------------------------
-local function FormatHealthText(hp, hpPct, style, divider)
+local function FormatHealthText(hp, hpPct, style, divider, maxHp)
     style = style or "both"
     divider = divider or " | "
 
@@ -343,6 +343,25 @@ local function FormatHealthText(hp, hpPct, style, divider)
             return string.format("%d%%%s%s", hpPct, divider, hpStr or "")
         end
         return hpStr or ""
+    elseif style == "missing_percent" then
+        if hpPct then
+            local missing = 100 - hpPct
+            if missing > 0 then
+                return string.format("-%d%%", missing)
+            end
+            return "0%"
+        end
+        return ""
+    elseif style == "missing_value" then
+        if hp and maxHp then
+            local missing = maxHp - hp
+            if missing > 0 then
+                local missingStr = AbbreviateLargeNumbers and AbbreviateLargeNumbers(missing) or tostring(missing)
+                return "-" .. missingStr
+            end
+            return "0"
+        end
+        return ""
     end
 
     return hpStr or ""
@@ -544,7 +563,7 @@ local function UpdateHealth(frame)
 
             if hp then
                 local hpPct = GetHealthPct(unit, false)
-                local healthStr = FormatHealthText(hp, hpPct, displayStyle, divider)
+                local healthStr = FormatHealthText(hp, hpPct, displayStyle, divider, maxHP)
                 frame.healthText:SetText(healthStr)
                 frame.healthText:Show()
             else
@@ -1155,6 +1174,14 @@ local function UpdateFrame(frame)
     UpdateIndicators(frame)
     UpdateStance(frame)
     UpdateTargetMarker(frame)
+
+    -- Update portrait texture (third param disables circular mask for square portrait)
+    if frame.portraitTexture and frame.portrait and frame.portrait:IsShown() then
+        if UnitExists(frame.unit) then
+            SetPortraitTexture(frame.portraitTexture, frame.unit, true)
+            frame.portraitTexture:SetTexCoord(0.15, 0.85, 0.15, 0.85)  -- Crop to focus on face
+        end
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -1620,6 +1647,54 @@ local function CreateUnitFrame(unit, unitKey)
             separator:SetVertexColor(0, 0, 0, 1)
             frame.powerBarSeparator = separator
         end
+    end
+
+    -- Portrait (optional, side-attached)
+    if settings.showPortrait then
+        local portrait = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+        local portraitSize = height * (settings.portraitScale or 1.0)
+        local portraitBorderSize = Scale(settings.portraitBorderSize or 1)
+        portrait:SetSize(portraitSize, portraitSize)
+
+        local side = settings.portraitSide or "LEFT"
+        if side == "LEFT" then
+            portrait:SetPoint("RIGHT", frame, "LEFT", -1, 0)
+        else
+            portrait:SetPoint("LEFT", frame, "RIGHT", 1, 0)
+        end
+
+        -- Border around portrait
+        portrait:SetBackdrop({
+            bgFile = nil,
+            edgeFile = "Interface\\Buttons\\WHITE8x8",
+            edgeSize = portraitBorderSize,
+        })
+
+        -- Determine border color
+        local borderR, borderG, borderB = 0, 0, 0
+        if settings.portraitBorderUseClassColor then
+            local _, class = UnitClass(unit)
+            if class then
+                local classColor = RAID_CLASS_COLORS[class]
+                if classColor then
+                    borderR, borderG, borderB = classColor.r, classColor.g, classColor.b
+                end
+            end
+        elseif settings.portraitBorderColor then
+            borderR = settings.portraitBorderColor[1] or 0
+            borderG = settings.portraitBorderColor[2] or 0
+            borderB = settings.portraitBorderColor[3] or 0
+        end
+        portrait:SetBackdropBorderColor(borderR, borderG, borderB, 1)
+
+        local portraitTex = portrait:CreateTexture(nil, "ARTWORK")
+        portraitTex:SetPoint("TOPLEFT", portraitBorderSize, -portraitBorderSize)
+        portraitTex:SetPoint("BOTTOMRIGHT", -portraitBorderSize, portraitBorderSize)
+        frame.portraitTexture = portraitTex
+        frame.portrait = portrait
+
+        SetPortraitTexture(portraitTex, unit, true)
+        portraitTex:SetTexCoord(0.15, 0.85, 0.15, 0.85)  -- Crop to focus on face
     end
 
     -- Text frame (above health bar for proper layering)
@@ -2244,16 +2319,16 @@ local function UpdateAuras(frame)
                 yPos = yPos - idx * (iconSize + debuffSpacing)
             end
             
-            -- Map user anchor to actual frame anchor points (outside the frame)
+            -- Map user anchor to frame anchor points
             local iconPoint, framePoint
             if debuffAnchor == "TOPLEFT" then
-                iconPoint, framePoint = "BOTTOMLEFT", "TOPLEFT"
+                iconPoint, framePoint = "TOPLEFT", "TOPLEFT"
             elseif debuffAnchor == "TOPRIGHT" then
-                iconPoint, framePoint = "BOTTOMRIGHT", "TOPRIGHT"
+                iconPoint, framePoint = "TOPRIGHT", "TOPRIGHT"
             elseif debuffAnchor == "BOTTOMLEFT" then
-                iconPoint, framePoint = "TOPLEFT", "BOTTOMLEFT"
+                iconPoint, framePoint = "BOTTOMLEFT", "BOTTOMLEFT"
             elseif debuffAnchor == "BOTTOMRIGHT" then
-                iconPoint, framePoint = "TOPRIGHT", "BOTTOMRIGHT"
+                iconPoint, framePoint = "BOTTOMRIGHT", "BOTTOMRIGHT"
             end
             
             icon:ClearAllPoints()
@@ -2319,16 +2394,16 @@ local function UpdateAuras(frame)
                 yPos = yPos - idx * (buffIconSize + buffSpacing)
             end
 
-            -- Map user anchor to actual frame anchor points (outside the frame)
+            -- Map user anchor to frame anchor points
             local iconPoint, framePoint
             if buffAnchor == "TOPLEFT" then
-                iconPoint, framePoint = "BOTTOMLEFT", "TOPLEFT"
+                iconPoint, framePoint = "TOPLEFT", "TOPLEFT"
             elseif buffAnchor == "TOPRIGHT" then
-                iconPoint, framePoint = "BOTTOMRIGHT", "TOPRIGHT"
+                iconPoint, framePoint = "TOPRIGHT", "TOPRIGHT"
             elseif buffAnchor == "BOTTOMLEFT" then
-                iconPoint, framePoint = "TOPLEFT", "BOTTOMLEFT"
+                iconPoint, framePoint = "BOTTOMLEFT", "BOTTOMLEFT"
             elseif buffAnchor == "BOTTOMRIGHT" then
-                iconPoint, framePoint = "TOPRIGHT", "BOTTOMRIGHT"
+                iconPoint, framePoint = "BOTTOMRIGHT", "BOTTOMRIGHT"
             end
 
             icon:ClearAllPoints()
@@ -2764,6 +2839,11 @@ function QUI_UF:ShowAuraPreview(unitKey, auraType)
         icon.count:SetPoint(stackAnchor, icon, stackAnchor, stackOffsetX, stackOffsetY)
         icon.count:SetTextColor(stackColor[1] or 1, stackColor[2] or 1, stackColor[3] or 1, stackColor[4] or 1)
 
+        -- Hide Duration Swipe setting
+        local hideSwipe = auraSettings[prefix .. "HideSwipe"]
+        if hideSwipe == nil then hideSwipe = false end
+        icon.cooldown:SetDrawSwipe(not hideSwipe)
+
         -- Set texture
         icon.icon:SetTexture(auraData.icon)
 
@@ -2795,16 +2875,16 @@ function QUI_UF:ShowAuraPreview(unitKey, auraType)
             yPos = yPos - idx * (iconSize + spacing)
         end
 
-        -- Map user anchor to actual frame anchor points (outside the frame)
+        -- Map user anchor to frame anchor points
         local iconPoint, framePoint
         if anchor == "TOPLEFT" then
-            iconPoint, framePoint = "BOTTOMLEFT", "TOPLEFT"
+            iconPoint, framePoint = "TOPLEFT", "TOPLEFT"
         elseif anchor == "TOPRIGHT" then
-            iconPoint, framePoint = "BOTTOMRIGHT", "TOPRIGHT"
+            iconPoint, framePoint = "TOPRIGHT", "TOPRIGHT"
         elseif anchor == "BOTTOMLEFT" then
-            iconPoint, framePoint = "TOPLEFT", "BOTTOMLEFT"
+            iconPoint, framePoint = "BOTTOMLEFT", "BOTTOMLEFT"
         elseif anchor == "BOTTOMRIGHT" then
-            iconPoint, framePoint = "TOPRIGHT", "BOTTOMRIGHT"
+            iconPoint, framePoint = "BOTTOMRIGHT", "BOTTOMRIGHT"
         end
 
         icon:ClearAllPoints()
@@ -3139,6 +3219,67 @@ function QUI_UF:RefreshFrame(unitKey)
         frame.powerBarSeparator:Show()
     elseif frame.powerBarSeparator then
         frame.powerBarSeparator:Hide()
+    end
+
+    -- Update portrait (create dynamically if needed)
+    if settings.showPortrait then
+        local portraitSize = Scale(settings.height or 40) * (settings.portraitScale or 1.0)
+        local portraitBorderSize = Scale(settings.portraitBorderSize or 1)
+        local side = settings.portraitSide or "LEFT"
+
+        if not frame.portrait then
+            local portrait = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+            local portraitTex = portrait:CreateTexture(nil, "ARTWORK")
+            frame.portraitTexture = portraitTex
+            frame.portrait = portrait
+        end
+
+        -- Update size and position
+        frame.portrait:SetSize(portraitSize, portraitSize)
+        frame.portrait:ClearAllPoints()
+        if side == "LEFT" then
+            frame.portrait:SetPoint("RIGHT", frame, "LEFT", -1, 0)
+        else
+            frame.portrait:SetPoint("LEFT", frame, "RIGHT", 1, 0)
+        end
+
+        -- Determine border color first (needed for both styles)
+        local borderR, borderG, borderB = 0, 0, 0
+        if settings.portraitBorderUseClassColor then
+            local _, class = UnitClass(frame.unit)
+            if class then
+                local classColor = RAID_CLASS_COLORS[class]
+                if classColor then
+                    borderR, borderG, borderB = classColor.r, classColor.g, classColor.b
+                end
+            end
+        elseif settings.portraitBorderColor then
+            borderR = settings.portraitBorderColor[1] or 0
+            borderG = settings.portraitBorderColor[2] or 0
+            borderB = settings.portraitBorderColor[3] or 0
+        end
+
+        frame.portrait:SetBackdrop({
+            bgFile = nil,
+            edgeFile = "Interface\\Buttons\\WHITE8x8",
+            edgeSize = portraitBorderSize,
+        })
+        frame.portrait:SetBackdropBorderColor(borderR, borderG, borderB, 1)
+
+        -- Position portrait texture inside border
+        frame.portraitTexture:ClearAllPoints()
+        frame.portraitTexture:SetPoint("TOPLEFT", portraitBorderSize, -portraitBorderSize)
+        frame.portraitTexture:SetPoint("BOTTOMRIGHT", -portraitBorderSize, portraitBorderSize)
+
+        -- Update portrait texture
+        if UnitExists(frame.unit) then
+            SetPortraitTexture(frame.portraitTexture, frame.unit, true)
+            frame.portraitTexture:SetTexCoord(0.15, 0.85, 0.15, 0.85)
+        end
+
+        frame.portrait:Show()
+    elseif frame.portrait then
+        frame.portrait:Hide()
     end
 
     -- Update fonts and text positions

@@ -84,6 +84,7 @@ QUI_Castbar.STAGE_COLORS = {
     {0.55, 0.20, 0.24, 1},   -- Stage 2: Dark Red/Pink
     {0.58, 0.45, 0.18, 1},   -- Stage 3: Dark Yellow/Orange
     {0.27, 0.50, 0.21, 1},   -- Stage 4: Dark Green
+    {0.45, 0.20, 0.50, 1},   -- Stage 5: Dark Purple
 }
 
 QUI_Castbar.STAGE_FILL_COLORS = {
@@ -91,6 +92,7 @@ QUI_Castbar.STAGE_FILL_COLORS = {
     {0.91, 0.35, 0.40, 1},   -- Stage 2: Bright Red/Pink
     {0.95, 0.75, 0.30, 1},   -- Stage 3: Bright Yellow/Orange
     {0.45, 0.82, 0.35, 1},   -- Stage 4: Bright Green
+    {0.75, 0.40, 0.85, 1},   -- Stage 5: Bright Purple
 }
 
 -- Local references for internal use
@@ -159,7 +161,7 @@ local function InitializeDefaultSettings(castSettings)
     -- Empowered color overrides (player only) - initialize with default constants
     if not castSettings.empoweredStageColors then
         castSettings.empoweredStageColors = {}
-        for i = 1, 4 do
+        for i = 1, 5 do
             if STAGE_COLORS[i] then
                 castSettings.empoweredStageColors[i] = {STAGE_COLORS[i][1], STAGE_COLORS[i][2], STAGE_COLORS[i][3], STAGE_COLORS[i][4]}
             end
@@ -167,7 +169,7 @@ local function InitializeDefaultSettings(castSettings)
     end
     if not castSettings.empoweredFillColors then
         castSettings.empoweredFillColors = {}
-        for i = 1, 4 do
+        for i = 1, 5 do
             if STAGE_FILL_COLORS[i] then
                 castSettings.empoweredFillColors[i] = {STAGE_FILL_COLORS[i][1], STAGE_FILL_COLORS[i][2], STAGE_FILL_COLORS[i][3], STAGE_FILL_COLORS[i][4]}
             end
@@ -730,7 +732,9 @@ local function UpdateEmpoweredStages(bar, numStages)
         
         -- Stage boundary positions
         local stagePositions
-        if numStages >= 4 then
+        if numStages >= 5 then
+            stagePositions = {0, 0.15, 0.32, 0.50, 0.68, 0.85, 1.0}
+        elseif numStages == 4 then
             stagePositions = {0, 0.18, 0.42, 0.63, 0.84, 1.0}
         elseif numStages == 3 then
             stagePositions = {0, 0.25, 0.50, 0.75, 1.0}
@@ -812,7 +816,7 @@ local function UpdateEmpoweredFillColor(bar, progress, duration)
     if castSettings and castSettings.empoweredFillColors then
         -- Use override colors if available, fallback to defaults
         fillColors = {}
-        for i = 1, 4 do
+        for i = 1, 5 do
             if castSettings.empoweredFillColors[i] then
                 fillColors[i] = castSettings.empoweredFillColors[i]
             else
@@ -865,7 +869,12 @@ function QUI_Castbar:GetEmpoweredLevel()
         end
     end
 
-    local maxStages = playerCastbar.numStages or 0
+    -- Cap to actual number of stages (stagePositions has numStages+1 entries for hold phase)
+    local maxStages = playerCastbar.numStages or 1
+    if currentStage > maxStages then
+        currentStage = maxStages
+    end
+
     return currentStage, maxStages, true
 end
 
@@ -972,7 +981,7 @@ function QUI_Castbar:CreateCastbar(unitFrame, unit, unitKey)
     ApplyBarColor(statusBar, barColor)
     ApplyBackgroundColor(bgBar, castSettings.bgColor)
     statusBar:SetStatusBarTexture(GetTexturePath(castSettings.texture))
-    
+
     -- Store unit info
     anchorFrame.unit = unit
     anchorFrame.unitKey = unitKey
@@ -1115,7 +1124,7 @@ local function UpdateCastbarVisuals(castbar, castSettings, unitKey, texture, tex
     
     -- Set color using helper
     ApplyCastColor(castbar.statusBar, notInterruptible, castbar.customColor)
-    
+
     -- Set initial time text
     if castbar.timeText then
         local remaining = endTime - now
@@ -1170,8 +1179,11 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
         -- Check if actually casting (real cast takes priority)
         local spellName = UnitCastingInfo(self.unit)
         local channelName = UnitChannelInfo(self.unit)
-        
-        if spellName or channelName then
+
+        -- Continue showing castbar during empowered hold phase even when API returns nil
+        local isInEmpoweredHold = isPlayer and self.isEmpowered and self.startTime and self.endTime
+
+        if spellName or channelName or isInEmpoweredHold then
             -- Real cast - use real cast data
             -- Normalize time units: convert milliseconds to seconds for unified handling
             local startTime, endTime
@@ -1300,7 +1312,7 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
             self:Hide()
         end
     end
-    
+
     -- Store OnUpdate handler reference
     castbar.castbarOnUpdate = CastBar_OnUpdate
     
@@ -1396,9 +1408,11 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
         
         -- Interruptible state changes
         UNIT_SPELLCAST_INTERRUPTIBLE = function(self)
+            self.notInterruptible = false
             ApplyCastColor(self.statusBar, false, self.customColor)
         end,
         UNIT_SPELLCAST_NOT_INTERRUPTIBLE = function(self)
+            self.notInterruptible = true
             ApplyCastColor(self.statusBar, true, self.customColor)
         end,
     }
@@ -1414,20 +1428,12 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
         eventHandlers.UNIT_SPELLCAST_EMPOWER_STOP = function(self, spellID)
             local name = UnitCastingInfo(self.unit)
             if name then
+                -- Another cast started, transition to it
                 ClearEmpoweredState(self)
                 self:Cast(spellID, false)
-            else
-                -- Check if still in hold phase (endTime includes holdAtMaxTime)
-                local now = GetTime()
-                if self.isEmpowered and self.endTime and now < self.endTime then
-                    -- Still in hold phase - keep showing
-                    self.isInHoldPhase = true
-                else
-                    ClearEmpoweredState(self)
-                    self:SetScript("OnUpdate", nil)
-                    self:Hide()
-                end
             end
+            -- Don't hide here - let OnUpdate handle it via isInEmpoweredHold check
+            -- OnUpdate will hide the bar when endTime is reached
         end
     end
     
@@ -1627,11 +1633,11 @@ function QUI_Castbar:SetupBossCastbar(castbar, unit, bossIndex, castSettings)
             end
             
             UpdateSpellText(self, text, spellName, castSettings, self.unit)
-            
+
             self.statusBar:SetReverseFill(false)
-            
+
             ApplyCastColor(self.statusBar, notInterruptible, self.customColor)
-            
+
             if isEmpowered and numStages and numStages > 0 then
                 UpdateEmpoweredStages(self, numStages)
             else
@@ -1711,8 +1717,10 @@ function QUI_Castbar:SetupBossCastbar(castbar, unit, bossIndex, castSettings)
             ClearEmpoweredState(self)
             self:Cast(spellID, false)
         elseif event == "UNIT_SPELLCAST_INTERRUPTIBLE" then
+            self.notInterruptible = false
             ApplyCastColor(self.statusBar, false, self.customColor)
         elseif event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE" then
+            self.notInterruptible = true
             ApplyCastColor(self.statusBar, true, self.customColor)
         end
     end)
@@ -1777,10 +1785,10 @@ function QUI_Castbar:CreateBossCastbar(unitFrame, unit, bossIndex)
     ApplyBarColor(statusBar, barColor)
     ApplyBackgroundColor(bgBar, castSettings.bgColor)
     statusBar:SetStatusBarTexture(GetTexturePath(castSettings.texture))
-    
+
     -- Update element positions
     UpdateCastbarElements(anchorFrame, "boss", castSettings)
-    
+
     -- Store unit info
     anchorFrame.unit = unit
     anchorFrame.unitKey = "boss"
@@ -1919,11 +1927,11 @@ function QUI_Castbar:CreateBossCastbar(unitFrame, unit, bossIndex)
             end
             
             UpdateSpellText(self, text, spellName, castSettings, self.unit)
-            
+
             self.statusBar:SetReverseFill(false)
-            
+
             ApplyCastColor(self.statusBar, notInterruptible, self.customColor)
-            
+
             -- Start OnUpdate handler
             self:SetScript("OnUpdate", BossCastBar_OnUpdate)
             self:Show()
@@ -1968,12 +1976,14 @@ function QUI_Castbar:CreateBossCastbar(unitFrame, unit, bossIndex)
             or event == "UNIT_SPELLCAST_SUCCEEDED" then
             self:Cast()
         elseif event == "UNIT_SPELLCAST_INTERRUPTIBLE" then
+            self.notInterruptible = false
             ApplyCastColor(self.statusBar, false, self.customColor)
         elseif event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE" then
+            self.notInterruptible = true
             ApplyCastColor(self.statusBar, true, self.customColor)
         end
     end)
-    
+
     -- Apply preview if enabled and start OnUpdate
     if castSettings.previewMode then
         SimulateCast(anchorFrame, castSettings, "boss", bossIndex)
