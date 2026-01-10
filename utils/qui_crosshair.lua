@@ -8,6 +8,9 @@ ns.QUI = QUI
 
 local crosshairFrame, horizLine, vertLine, horizBorder, vertBorder
 
+-- Separate frame for range checking (always visible so OnUpdate runs even when crosshair is hidden)
+local rangeCheckFrame
+
 -- Range tracking state
 local isOutOfRange = false
 local rangeCheckElapsed = 0
@@ -106,12 +109,18 @@ local function OnRangeUpdate(self, elapsed)
         return
     end
     
+    local inCombat = InCombatLockdown()
+    
     -- Check if we should only track range in combat
-    if settings.rangeColorInCombatOnly and not InCombatLockdown() then
+    if settings.rangeColorInCombatOnly and not inCombat then
         -- Not in combat and combat-only is enabled, use normal color
         if isOutOfRange then
             isOutOfRange = false
             ApplyCrosshairColor(settings, false)
+        end
+        -- If hideUntilOutOfRange, hide the crosshair when not in combat
+        if settings.hideUntilOutOfRange and crosshairFrame then
+            crosshairFrame:Hide()
         end
         return
     end
@@ -121,6 +130,15 @@ local function OnRangeUpdate(self, elapsed)
         isOutOfRange = newOutOfRange
         ApplyCrosshairColor(settings, isOutOfRange)
     end
+    
+    -- Handle hideUntilOutOfRange visibility
+    if settings.hideUntilOutOfRange and crosshairFrame then
+        if inCombat and isOutOfRange then
+            crosshairFrame:Show()
+        else
+            crosshairFrame:Hide()
+        end
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -129,23 +147,44 @@ end
 local function UpdateRangeChecking()
     if not crosshairFrame then return end
     
+    -- Create the range check frame if needed (separate frame so OnUpdate runs even when crosshair is hidden)
+    if not rangeCheckFrame then
+        rangeCheckFrame = CreateFrame("Frame", "QuaziiUI_CrosshairRangeCheck", UIParent)
+        rangeCheckFrame:SetSize(1, 1)
+        rangeCheckFrame:SetPoint("CENTER")
+        rangeCheckFrame:Show()  -- Always visible
+    end
+    
     local settings = GetSettings()
     if settings and settings.enabled and settings.changeColorOnRange then
-        -- Enable range checking
+        -- Enable range checking on the always-visible frame
         rangeCheckElapsed = 0
-        crosshairFrame:SetScript("OnUpdate", OnRangeUpdate)
+        rangeCheckFrame:SetScript("OnUpdate", OnRangeUpdate)
+        
+        local inCombat = InCombatLockdown()
         
         -- Immediately check range (respecting combat-only setting)
-        if settings.rangeColorInCombatOnly and not InCombatLockdown() then
+        if settings.rangeColorInCombatOnly and not inCombat then
             isOutOfRange = false
             ApplyCrosshairColor(settings, false)
         else
             isOutOfRange = IsOutOfMeleeRange()
             ApplyCrosshairColor(settings, isOutOfRange)
         end
+        
+        -- Handle hideUntilOutOfRange initial visibility
+        if settings.hideUntilOutOfRange then
+            if inCombat and isOutOfRange then
+                crosshairFrame:Show()
+            else
+                crosshairFrame:Hide()
+            end
+        end
     else
         -- Disable range checking
-        crosshairFrame:SetScript("OnUpdate", nil)
+        if rangeCheckFrame then
+            rangeCheckFrame:SetScript("OnUpdate", nil)
+        end
         isOutOfRange = false
     end
 end

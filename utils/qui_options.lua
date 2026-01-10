@@ -1720,6 +1720,7 @@ local function CreateGeneralQoLPage(parent)
             -- Out of melee range color change
             local outOfRangeColorPicker  -- Forward declare
             local rangeColorCombatOnlyCheck  -- Forward declare
+            local hideUntilOutOfRangeCheck  -- Forward declare
 
             local rangeColorCheck = GUI:CreateFormCheckbox(tabContent, "Out of Melee Range Check", "changeColorOnRange", ch, function(val)
                 RefreshCrosshair()
@@ -1729,6 +1730,9 @@ local function CreateGeneralQoLPage(parent)
                 end
                 if rangeColorCombatOnlyCheck and rangeColorCombatOnlyCheck.SetEnabled then
                     rangeColorCombatOnlyCheck:SetEnabled(val)
+                end
+                if hideUntilOutOfRangeCheck and hideUntilOutOfRangeCheck.SetEnabled then
+                    hideUntilOutOfRangeCheck:SetEnabled(val)
                 end
             end)
             rangeColorCheck:SetPoint("TOPLEFT", PADDING, y)
@@ -1741,6 +1745,15 @@ local function CreateGeneralQoLPage(parent)
             -- Initial state based on setting
             if rangeColorCombatOnlyCheck.SetEnabled then
                 rangeColorCombatOnlyCheck:SetEnabled(ch.changeColorOnRange == true)
+            end
+            y = y - FORM_ROW
+
+            hideUntilOutOfRangeCheck = GUI:CreateFormCheckbox(tabContent, "Only Show When Out of Range", "hideUntilOutOfRange", ch, RefreshCrosshair)
+            hideUntilOutOfRangeCheck:SetPoint("TOPLEFT", PADDING, y)
+            hideUntilOutOfRangeCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            -- Initial state based on setting
+            if hideUntilOutOfRangeCheck.SetEnabled then
+                hideUntilOutOfRangeCheck:SetEnabled(ch.changeColorOnRange == true)
             end
             y = y - FORM_ROW
 
