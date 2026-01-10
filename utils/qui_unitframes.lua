@@ -83,7 +83,9 @@ local function GetHealthPct(unit, usePredicted)
         local cur = UnitHealth(unit)
         local max = UnitHealthMax(unit)
         if cur and max and max > 0 then
-            return (cur / max) * 100
+            -- Use pcall to handle Midnight secret values from UnitHealth()
+            local ok, pct = pcall(function() return (cur / max) * 100 end)
+            if ok then return pct end
         end
     end
     return nil
@@ -324,28 +326,37 @@ local function FormatHealthText(hp, hpPct, style, divider, maxHp)
     style = style or "both"
     divider = divider or " | "
 
-    local hpStr = AbbreviateLargeNumbers and AbbreviateLargeNumbers(hp) or tostring(hp)
+    -- Use pcall to handle Midnight secret values from UnitHealth()
+    local success, hpStr = pcall(function()
+        return AbbreviateLargeNumbers and AbbreviateLargeNumbers(hp) or tostring(hp)
+    end)
+    if not success then hpStr = "" end
 
     if style == "percent" then
         if hpPct then
-            return string.format("%d%%", hpPct)
+            local success, result = pcall(function() return string.format("%d%%", hpPct) end)
+            return success and result or ""
         end
         return ""
     elseif style == "absolute" then
         return hpStr or ""
     elseif style == "both" then
         if hpPct then
-            return string.format("%s%s%d%%", hpStr or "", divider, hpPct)
+            local success, result = pcall(function() return string.format("%s%s%d%%", hpStr or "", divider, hpPct) end)
+            return success and result or hpStr or ""
         end
         return hpStr or ""
     elseif style == "both_reverse" then
         if hpPct then
-            return string.format("%d%%%s%s", hpPct, divider, hpStr or "")
+            local success, result = pcall(function() return string.format("%d%%%s%s", hpPct, divider, hpStr or "") end)
+            return success and result or hpStr or ""
         end
         return hpStr or ""
     elseif style == "missing_percent" then
         if hpPct then
-            local missing = 100 - hpPct
+            -- Use pcall to handle Midnight secret values
+            local success, missing = pcall(function() return 100 - hpPct end)
+            if not success then return "" end
             if missing > 0 then
                 return string.format("-%d%%", missing)
             end
@@ -354,7 +365,9 @@ local function FormatHealthText(hp, hpPct, style, divider, maxHp)
         return ""
     elseif style == "missing_value" then
         if hp and maxHp then
-            local missing = maxHp - hp
+            -- Use pcall to handle Midnight secret values from UnitHealth()
+            local success, missing = pcall(function() return maxHp - hp end)
+            if not success then return "" end
             if missing > 0 then
                 local missingStr = AbbreviateLargeNumbers and AbbreviateLargeNumbers(missing) or tostring(missing)
                 return "-" .. missingStr
