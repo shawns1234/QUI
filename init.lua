@@ -13,7 +13,7 @@ QuaziiUI.DF = _G["DetailsFramework"]
 QuaziiUI.DEBUG_MODE = false
 
 -- Version info
-QuaziiUI.versionString = C_AddOns.GetAddOnMetadata("QuaziiUI", "Version") or "2.01-alpha"
+QuaziiUI.versionString = C_AddOns.GetAddOnMetadata("QuaziiUI", "Version") or "1.42"
 
 ---@type table
 QuaziiUI.defaults = {

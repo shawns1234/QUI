@@ -536,18 +536,32 @@ end
     -- World Map Blackout (dark overlay behind fullscreen map)
     if WorldMapFrame and WorldMapFrame.BlackoutFrame then
         if settings.hideWorldMapBlackout then
-            WorldMapFrame.BlackoutFrame:Hide()
-            if not WorldMapFrame._QUI_BlackoutHooked then
-                WorldMapFrame._QUI_BlackoutHooked = true
-                WorldMapFrame:HookScript("OnShow", function()
+            WorldMapFrame.BlackoutFrame:SetAlpha(0)
+            WorldMapFrame.BlackoutFrame:EnableMouse(false)
+
+            -- Hook the BlackoutFrame to keep it hidden if Blizzard tries to show it
+            if not WorldMapFrame.BlackoutFrame._QUI_BlackoutHooked then
+                WorldMapFrame.BlackoutFrame._QUI_BlackoutHooked = true
+                hooksecurefunc(WorldMapFrame.BlackoutFrame, "Show", function(self)
                     local s = GetSettings()
-                    if s and s.hideWorldMapBlackout and WorldMapFrame.BlackoutFrame then
-                        WorldMapFrame.BlackoutFrame:Hide()
+                    if s and s.hideWorldMapBlackout then
+                        self:SetAlpha(0)
+                        self:EnableMouse(false)
+                    end
+                end)
+
+                -- Also hook SetAlpha to prevent alpha changes
+                hooksecurefunc(WorldMapFrame.BlackoutFrame, "SetAlpha", function(self, alpha)
+                    local s = GetSettings()
+                    if s and s.hideWorldMapBlackout and alpha > 0 then
+                        self:SetAlpha(0)
+                        self:EnableMouse(false)
                     end
                 end)
             end
         else
-            WorldMapFrame.BlackoutFrame:Show()
+            WorldMapFrame.BlackoutFrame:SetAlpha(1)
+            WorldMapFrame.BlackoutFrame:EnableMouse(true)
         end
     end
 end
