@@ -4117,6 +4117,16 @@ function QUICore:HookEditMode()
         hooksecurefunc(EditModeManagerFrame, "ExitEditMode", function()
             C_Timer.After(0.1, function()
                 self:ForceReskinAllViewers()
+
+                -- Hide power bar edit overlays that persist after edit mode exits
+                C_Timer.After(0.15, function()
+                    for _, barName in ipairs({"QuaziiUIPrimaryPowerBar", "QuaziiUISecondaryPowerBar"}) do
+                        local bar = _G[barName]
+                        if bar and bar.editOverlay and bar.editOverlay:IsShown() then
+                            bar.editOverlay:Hide()
+                        end
+                    end
+                end)
             end)
         end)
             end

@@ -1354,8 +1354,16 @@ local guildCache = {
 
 -- Strip only the player's realm suffix from names
 -- "Player-MyRealm" -> "Player", "Player-OtherRealm" -> "Player-OtherRealm"
-local myRealmPattern = "%-" .. GetNormalizedRealmName()
+local myRealmPattern
 local function StripMyRealm(name)
+    if not myRealmPattern then
+        local realm = GetNormalizedRealmName()
+        if realm then
+            myRealmPattern = "%-" .. realm
+        else
+            return name  -- Can't strip without realm info
+        end
+    end
     return (gsub(name, myRealmPattern, ""))
 end
 

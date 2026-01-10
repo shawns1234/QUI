@@ -633,6 +633,7 @@ local function UpdateAbsorbs(frame)
             if overflowBarTex then
                 overflowBarTex:SetHorizTile(true)
                 overflowBarTex:SetVertTile(true)
+                overflowBarTex:SetTexCoord(1, 0, 0, 1)  -- Flip horizontally to match attached bar orientation
             end
             frame.absorbOverflowBar:SetFrameLevel(frame.healthBar:GetFrameLevel() + 2)
             frame.absorbOverflowBar:EnableMouse(false)

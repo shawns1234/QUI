@@ -7439,6 +7439,18 @@ local function CreateCDKeybindsPage(parent)
         essentialShowCheck:SetPoint("RIGHT", content, "RIGHT", -PADDING, 0)
         y = y - FORM_ROW
 
+        local anchorOptions = {
+            { value = "TOPLEFT", text = "Top Left" },
+            { value = "TOPRIGHT", text = "Top Right" },
+            { value = "BOTTOMLEFT", text = "Bottom Left" },
+            { value = "BOTTOMRIGHT", text = "Bottom Right" },
+            { value = "CENTER", text = "Center" },
+        }
+        local essentialAnchor = GUI:CreateFormDropdown(content, "Keybind Anchor", anchorOptions, "keybindAnchor", essentialViewer, RefreshKeybinds)
+        essentialAnchor:SetPoint("TOPLEFT", PADDING, y)
+        essentialAnchor:SetPoint("RIGHT", content, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
         local essentialSizeSlider = GUI:CreateFormSlider(content, "Keybind Text Size", 6, 18, 1, "keybindTextSize", essentialViewer, RefreshKeybinds)
         essentialSizeSlider:SetPoint("TOPLEFT", PADDING, y)
         essentialSizeSlider:SetPoint("RIGHT", content, "RIGHT", -PADDING, 0)
@@ -7470,6 +7482,11 @@ local function CreateCDKeybindsPage(parent)
         local utilityShowCheck = GUI:CreateFormCheckbox(content, "Show Keybinds", "showKeybinds", utilityViewer, RefreshKeybinds)
         utilityShowCheck:SetPoint("TOPLEFT", PADDING, y)
         utilityShowCheck:SetPoint("RIGHT", content, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local utilityAnchor = GUI:CreateFormDropdown(content, "Keybind Anchor", anchorOptions, "keybindAnchor", utilityViewer, RefreshKeybinds)
+        utilityAnchor:SetPoint("TOPLEFT", PADDING, y)
+        utilityAnchor:SetPoint("RIGHT", content, "RIGHT", -PADDING, 0)
         y = y - FORM_ROW
 
         local utilitySizeSlider = GUI:CreateFormSlider(content, "Keybind Text Size", 6, 18, 1, "keybindTextSize", utilityViewer, RefreshKeybinds)
