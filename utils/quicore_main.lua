@@ -992,6 +992,10 @@ local defaults = {
             strata = "LOW",          -- Frame strata
             lineColor = { 0.796, 1, 0.780, 1 },
             borderColorTable = { 0, 0, 0, 1 },
+            -- Out of melee range color change
+            changeColorOnRange = false,
+            outOfRangeColor = { 1, 0.2, 0.2, 1 },  -- Red color when out of range
+            rangeColorInCombatOnly = false,       -- Only change color in combat
         },
 
         -- Skyriding Vigor Bar
