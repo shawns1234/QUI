@@ -27,7 +27,6 @@ end
 ---------------------------------------------------------------------------
 -- Check if target is out of melee range
 -- Uses C_Spell.IsSpellInRange with Attack spell for accurate auto-attack range
--- Based on MSUF implementation for robust range detection
 ---------------------------------------------------------------------------
 local ATTACK_SPELL_ID = 6603  -- Auto-attack spell ID
 
