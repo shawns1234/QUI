@@ -14,6 +14,7 @@ local CombatTimerState = {
     timerFrame = nil,
     isInCombat = false,
     isPreviewMode = false,
+    isInEncounter = false,  -- Track boss encounter state
 }
 
 ---------------------------------------------------------------------------
@@ -259,8 +260,12 @@ local function UpdateTimerAppearance()
     end
 
     -- Set up backdrop with or without LSM border
-    if showBackdrop or useLSMBorder then
-        frame:SetBackdrop(GetBackdropInfo(borderTexture, borderSize))
+    -- Skip LSM border if hideBorder is enabled
+    local hideBorder = settings.hideBorder
+    local effectiveUseLSMBorder = useLSMBorder and not hideBorder
+    
+    if showBackdrop or effectiveUseLSMBorder then
+        frame:SetBackdrop(GetBackdropInfo(hideBorder and "None" or borderTexture, hideBorder and 0 or borderSize))
 
         if showBackdrop then
             local bgColor = settings.backdropColor or {0, 0, 0, 0.6}
@@ -269,7 +274,7 @@ local function UpdateTimerAppearance()
             frame:SetBackdropColor(0, 0, 0, 0)
         end
 
-        if useLSMBorder then
+        if effectiveUseLSMBorder then
             frame:SetBackdropBorderColor(borderColor[1], borderColor[2], borderColor[3], borderColor[4] or 1)
         end
     else
@@ -277,8 +282,10 @@ local function UpdateTimerAppearance()
     end
 
     -- Update manual border lines (only used when no LSM border is selected)
+    -- Hide all borders if hideBorder is enabled
+    local hideBorder = settings.hideBorder
     CreateBorderLines(frame)  -- Ensure borders exist
-    UpdateBorderLines(frame, borderSize, borderColor[1], borderColor[2], borderColor[3], borderColor[4] or 1, useLSMBorder)
+    UpdateBorderLines(frame, borderSize, borderColor[1], borderColor[2], borderColor[3], borderColor[4] or 1, useLSMBorder or hideBorder)
 
     -- Ensure text is always centered
     frame.text:ClearAllPoints()
@@ -294,6 +301,12 @@ local function OnCombatStart()
 
     -- Don't start combat timer if we're in preview mode
     if CombatTimerState.isPreviewMode then return end
+
+    -- If encounters-only mode is enabled and we're not in an encounter, don't show
+    if settings.onlyShowInEncounters and not CombatTimerState.isInEncounter then
+        CombatTimerState.isInCombat = true  -- Track combat state but don't show timer
+        return
+    end
 
     CreateTimerFrame()
     UpdateTimerAppearance()
@@ -318,6 +331,53 @@ local function OnCombatEnd()
     CombatTimerState.isInCombat = false
 
     if CombatTimerState.timerFrame then
+        CombatTimerState.timerFrame:SetScript("OnUpdate", nil)
+        CombatTimerState.timerFrame:Hide()
+    end
+end
+
+---------------------------------------------------------------------------
+-- Encounter start handler (boss encounters)
+---------------------------------------------------------------------------
+local function OnEncounterStart()
+    local settings = GetSettings()
+    if not settings or not settings.enabled then return end
+
+    CombatTimerState.isInEncounter = true
+
+    -- Don't interfere with preview mode
+    if CombatTimerState.isPreviewMode then return end
+
+    -- If encounters-only mode and we're in combat but timer not shown, show it now
+    if settings.onlyShowInEncounters and CombatTimerState.isInCombat then
+        CreateTimerFrame()
+        UpdateTimerAppearance()
+
+        CombatTimerState.combatStartTime = GetTime()
+
+        if CombatTimerState.timerFrame then
+            CombatTimerState.timerFrame.text:SetText("00:00")
+            CombatTimerState.timerFrame:Show()
+            CombatTimerState.timerFrame:SetScript("OnUpdate", OnTimerUpdate)
+        end
+    end
+end
+
+---------------------------------------------------------------------------
+-- Encounter end handler
+---------------------------------------------------------------------------
+local function OnEncounterEnd()
+    CombatTimerState.isInEncounter = false
+
+    local settings = GetSettings()
+    if not settings then return end
+
+    -- Don't hide if in preview mode
+    if CombatTimerState.isPreviewMode then return end
+
+    -- If encounters-only mode is enabled, hide the timer when encounter ends
+    -- (even if still in combat)
+    if settings.onlyShowInEncounters and CombatTimerState.timerFrame then
         CombatTimerState.timerFrame:SetScript("OnUpdate", nil)
         CombatTimerState.timerFrame:Hide()
     end
@@ -397,6 +457,8 @@ local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+eventFrame:RegisterEvent("ENCOUNTER_START")
+eventFrame:RegisterEvent("ENCOUNTER_END")
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_LOGIN" then
         C_Timer.After(1, function()
@@ -406,6 +468,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         OnCombatStart()
     elseif event == "PLAYER_REGEN_ENABLED" then
         OnCombatEnd()
+    elseif event == "ENCOUNTER_START" then
+        OnEncounterStart()
+    elseif event == "ENCOUNTER_END" then
+        OnEncounterEnd()
     end
 end)
 
