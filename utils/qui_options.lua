@@ -9156,6 +9156,7 @@ local function CreateCustomTrackersPage(parent)
             {value = "Button Glow", text = "Button Glow"},
             {value = "Pixel Glow", text = "Pixel Glow"},
             {value = "Autocast Shine", text = "Autocast Shine"},
+            {value = "Proc Glow", text = "Proc Glow"},
         }
         local glowTypeDropdown = GUI:CreateFormDropdown(lowerContainer, "Glow Type", glowTypeOptions, "activeGlowType", barConfig, RefreshThisBar)
         glowTypeDropdown:SetPoint("TOPLEFT", 0, y)

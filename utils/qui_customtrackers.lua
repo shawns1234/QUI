@@ -581,6 +581,9 @@ end
 ---------------------------------------------------------------------------
 local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
 
+-- Path to proc glow mask (rounds icon corners to match the proc glow)
+local PROC_GLOW_MASK = "Interface\\AddOns\\QuaziiUI\\assets\\iconskin\\ProcGlowMask"
+
 local function StartActiveGlow(icon, config)
     if not icon or not LCG then return end
     if icon._activeGlowShown then return end
@@ -594,7 +597,35 @@ local function StartActiveGlow(icon, config)
     local thickness = (config and config.activeGlowThickness) or 2
     local scale = (config and config.activeGlowScale) or 1.0
 
-    if glowType == "Pixel Glow" then
+    if glowType == "Proc Glow" then
+        -- Use LibCustomGlow's ProcGlow (has start animation + proper sizing)
+        -- Convert frequency to duration (LibCustomGlow uses duration for ProcGlow)
+        local duration = 1.0 / (frequency * 4)
+        duration = math.max(0.5, math.min(2.0, duration))
+        
+        -- Hide border during Proc Glow (its dark corners show through the rounded glow)
+        if icon.border and icon.border:IsShown() then
+            icon._borderWasShown = true
+            icon.border:Hide()
+        end
+        
+        -- Apply rounded corner mask to icon texture (matches proc glow shape)
+        if icon.tex then
+            if not icon._procGlowMask then
+                icon._procGlowMask = icon:CreateMaskTexture()
+                icon._procGlowMask:SetTexture(PROC_GLOW_MASK)
+                icon._procGlowMask:SetAllPoints(icon.tex)
+            end
+            icon.tex:AddMaskTexture(icon._procGlowMask)
+        end
+        
+        LCG.ProcGlow_Start(icon, {
+            color = color,
+            duration = duration,
+            startAnim = true,  -- Show the burst effect before looping
+            key = "_QUIActiveGlow",
+        })
+    elseif glowType == "Pixel Glow" then
         LCG.PixelGlow_Start(icon, color, lines, frequency, nil, thickness, 0, 0, true, "_QUIActiveGlow")
     elseif glowType == "Autocast Shine" then
         LCG.AutoCastGlow_Start(icon, color, lines, frequency, scale, 0, 0, "_QUIActiveGlow")
@@ -612,7 +643,20 @@ local function StopActiveGlow(icon)
 
     local glowType = icon._activeGlowType or "Button Glow"
 
-    if glowType == "Pixel Glow" then
+    if glowType == "Proc Glow" then
+        pcall(LCG.ProcGlow_Stop, icon, "_QUIActiveGlow")
+        
+        -- Remove mask from icon texture
+        if icon.tex and icon._procGlowMask then
+            icon.tex:RemoveMaskTexture(icon._procGlowMask)
+        end
+        
+        -- Restore border if it was hidden
+        if icon._borderWasShown and icon.border then
+            icon.border:Show()
+            icon._borderWasShown = nil
+        end
+    elseif glowType == "Pixel Glow" then
         pcall(LCG.PixelGlow_Stop, icon, "_QUIActiveGlow")
     elseif glowType == "Autocast Shine" then
         pcall(LCG.AutoCastGlow_Stop, icon, "_QUIActiveGlow")
