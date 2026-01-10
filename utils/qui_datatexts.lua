@@ -425,15 +425,48 @@ Datatexts:Register("gold", {
             return realm .. "-" .. name
         end
 
-        -- Save current character's gold to global storage
+        -- Get class color for a class name
+        local function GetClassColor(className)
+            if not className then return 1, 1, 1 end
+            local classColor = RAID_CLASS_COLORS[className]
+            if classColor then
+                return classColor.r, classColor.g, classColor.b
+            end
+            return 1, 1, 1  -- White fallback
+        end
+
+        -- Save current character's gold to global storage (with class info)
         local function SaveGold()
             local charKey = GetCharKey()
             if not charKey then return end  -- Guard against nil during early load
             local db = QUICore and QUICore.db
             if db and db.global then
                 if not db.global.goldData then db.global.goldData = {} end
-                db.global.goldData[charKey] = GetMoney() or 0
+                local _, className = UnitClass("player")
+                -- Store as table with money and class
+                db.global.goldData[charKey] = {
+                    money = GetMoney() or 0,
+                    class = className
+                }
             end
+        end
+
+        -- Get money from goldData entry (handles old format migration)
+        local function GetCharMoney(data)
+            if type(data) == "number" then
+                return data  -- Old format: just the copper amount
+            elseif type(data) == "table" then
+                return data.money or 0  -- New format: table with money key
+            end
+            return 0
+        end
+
+        -- Get class from goldData entry
+        local function GetCharClass(data)
+            if type(data) == "table" then
+                return data.class
+            end
+            return nil  -- Old format has no class
         end
 
         local function Update()
@@ -448,7 +481,17 @@ Datatexts:Register("gold", {
 
         frame:RegisterEvent("PLAYER_MONEY")
         frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+        frame:RegisterEvent("TOKEN_MARKET_PRICE_UPDATED")
         frame:SetScript("OnEvent", Update)
+
+        -- Request WoW Token price from server and set up refresh ticker
+        if C_WowTokenPublic and C_WowTokenPublic.UpdateMarketPrice then
+            C_WowTokenPublic.UpdateMarketPrice()
+            -- Refresh token price every 60 seconds
+            frame.tokenTicker = C_Timer.NewTicker(60, function()
+                C_WowTokenPublic.UpdateMarketPrice()
+            end)
+        end
 
         -- Tooltip
         slotFrame:EnableMouse(true)
@@ -469,48 +512,147 @@ Datatexts:Register("gold", {
             if db and db.global and db.global.goldData then
                 local total = 0
                 local charList = {}
-                for charKey, charMoney in pairs(db.global.goldData) do
+                for charKey, charData in pairs(db.global.goldData) do
+                    local charMoney = GetCharMoney(charData)
+                    local charClass = GetCharClass(charData)
                     total = total + charMoney
-                    table.insert(charList, {key = charKey, money = charMoney})
+                    table.insert(charList, {key = charKey, money = charMoney, class = charClass})
                 end
 
                 if #charList > 1 then
                     -- Sort by gold amount descending
                     table.sort(charList, function(a, b) return a.money > b.money end)
 
-                    -- Get configured accent color for current char highlight and section headers
+                    -- Get configured accent color for section headers
                     local vr, vg, vb = GetValueColor()
                     local ar, ag, ab = vr/255, vg/255, vb/255
 
                     GameTooltip:AddLine(" ")
-                    GameTooltip:AddLine("All Characters", ar, ag, ab)
+                    GameTooltip:AddLine("All Characters", 1, 1, 1)
+                    local currentCharKey = GetCharKey()
                     for _, char in ipairs(charList) do
-                        local charGold = floor(char.money / 10000)
-                        local isCurrentChar = (char.key == GetCharKey())
-                        -- Use configured accent color for current char, white for others
-                        local nameColor = isCurrentChar and format("|cff%02x%02x%02x", vr, vg, vb) or "|cffFFFFFF"
-                        GameTooltip:AddDoubleLine(nameColor .. char.key .. "|r", FormatGold(char.money), 1, 1, 1, 1, 1, 1)
+                        local isCurrentChar = (char.key == currentCharKey)
+                        -- Use class color for character name
+                        local cr, cg, cb = GetClassColor(char.class)
+                        -- Add bullet accent for current character
+                        local displayName = isCurrentChar and ("• " .. char.key) or char.key
+                        GameTooltip:AddDoubleLine(displayName, FormatGold(char.money), cr, cg, cb, 1, 1, 1)
                     end
                     GameTooltip:AddLine(" ")
                     GameTooltip:AddDoubleLine("Total:", FormatGold(total), ar, ag, ab, 1, 0.82, 0)
                 end
             end
 
+            -- Get accent color for section headers
+            local vr, vg, vb = GetValueColor()
+            local ar, ag, ab = vr/255, vg/255, vb/255
+
+            -- Warbound Bank Gold
+            if C_Bank and C_Bank.FetchDepositedMoney then
+                local warboundMoney = C_Bank.FetchDepositedMoney(Enum.BankType.Account)
+                if warboundMoney and warboundMoney > 0 then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Warbound Bank", 1, 1, 1)
+                    GameTooltip:AddDoubleLine("Account Gold:", FormatGold(warboundMoney), 0.8, 0.8, 0.8, 1, 0.82, 0)
+                end
+            end
+
+            -- WoW Token Price (always show section, display "Updating..." if not available yet)
+            if C_WowTokenPublic and C_WowTokenPublic.GetCurrentMarketPrice then
+                local tokenPrice = C_WowTokenPublic.GetCurrentMarketPrice()
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("WoW Token", 1, 1, 1)
+                if tokenPrice and tokenPrice > 0 then
+                    GameTooltip:AddDoubleLine("Market Price:", FormatGold(tokenPrice), 0.8, 0.8, 0.8, 1, 0.82, 0)
+                else
+                    GameTooltip:AddDoubleLine("Market Price:", "Updating...", 0.8, 0.8, 0.8, 0.5, 0.5, 0.5)
+                end
+            end
+
             GameTooltip:AddLine(" ")
-            local ar, ag, ab = GetValueColor(); ar, ag, ab = ar/255, ag/255, ab/255
             GameTooltip:AddLine("|cffFFFFFFLeft Click:|r Open Currency", ar, ag, ab)
             GameTooltip:AddLine("|cffFFFFFFRight Click:|r Toggle Bags", ar, ag, ab)
+            GameTooltip:AddLine("|cffFFFFFFMiddle Click:|r Manage Characters", ar, ag, ab)
             GameTooltip:Show()
         end)
         slotFrame:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-        -- Click handler: Left = Currency, Right = Bags
+        -- Character management menu using MenuUtil
+        local function ShowCharacterMenu(anchorFrame)
+            local db = QUICore and QUICore.db
+            if not db or not db.global or not db.global.goldData then return end
+
+            local currentCharKey = GetCharKey()
+
+            MenuUtil.CreateContextMenu(anchorFrame, function(_, root)
+                root:CreateTitle("Manage Characters")
+
+                -- Add each character as a deletable entry
+                for charKey, charData in pairs(db.global.goldData) do
+                    local charMoney = GetCharMoney(charData)
+                    local charClass = GetCharClass(charData)
+                    local cr, cg, cb = GetClassColor(charClass)
+                    local colorCode = format("|cff%02x%02x%02x", cr*255, cg*255, cb*255)
+                    local isCurrentChar = (charKey == currentCharKey)
+
+                    -- Capture values for closure
+                    local deleteCharKey = charKey
+                    local btn = root:CreateButton(colorCode .. charKey .. "|r - " .. FormatGold(charMoney), function()
+                        -- Confirm deletion
+                        StaticPopupDialogs["QUAZII_GOLD_DELETE_CHAR"] = {
+                            text = "Delete gold data for " .. deleteCharKey .. "?",
+                            button1 = "Delete",
+                            button2 = "Cancel",
+                            OnAccept = function()
+                                db.global.goldData[deleteCharKey] = nil
+                                print("|cff30D1FF[QuaziiUI]|r Removed gold data for " .. deleteCharKey)
+                            end,
+                            timeout = 0,
+                            whileDead = true,
+                            hideOnEscape = true,
+                        }
+                        StaticPopup_Show("QUAZII_GOLD_DELETE_CHAR")
+                    end)
+
+                    -- Can't delete current character
+                    if isCurrentChar then
+                        btn:SetEnabled(false)
+                    end
+                end
+
+                root:CreateDivider()
+                root:CreateButton("|cffFF6666Reset All (Keep Current)|r", function()
+                    StaticPopupDialogs["QUAZII_GOLD_RESET_ALL"] = {
+                        text = "Delete gold data for ALL characters except current?",
+                        button1 = "Reset All",
+                        button2 = "Cancel",
+                        OnAccept = function()
+                            local keepKey = currentCharKey
+                            local keepData = db.global.goldData[keepKey]
+                            db.global.goldData = {}
+                            if keepKey and keepData then
+                                db.global.goldData[keepKey] = keepData
+                            end
+                            print("|cff30D1FF[QuaziiUI]|r Reset gold data (kept current character)")
+                        end,
+                        timeout = 0,
+                        whileDead = true,
+                        hideOnEscape = true,
+                    }
+                    StaticPopup_Show("QUAZII_GOLD_RESET_ALL")
+                end)
+            end)
+        end
+
+        -- Click handler: Left = Currency, Right = Bags, Middle = Manage
         slotFrame:RegisterForClicks("AnyUp")
         slotFrame:SetScript("OnClick", function(self, button)
             if button == "LeftButton" then
                 ToggleCharacter("TokenFrame")
             elseif button == "RightButton" then
                 ToggleAllBags()
+            elseif button == "MiddleButton" then
+                ShowCharacterMenu(self)
             end
         end)
 
@@ -520,6 +662,10 @@ Datatexts:Register("gold", {
 
     OnDisable = function(frame)
         frame:UnregisterAllEvents()
+        if frame.tokenTicker then
+            frame.tokenTicker:Cancel()
+            frame.tokenTicker = nil
+        end
     end,
 })
 
@@ -750,13 +896,32 @@ local function GetClassColor(className)
     return classToken and RAID_CLASS_COLORS[classToken]
 end
 
+-- Client priority: higher = better (games beat App/Mobile)
+local CLIENT_PRIORITY = {
+    -- WoW is handled separately with wowProjectID
+    App = 1,    -- Desktop App
+    BSAp = 1,   -- Mobile App
+}
+
+local function GetClientPriority(client, wowProjectID)
+    if client == BNET_CLIENT_WOW then
+        -- WoW Retail is highest priority, then Classic
+        if wowProjectID == WOW_PROJECT_ID then
+            return 100  -- Current retail
+        else
+            return 50   -- Classic versions
+        end
+    end
+    return CLIENT_PRIORITY[client] or 10  -- Other games
+end
+
 local function BuildFriendsCache()
     wipe(friendsCache.wowFriends)
     wipe(friendsCache.bnetRetail)
     wipe(friendsCache.bnetClassic)
     wipe(friendsCache.bnetOther)
 
-    -- Regular WoW friends
+    -- Regular WoW friends (non-BNet)
     for i = 1, C_FriendList.GetNumFriends() do
         local info = C_FriendList.GetFriendInfoByIndex(i)
         if info and info.connected then
@@ -773,80 +938,87 @@ local function BuildFriendsCache()
         end
     end
 
-    -- Battle.net friends
+    -- Battle.net friends - deduplicate by picking best game account per friend
+    -- Each friend appears only ONCE, prioritizing games over App/Mobile
     if BNConnected() then
+        local seenAccounts = {}  -- Track best entry per bnetAccountID
+
         for i = 1, BNGetNumFriends() do
             local accountInfo = C_BattleNet.GetFriendAccountInfo(i)
             if accountInfo then
-                local gameInfo = accountInfo.gameAccountInfo
+                local bnetID = accountInfo.bnetAccountID
                 local numGameAccounts = C_BattleNet.GetFriendNumGameAccounts(i) or 0
+                local foundGameAccount = false
 
-                -- Handle multiple game accounts per BNet friend
-                if numGameAccounts > 0 then
-                    for y = 1, numGameAccounts do
-                        local gameOther = C_BattleNet.GetFriendGameAccountInfo(i, y)
-                        if gameOther and gameOther.isOnline then
-                            local entry = {
-                                accountName = accountInfo.accountName,
-                                bnetID = accountInfo.bnetAccountID,
-                                gameID = gameOther.gameAccountID,
-                                characterName = gameOther.characterName,
-                                className = gameOther.className,
-                                level = gameOther.characterLevel,
-                                zone = gameOther.areaName,
-                                realmName = gameOther.realmName,
-                                faction = gameOther.factionName,
-                                client = gameOther.clientProgram,
-                                wowProjectID = gameOther.wowProjectID,
-                                timerunningID = gameOther.timerunningSeasonID,
-                                guid = gameOther.playerGuid,
-                                afk = accountInfo.isAFK or gameOther.isGameAFK,
-                                dnd = accountInfo.isDND or gameOther.isGameBusy,
-                                richPresence = gameOther.richPresence,
+                -- Find the best game account for this friend
+                for y = 1, numGameAccounts do
+                    local gameInfo = C_BattleNet.GetFriendGameAccountInfo(i, y)
+                    if gameInfo and gameInfo.isOnline then
+                        foundGameAccount = true
+                        local priority = GetClientPriority(gameInfo.clientProgram, gameInfo.wowProjectID)
+                        local existing = seenAccounts[bnetID]
+
+                        -- Only keep if this is higher priority than existing
+                        if not existing or priority > existing.priority then
+                            seenAccounts[bnetID] = {
+                                priority = priority,
+                                entry = {
+                                    accountName = accountInfo.accountName,
+                                    bnetID = bnetID,
+                                    gameID = gameInfo.gameAccountID,
+                                    characterName = gameInfo.characterName,
+                                    className = gameInfo.className,
+                                    level = gameInfo.characterLevel,
+                                    zone = gameInfo.areaName,
+                                    realmName = gameInfo.realmName,
+                                    faction = gameInfo.factionName,
+                                    client = gameInfo.clientProgram,
+                                    wowProjectID = gameInfo.wowProjectID,
+                                    timerunningID = gameInfo.timerunningSeasonID,
+                                    guid = gameInfo.playerGuid,
+                                    afk = accountInfo.isAFK or gameInfo.isGameAFK,
+                                    dnd = accountInfo.isDND or gameInfo.isGameBusy,
+                                    richPresence = gameInfo.richPresence,
+                                }
                             }
-
-                            if gameOther.clientProgram == BNET_CLIENT_WOW then
-                                if gameOther.wowProjectID == WOW_PROJECT_ID then
-                                    table.insert(friendsCache.bnetRetail, entry)
-                                else
-                                    table.insert(friendsCache.bnetClassic, entry)
-                                end
-                            else
-                                table.insert(friendsCache.bnetOther, entry)
-                            end
                         end
-                    end
-                elseif gameInfo and gameInfo.isOnline then
-                    -- Single game account
-                    local entry = {
-                        accountName = accountInfo.accountName,
-                        bnetID = accountInfo.bnetAccountID,
-                        gameID = gameInfo.gameAccountID,
-                        characterName = gameInfo.characterName,
-                        className = gameInfo.className,
-                        level = gameInfo.characterLevel,
-                        zone = gameInfo.areaName,
-                        realmName = gameInfo.realmName,
-                        faction = gameInfo.factionName,
-                        client = gameInfo.clientProgram,
-                        wowProjectID = gameInfo.wowProjectID,
-                        timerunningID = gameInfo.timerunningSeasonID,
-                        guid = gameInfo.playerGuid,
-                        afk = accountInfo.isAFK,
-                        dnd = accountInfo.isDND,
-                        richPresence = gameInfo.richPresence,
-                    }
-
-                    if gameInfo.clientProgram == BNET_CLIENT_WOW then
-                        if gameInfo.wowProjectID == WOW_PROJECT_ID then
-                            table.insert(friendsCache.bnetRetail, entry)
-                        else
-                            table.insert(friendsCache.bnetClassic, entry)
-                        end
-                    else
-                        table.insert(friendsCache.bnetOther, entry)
                     end
                 end
+
+                -- If no game accounts found but friend is online, they're App/Mobile only
+                -- Add them so they can still be whispered
+                if not foundGameAccount and not seenAccounts[bnetID] then
+                    -- Check if account is actually online via gameAccountInfo
+                    local gameAccountInfo = accountInfo.gameAccountInfo
+                    if gameAccountInfo and gameAccountInfo.isOnline then
+                        seenAccounts[bnetID] = {
+                            priority = 1,  -- Lowest priority (App/Mobile)
+                            entry = {
+                                accountName = accountInfo.accountName,
+                                bnetID = bnetID,
+                                gameID = gameAccountInfo.gameAccountID,
+                                client = gameAccountInfo.clientProgram or "App",
+                                afk = accountInfo.isAFK,
+                                dnd = accountInfo.isDND,
+                                richPresence = gameAccountInfo.richPresence or "Battle.net",
+                            }
+                        }
+                    end
+                end
+            end
+        end
+
+        -- Now add each friend's best entry to the appropriate category
+        for _, data in pairs(seenAccounts) do
+            local entry = data.entry
+            if entry.client == BNET_CLIENT_WOW then
+                if entry.wowProjectID == WOW_PROJECT_ID then
+                    table.insert(friendsCache.bnetRetail, entry)
+                else
+                    table.insert(friendsCache.bnetClassic, entry)
+                end
+            else
+                table.insert(friendsCache.bnetOther, entry)
             end
         end
     end
@@ -1062,8 +1234,10 @@ Datatexts:Register("friends", {
                         hasWhisperTargets = true
                         local classColor = GetClassColor(info.class)
                         local colorCode = classColor and format("|cff%02x%02x%02x", classColor.r*255, classColor.g*255, classColor.b*255) or "|cffffffff"
+                        -- Capture name in local to ensure closure works correctly
+                        local whisperName = info.name
                         whisperMenu:CreateButton(colorCode .. info.name .. "|r", function()
-                            SendWhisperTo(info.name, false)
+                            SendWhisperTo(whisperName, false)
                         end)
                     end
 
@@ -1073,8 +1247,10 @@ Datatexts:Register("friends", {
                         local classColor = GetClassColor(info.className)
                         local colorCode = classColor and format("|cff%02x%02x%02x", classColor.r*255, classColor.g*255, classColor.b*255) or "|cffffffff"
                         local displayName = info.characterName and info.characterName ~= "" and (colorCode .. info.characterName .. "|r (" .. info.accountName .. ")") or info.accountName
+                        -- Capture accountName in local to ensure closure works correctly
+                        local whisperName = info.accountName
                         whisperMenu:CreateButton(displayName, function()
-                            SendWhisperTo(info.accountName, true)
+                            SendWhisperTo(whisperName, true)
                         end)
                     end
 
@@ -1085,8 +1261,22 @@ Datatexts:Register("friends", {
                         local colorCode = classColor and format("|cff%02x%02x%02x", classColor.r*255, classColor.g*255, classColor.b*255) or "|cffffffff"
                         local versionName = PROJECT_NAMES[info.wowProjectID] or "Classic"
                         local displayName = info.characterName and info.characterName ~= "" and (colorCode .. info.characterName .. "|r (" .. info.accountName .. ")") or info.accountName
+                        -- Capture accountName in local to ensure closure works correctly
+                        local whisperName = info.accountName
                         whisperMenu:CreateButton(displayName .. " - " .. versionName, function()
-                            SendWhisperTo(info.accountName, true)
+                            SendWhisperTo(whisperName, true)
+                        end)
+                    end
+
+                    -- Add BNet Other Games / App-only friends to whisper
+                    for _, info in ipairs(friendsCache.bnetOther) do
+                        hasWhisperTargets = true
+                        local gameName = info.richPresence or info.client or "Online"
+                        local displayName = info.accountName .. " |cff808080(" .. gameName .. ")|r"
+                        -- Capture accountName in local to ensure closure works correctly
+                        local whisperName = info.accountName
+                        whisperMenu:CreateButton(displayName, function()
+                            SendWhisperTo(whisperName, true)
                         end)
                     end
 
@@ -1105,8 +1295,10 @@ Datatexts:Register("friends", {
                             hasInviteTargets = true
                             local classColor = GetClassColor(info.class)
                             local colorCode = classColor and format("|cff%02x%02x%02x", classColor.r*255, classColor.g*255, classColor.b*255) or "|cffffffff"
+                            -- Capture values in locals for closure
+                            local inviteName, inviteGuid = info.name, info.guid
                             inviteMenu:CreateButton(colorCode .. info.name .. "|r", function()
-                                InvitePlayerToGroup(info.name, info.guid, false)
+                                InvitePlayerToGroup(inviteName, inviteGuid, false)
                             end)
                         end
                     end
@@ -1117,8 +1309,10 @@ Datatexts:Register("friends", {
                             hasInviteTargets = true
                             local classColor = GetClassColor(info.className)
                             local colorCode = classColor and format("|cff%02x%02x%02x", classColor.r*255, classColor.g*255, classColor.b*255) or "|cffffffff"
+                            -- Capture values in locals for closure
+                            local inviteGameID, inviteGuid = info.gameID, info.guid
                             inviteMenu:CreateButton(colorCode .. info.characterName .. "|r", function()
-                                InvitePlayerToGroup(info.gameID, info.guid, true)
+                                InvitePlayerToGroup(inviteGameID, inviteGuid, true)
                             end)
                         end
                     end
@@ -1157,6 +1351,13 @@ local guildCache = {
     clubMembers = {},   -- Club API data (for timerunning detection)
     lastUpdate = 0
 }
+
+-- Strip only the player's realm suffix from names
+-- "Player-MyRealm" -> "Player", "Player-OtherRealm" -> "Player-OtherRealm"
+local myRealmPattern = "%-" .. GetNormalizedRealmName()
+local function StripMyRealm(name)
+    return (gsub(name, myRealmPattern, ""))
+end
 
 local function BuildGuildCache()
     wipe(guildCache.members)
@@ -1201,8 +1402,7 @@ local function BuildGuildCache()
             local clubData = guildCache.clubMembers[guid]
 
             table.insert(guildCache.members, {
-                name = name:gsub("%-[^%-]+$", ""),  -- Remove realm
-                fullName = name,
+                name = name,  -- Full name with realm, use Ambiguate() for display
                 rank = rank,
                 rankIndex = rankIndex,
                 level = level,
@@ -1331,14 +1531,19 @@ Datatexts:Register("guild", {
                 local lr, lg, lb = GetLevelColor(info.level)
                 local levelStr = format("|cff%02x%02x%02x%d|r ", lr*255, lg*255, lb*255, info.level or 0)
                 local timerunning = (info.timerunningID and info.timerunningID ~= 0) and (" " .. TIMERUNNING_ICON) or ""
-                local inGroupMark = IsPlayerInGroup(info.fullName) and " |cffaaaaaa*|r" or ""
+                local inGroupMark = IsPlayerInGroup(info.name) and " |cffaaaaaa*|r" or ""
                 local mobileIcon = (info.isMobile and not info.online) and (" " .. MOBILE_ICON) or ""
 
+                -- StripMyRealm: removes only YOUR realm suffix, keeps cross-realm names intact
+                local displayName = StripMyRealm(info.name)
+
+                -- Format: "Level Name[-Realm] - Rank" on left, "Zone" on right
+                -- Gray dash separator, white rank text
                 GameTooltip:AddDoubleLine(
-                    levelStr .. info.name .. inGroupMark .. statusText .. timerunning .. mobileIcon,
-                    format("%s - %s", info.rank, info.zone or "Unknown"),
+                    levelStr .. displayName .. inGroupMark .. statusText .. timerunning .. mobileIcon .. " |cff999999-|cffffffff " .. info.rank .. "|r",
+                    info.zone or "Unknown",
                     classColor.r, classColor.g, classColor.b,
-                    0.8, 0.8, 0.8
+                    0.7, 0.7, 0.7
                 )
             end
 
@@ -1365,7 +1570,7 @@ Datatexts:Register("guild", {
                     BuildGuildCache()
                 end
 
-                local playerName = UnitName("player")
+                local playerName = UnitName("player") .. "-" .. GetNormalizedRealmName()
 
                 MenuUtil.CreateContextMenu(self, function(_, root)
                     root:CreateTitle("Guild Menu")
@@ -1380,8 +1585,10 @@ Datatexts:Register("guild", {
                             local classColor = GetClassColor(info.class)
                             local colorCode = classColor and format("|cff%02x%02x%02x", classColor.r*255, classColor.g*255, classColor.b*255) or "|cffffffff"
                             local levelStr = format("|cffffffff%d|r ", info.level or 0)
+                            -- Capture fullName in local for closure
+                            local whisperName = info.name
                             whisperMenu:CreateButton(levelStr .. colorCode .. info.name .. "|r", function()
-                                SendWhisperTo(info.fullName, false)
+                                SendWhisperTo(whisperName, false)
                             end)
                         end
                     end
@@ -1397,13 +1604,15 @@ Datatexts:Register("guild", {
 
                     for _, info in ipairs(guildCache.members) do
                         local isMobileOnly = info.isMobile and not info.online
-                        if info.name ~= playerName and info.online and not isMobileOnly and not IsPlayerInGroup(info.fullName) then
+                        if info.name ~= playerName and info.online and not isMobileOnly and not IsPlayerInGroup(info.name) then
                             hasInviteTargets = true
                             local classColor = GetClassColor(info.class)
                             local colorCode = classColor and format("|cff%02x%02x%02x", classColor.r*255, classColor.g*255, classColor.b*255) or "|cffffffff"
                             local levelStr = format("|cffffffff%d|r ", info.level or 0)
+                            -- Capture values in locals for closure
+                            local inviteName, inviteGuid = info.name, info.guid
                             inviteMenu:CreateButton(levelStr .. colorCode .. info.name .. "|r", function()
-                                InvitePlayerToGroup(info.fullName, info.guid, false)
+                                InvitePlayerToGroup(inviteName, inviteGuid, false)
                             end)
                         end
                     end
