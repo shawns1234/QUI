@@ -3471,6 +3471,17 @@ local function CreateAutohidesPage(parent)
             objTrackerTextFontSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
 
+            if general.objectiveTrackerWidth == nil then general.objectiveTrackerWidth = 260 end
+            local objTrackerWidthSlider = GUI:CreateFormSlider(tabContent, "Max Width", 150, 400, 10,
+                "objectiveTrackerWidth", general, function()
+                    if _G.QuaziiUI_RefreshObjectiveTracker then _G.QuaziiUI_RefreshObjectiveTracker() end
+                end)
+            objTrackerWidthSlider:SetPoint("TOPLEFT", PAD, y)
+            objTrackerWidthSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Note: Background opacity is controlled via Edit Mode's built-in opacity slider
+
             y = y - 10  -- Extra padding before next section
 
             -- ═══════════════════════════════════════════════════════════════

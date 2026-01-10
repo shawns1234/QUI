@@ -33,6 +33,65 @@ local function GetColors()
     return sr, sg, sb, sa, bgr, bgg, bgb, bga
 end
 
+-- Get LibCustomGlow for quest icon glows
+local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
+
+-- Style quest POI icon with QUI glow effect
+local function StyleQuestPOIIcon(button)
+    if not button or button.quiStyled then return end
+
+    -- Get QUI colors for glow
+    local sr, sg, sb = GetColors()
+
+    -- Style the POI button
+    if button.NormalTexture then
+        button.NormalTexture:SetAlpha(0)
+    end
+    if button.PushedTexture then
+        button.PushedTexture:SetAlpha(0)
+    end
+    if button.HighlightTexture then
+        button.HighlightTexture:SetAlpha(0.3)
+    end
+
+    -- Apply pixel glow using LibCustomGlow
+    if LCG and button:IsShown() then
+        LCG.PixelGlow_Start(button, {sr, sg, sb, 1}, 8, 0.25, nil, 2, 1, 1, false, "_QUIQuestGlow")
+    end
+
+    button.quiStyled = true
+end
+
+-- Style completion checkmark with QUI color
+local function StyleCompletionCheck(check)
+    if not check or check.quiStyled then return end
+
+    local sr, sg, sb = GetColors()
+    check:SetAtlas("checkmark-minimal")
+    check:SetDesaturated(true)
+    check:SetVertexColor(sr, sg, sb)
+
+    check.quiStyled = true
+end
+
+-- Handle quest block icons (called when blocks are added)
+local function HandleQuestBlockIcons(tracker, block)
+    if not block then return end
+
+    -- Style quest item button (the clickable item icon)
+    local itemButton = block.ItemButton or block.itemButton
+    if itemButton then
+        StyleQuestPOIIcon(itemButton)
+    end
+
+    -- Style completion checkmark
+    local check = block.currentLine and block.currentLine.Check
+    if check then
+        StyleCompletionCheck(check)
+    end
+    -- Note: POI button glow is hidden via HidePOIButtonGlows() called from ScheduleBackdropUpdate
+end
+
 -- List of tracker modules
 local trackerModules = {
     "ScenarioObjectiveTracker",
@@ -47,12 +106,22 @@ local trackerModules = {
     "WorldQuestObjectiveTracker",
 }
 
--- Hide header background atlas (keep header text visible)
+-- Skin header: hide background atlas, left-justify text flush to edge
 local function SkinTrackerHeader(header)
     if not header then return end
+
+    -- Hide background atlas
     if header.Background then
         header.Background:SetAtlas(nil)
         header.Background:SetAlpha(0)
+    end
+
+    -- Left-justify header text flush to edge (Blizzard default is x=7)
+    -- Use negative offset to align with quest POI icons which sit at ~x=13 from module
+    if header.Text then
+        header.Text:ClearAllPoints()
+        header.Text:SetPoint("LEFT", header, "LEFT", -7, 0)
+        header.Text:SetJustifyH("LEFT")
     end
 end
 
@@ -69,6 +138,131 @@ local function SyncBlizzardHeight()
     if TrackerFrame.UpdateHeight then
         TrackerFrame:UpdateHeight()
     end
+end
+
+-- Hide scenario stage block artwork (dungeon banner) for narrower widths
+-- Called on every width update since ScenarioObjectiveTracker may not exist initially
+local function HideScenarioStageArtwork()
+    local scenario = _G.ScenarioObjectiveTracker
+    if not scenario then return end
+
+    local stageBlock = scenario.StageBlock
+    if not stageBlock then return end
+
+    -- Hide the banner artwork textures (safe to call repeatedly)
+    if stageBlock.NormalBG then
+        stageBlock.NormalBG:Hide()
+        stageBlock.NormalBG:SetAlpha(0)
+    end
+    if stageBlock.FinalBG then
+        stageBlock.FinalBG:Hide()
+        stageBlock.FinalBG:SetAlpha(0)
+    end
+    if stageBlock.GlowTexture then
+        stageBlock.GlowTexture:Hide()
+        stageBlock.GlowTexture:SetAlpha(0)
+    end
+
+    -- Reposition text to left edge (was indented for the banner)
+    -- Name anchors to Stage, so nest inside Stage check for safety
+    if stageBlock.Stage then
+        stageBlock.Stage:ClearAllPoints()
+        stageBlock.Stage:SetPoint("TOPLEFT", stageBlock, "TOPLEFT", 0, -5)
+        if stageBlock.Name then
+            stageBlock.Name:ClearAllPoints()
+            stageBlock.Name:SetPoint("TOPLEFT", stageBlock.Stage, "BOTTOMLEFT", 0, -2)
+        end
+    end
+end
+
+-- Helper to update minimize button atlas based on collapsed state
+-- Extracted to avoid duplication between hook and immediate application
+local function UpdateMinimizeButtonAtlas(btn, collapsed)
+    if not btn then return end
+    local normalTex = btn:GetNormalTexture()
+    local pushedTex = btn:GetPushedTexture()
+    if collapsed then
+        if normalTex then normalTex:SetAtlas("ui-questtrackerbutton-secondary-expand") end
+        if pushedTex then pushedTex:SetAtlas("ui-questtrackerbutton-secondary-expand-pressed") end
+    else
+        if normalTex then normalTex:SetAtlas("ui-questtrackerbutton-secondary-collapse") end
+        if pushedTex then pushedTex:SetAtlas("ui-questtrackerbutton-secondary-collapse-pressed") end
+    end
+end
+
+-- Check if scenario tracker has visible content (M+, dungeons, etc.)
+local function IsScenarioActive()
+    local scenario = _G.ScenarioObjectiveTracker
+    if not scenario or not scenario:IsShown() then return false end
+    -- Check if module has actual content
+    if scenario.GetContentsHeight then
+        local height = scenario:GetContentsHeight()
+        if height and height > 0 then return true end
+    end
+    return false
+end
+
+-- Apply max width to tracker and all modules (shared by Skin and Refresh)
+local function ApplyMaxWidth(settings)
+    local TrackerFrame = _G.ObjectiveTrackerFrame
+    if not TrackerFrame then return end
+
+    -- Skip width restriction when in scenario/M+ to avoid display issues
+    local maxWidth
+    if IsScenarioActive() then
+        maxWidth = 260  -- Use default width in scenarios
+    else
+        maxWidth = settings and settings.objectiveTrackerWidth or 260
+    end
+    TrackerFrame:SetWidth(maxWidth)
+
+    -- Set main header width and style minimize button to match module headers
+    if TrackerFrame.Header then
+        TrackerFrame.Header:SetWidth(maxWidth)
+        local minBtn = TrackerFrame.Header.MinimizeButton
+        if minBtn then
+            -- Reposition to stay within frame
+            minBtn:ClearAllPoints()
+            minBtn:SetPoint("RIGHT", TrackerFrame.Header, "RIGHT", 0, 0)
+            -- Resize to match module buttons (16x16 vs default 18x19)
+            minBtn:SetSize(16, 16)
+            -- Set highlight to yellow (only once)
+            if not minBtn.quiHighlightSet and minBtn:GetHighlightTexture() then
+                minBtn:GetHighlightTexture():SetAtlas("ui-questtrackerbutton-yellow-highlight")
+                minBtn.quiHighlightSet = true
+            end
+        end
+
+        -- Hook SetCollapsed to override atlas with secondary style
+        -- (Blizzard resets to collapse-all/expand-all on state change)
+        if TrackerFrame.Header.SetCollapsed and not TrackerFrame.Header.quiSetCollapsedHooked then
+            hooksecurefunc(TrackerFrame.Header, "SetCollapsed", function(self, collapsed)
+                UpdateMinimizeButtonAtlas(self.MinimizeButton, collapsed)
+            end)
+            TrackerFrame.Header.quiSetCollapsedHooked = true
+
+            -- Apply immediately for current state
+            local isCollapsed = false
+            if type(TrackerFrame.IsCollapsed) == "function" then
+                isCollapsed = TrackerFrame:IsCollapsed()
+            end
+            UpdateMinimizeButtonAtlas(minBtn, isCollapsed)
+        end
+    end
+
+    -- Set width on each module so text wraps correctly
+    for _, trackerName in ipairs(trackerModules) do
+        local tracker = _G[trackerName]
+        if tracker then
+            tracker:SetWidth(maxWidth)
+            if tracker.Header then
+                tracker.Header:SetWidth(maxWidth)
+            end
+        end
+    end
+
+    -- Hide scenario stage artwork for narrower display
+    HideScenarioStageArtwork()
 end
 
 -- Update backdrop to match content, respecting max height setting
@@ -114,9 +308,12 @@ local function UpdateBackdropAnchors()
     TrackerFrame.quiBackdrop:SetPoint("TOPRIGHT", TrackerFrame, "TOPRIGHT", 10, 0)
 
     if bottomModule then
-        -- Calculate actual content height
-        local trackerTop = TrackerFrame:GetTop() or 0
-        local contentHeight = trackerTop - lowestBottom + 15  -- +15 for bottom padding
+        -- Calculate actual content height (guard against nil/invalid during initial layout)
+        local trackerTop = TrackerFrame:GetTop()
+        local contentHeight = 0
+        if trackerTop and lowestBottom and trackerTop > lowestBottom then
+            contentHeight = trackerTop - lowestBottom + 15  -- +15 for bottom padding
+        end
 
         if contentHeight > maxHeight then
             -- Content exceeds max height, use fixed height
@@ -132,6 +329,25 @@ local function UpdateBackdropAnchors()
     end
 end
 
+-- Hide glow on all POI buttons in the objective tracker
+-- Called after tracker updates to ensure glows are hidden
+local function HidePOIButtonGlows()
+    for _, trackerName in ipairs(trackerModules) do
+        local tracker = _G[trackerName]
+        if tracker and tracker.usedBlocks then
+            for template, blocks in pairs(tracker.usedBlocks) do
+                if type(blocks) == "table" then
+                    for id, block in pairs(blocks) do
+                        if block.poiButton and block.poiButton.Glow then
+                            block.poiButton.Glow:Hide()
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
 -- Debounced backdrop update to prevent multiple concurrent timers
 -- 0.15s delay allows Blizzard's layout pass to complete before we measure
 local function ScheduleBackdropUpdate()
@@ -140,16 +356,71 @@ local function ScheduleBackdropUpdate()
     C_Timer.After(0.15, function()
         pendingBackdropUpdate = false
         UpdateBackdropAnchors()
+        HidePOIButtonGlows()
     end)
+end
+
+-- Kill all textures in a NineSlice frame
+local function KillNineSlice(nineSlice)
+    if not nineSlice then return end
+
+    -- Hide the frame
+    nineSlice:Hide()
+    nineSlice:SetAlpha(0)
+
+    -- Kill all child textures (corners, edges, center)
+    for _, region in ipairs({nineSlice:GetRegions()}) do
+        if region:IsObjectType("Texture") then
+            region:SetTexture(nil)
+            region:SetAtlas(nil)
+            region:Hide()
+        end
+    end
+
+    -- Kill known NineSlice parts
+    local parts = {"TopLeftCorner", "TopRightCorner", "BottomLeftCorner", "BottomRightCorner",
+                   "TopEdge", "BottomEdge", "LeftEdge", "RightEdge", "Center"}
+    for _, part in ipairs(parts) do
+        local tex = nineSlice[part]
+        if tex then
+            tex:SetTexture(nil)
+            tex:SetAtlas(nil)
+            tex:Hide()
+        end
+    end
 end
 
 -- Apply QUI backdrop
 local function ApplyQUIBackdrop(trackerFrame, sr, sg, sb, sa, bgr, bgg, bgb, bga)
     if not trackerFrame then return end
 
-    -- Hide Blizzard's NineSlice
-    if trackerFrame.NineSlice then
-        trackerFrame.NineSlice:SetAlpha(0)
+    -- Kill Blizzard's NineSlice completely
+    KillNineSlice(trackerFrame.NineSlice)
+
+    -- Hook SetBackgroundAlpha so edit mode opacity also affects our backdrop
+    if trackerFrame.SetBackgroundAlpha and not trackerFrame.quiBackgroundHooked then
+        hooksecurefunc(trackerFrame, "SetBackgroundAlpha", function(self, alpha)
+            -- Keep NineSlice hidden
+            if self.NineSlice then
+                self.NineSlice:Hide()
+                self.NineSlice:SetAlpha(0)
+            end
+            -- Apply edit mode opacity to our backdrop (get fresh colors)
+            if self.quiBackdrop then
+                local _, _, _, _, currBgR, currBgG, currBgB = GetColors()
+                self.quiBackdrop:SetBackdropColor(currBgR, currBgG, currBgB, alpha)
+            end
+        end)
+        trackerFrame.quiBackgroundHooked = true
+    end
+
+    -- Get initial opacity from edit mode (0 is valid = transparent, so check for nil)
+    local manager = _G.ObjectiveTrackerManager
+    local opacity
+    if manager and manager.backgroundAlpha ~= nil then
+        opacity = manager.backgroundAlpha
+    else
+        opacity = bga or 0.95
     end
 
     -- Create QUI backdrop (anchors will be set by UpdateBackdropAnchors)
@@ -165,7 +436,7 @@ local function ApplyQUIBackdrop(trackerFrame, sr, sg, sb, sa, bgr, bgg, bgb, bga
         edgeSize = 1,
         insets = { left = 1, right = 1, top = 1, bottom = 1 }
     })
-    trackerFrame.quiBackdrop:SetBackdropColor(bgr, bgg, bgb, bga)
+    trackerFrame.quiBackdrop:SetBackdropColor(bgr, bgg, bgb, opacity)
     trackerFrame.quiBackdrop:SetBackdropBorderColor(sr, sg, sb, sa)
 
     -- Set initial anchors
@@ -277,6 +548,8 @@ local function HookLineCreation()
         end)
         ObjectiveTrackerBlockMixin.quiSetHeaderHooked = true
     end
+
+    -- Note: POI button glows are hidden via HidePOIButtonGlows() called from ScheduleBackdropUpdate()
 end
 
 -- Main skinning function
@@ -292,6 +565,9 @@ local function SkinObjectiveTracker()
     -- Sync Blizzard's height with our max height setting
     SyncBlizzardHeight()
 
+    -- Apply max width setting
+    ApplyMaxWidth(settings)
+
     -- Apply QUI backdrop with our colors/opacity
     ApplyQUIBackdrop(TrackerFrame, sr, sg, sb, sa, bgr, bgg, bgb, bga)
 
@@ -304,16 +580,9 @@ local function SkinObjectiveTracker()
     -- Hook line creation to style new lines dynamically
     HookLineCreation()
 
-    -- Skin main header
-    local TrackerHeader = TrackerFrame.Header
-    if TrackerHeader then
-        SkinTrackerHeader(TrackerHeader)
-
-        -- Style minimize button
-        local MinimizeButton = TrackerHeader.MinimizeButton
-        if MinimizeButton then
-            MinimizeButton:SetSize(16, 16)
-        end
+    -- Skin main header (minimize button repositioned in ApplyMaxWidth)
+    if TrackerFrame.Header then
+        SkinTrackerHeader(TrackerFrame.Header)
     end
 
     -- Skin all tracker module headers
@@ -336,7 +605,7 @@ local function SkinObjectiveTracker()
         TrackerFrame.quiCollapseHooked = true
     end
 
-    -- Hook each module's header minimize button, SetCollapsed, and LayoutContents
+    -- Hook each module's header minimize button, SetCollapsed, LayoutContents, and AddBlock
     for _, trackerName in ipairs(trackerModules) do
         local tracker = _G[trackerName]
         if tracker and not tracker.quiCollapseHooked then
@@ -355,6 +624,12 @@ local function SkinObjectiveTracker()
                 hooksecurefunc(tracker, "LayoutContents", ScheduleBackdropUpdate)
             end
 
+            -- Hook AddBlock to style quest icons with glows (#65)
+            if tracker.AddBlock and not tracker.quiAddBlockHooked then
+                hooksecurefunc(tracker, "AddBlock", HandleQuestBlockIcons)
+                tracker.quiAddBlockHooked = true
+            end
+
             tracker.quiCollapseHooked = true
         end
     end
@@ -364,6 +639,23 @@ local function SkinObjectiveTracker()
         TrackerFrame:HookScript("OnSizeChanged", UpdateBackdropAnchors)
         TrackerFrame.quiSizeChangedHooked = true
     end
+
+    -- Hook ObjectiveTrackerManager.SetOpacity to catch when edit mode loads saved settings
+    local manager = _G.ObjectiveTrackerManager
+    if manager and manager.SetOpacity and not manager.quiOpacityHooked then
+        hooksecurefunc(manager, "SetOpacity", function(self, opacityPercent)
+            local alpha = (opacityPercent or 0) / 100
+            local _, _, _, _, currBgR, currBgG, currBgB = GetColors()
+            if TrackerFrame.quiBackdrop then
+                TrackerFrame.quiBackdrop:SetBackdropColor(currBgR, currBgG, currBgB, alpha)
+            end
+        end)
+        manager.quiOpacityHooked = true
+    end
+
+    -- Hide POI glows after delay to catch late-loading POI buttons
+    -- (ScheduleBackdropUpdate also calls HidePOIButtonGlows at 0.15s)
+    C_Timer.After(0.5, HidePOIButtonGlows)
 
     TrackerFrame.quiSkinned = true
 end
@@ -381,9 +673,11 @@ local function RefreshObjectiveTracker()
     -- Sync Blizzard's height with our max height setting
     SyncBlizzardHeight()
 
-    -- Update backdrop colors
+    -- Update max width setting
+    ApplyMaxWidth(settings)
+
+    -- Update backdrop border color (opacity is controlled by edit mode)
     if TrackerFrame.quiBackdrop then
-        TrackerFrame.quiBackdrop:SetBackdropColor(bgr, bgg, bgb, bga)
         TrackerFrame.quiBackdrop:SetBackdropBorderColor(sr, sg, sb, sa)
     end
 
@@ -415,9 +709,9 @@ local trackingEvents = {
     "TRACKED_ACHIEVEMENT_UPDATE",
     "TRACKED_ACHIEVEMENT_LIST_CHANGED",
     "ACHIEVEMENT_EARNED",
-    -- Adventure tracker
-    "TRANSMOG_COLLECTION_SOURCE_ADDED",
+    -- Adventure tracker + super tracking (also used for hiding POI glow)
     "SUPER_TRACKING_CHANGED",
+    "TRANSMOG_COLLECTION_SOURCE_ADDED",
     "TRACKING_TARGET_INFO_UPDATE",
     "TRACKABLE_INFO_UPDATE",
     "HOUSE_DECOR_ADDED_TO_CHEST",
@@ -467,6 +761,19 @@ frame:SetScript("OnEvent", function(self, event)
             end
         end)
         self:UnregisterEvent("PLAYER_ENTERING_WORLD")
+    elseif event == "SUPER_TRACKING_CHANGED" then
+        -- Quest selection changed, hide glow immediately (with tiny delay for POI to update)
+        C_Timer.After(0.01, HidePOIButtonGlows)
+        ScheduleBackdropUpdate()
+    elseif event == "SCENARIO_UPDATE" or event == "SCENARIO_COMPLETED" then
+        -- Scenario started/ended, update width (may need to expand/shrink)
+        C_Timer.After(0.2, function()
+            local settings = GetSettings()
+            if settings and settings.skinObjectiveTracker then
+                ApplyMaxWidth(settings)
+            end
+        end)
+        ScheduleBackdropUpdate()
     else
         -- Content changed, update backdrop with debouncing
         ScheduleBackdropUpdate()
