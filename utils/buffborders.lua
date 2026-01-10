@@ -50,12 +50,6 @@ local function AddBorderToButton(button, isBuff)
     if not icon then
         return
     end
-
-    -- Validate button is a proper frame that supports CreateTexture
-    -- (Boss fight frames may have Icon but not be valid Frame objects)
-    if not button.CreateTexture or type(button.CreateTexture) ~= "function" then
-        return
-    end
     
     local borderSize = settings.borderSize or 2
     
@@ -162,13 +156,33 @@ end
 -- Main function to process all buff/debuff frames
 local function ApplyBuffBorders()
     -- Process BuffFrame containers (top right buffs)
-    if BuffFrame and BuffFrame.AuraContainer then
-        ProcessAuraContainer(BuffFrame.AuraContainer, true) -- true = buff
+    if BuffFrame then
+        if BuffFrame.AuraContainer then
+            ProcessAuraContainer(BuffFrame.AuraContainer, true) -- true = buff
+        end
+        
+        -- Also check for any direct children that might be aura buttons
+        local frames = {BuffFrame:GetChildren()}
+        for _, frame in ipairs(frames) do
+            if frame.GetChildren then
+                ProcessAuraContainer(frame, true) -- true = buff
+            end
+        end
     end
     
     -- Process DebuffFrame if it exists separately
-    if DebuffFrame and DebuffFrame.AuraContainer then
-        ProcessAuraContainer(DebuffFrame.AuraContainer, false) -- false = debuff
+    if DebuffFrame then
+        if DebuffFrame.AuraContainer then
+            ProcessAuraContainer(DebuffFrame.AuraContainer, false) -- false = debuff
+        end
+        
+        -- Also check for any direct children that might be debuff buttons
+        local frames = {DebuffFrame:GetChildren()}
+        for _, frame in ipairs(frames) do
+            if frame.GetChildren then
+                ProcessAuraContainer(frame, false) -- false = debuff
+            end
+        end
     end
     
     -- Process temporary enchant frames (treat as buffs)

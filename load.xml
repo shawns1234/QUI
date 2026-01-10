@@ -6,8 +6,12 @@
     <Include file="locales\locales.xml" />
     <!-- Addon Init -->
     <Script file="init.lua" />
-    <!-- Util Files -->
+    <!-- Core Files -->
+    <Include file="core\core.xml" />
+    <!-- Shared Utilities -->
     <Include file="utils\utils.xml" />
+    <!-- Modules -->
+    <Include file="modules\modules.xml" />
     <!-- Skinning Modules -->
     <Include file="skinning\skinning.xml" />
     <!-- Load Edit Mode Profiles -->

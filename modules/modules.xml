@@ -1,0 +1,32 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/..\FrameXML\UI.xsd">
+    <!-- Load all module XML files -->
+    <!-- Load ncdm early (before actionbars) so keybinds.lua FormatKeybind is available -->
+    <Include file="ncdm\module.xml"/>
+    <Include file="actionbars\module.xml"/>
+    <!-- Load castbars BEFORE unitframes (unitframes depends on castbar module) -->
+    <Include file="castbars\module.xml"/>
+    <Include file="unitframes\module.xml"/>
+    <Include file="buffbar\module.xml"/>
+    <Include file="character\module.xml"/>
+    <Include file="chat\module.xml"/>
+    <Include file="combattext\module.xml"/>
+    <Include file="crosshair\module.xml"/>
+    <Include file="customtrackers\module.xml"/>
+    <Include file="datapanels\module.xml"/>
+    <Include file="datatexts\module.xml"/>
+    <Include file="inspect\module.xml"/>
+    <Include file="keystone\module.xml"/>
+    
+    
+    <Include file="minimap\module.xml"/>
+    <Include file="mplustimer\module.xml"/>
+    
+    <Include file="resourcebars\module.xml"/>
+    <Include file="qol\module.xml"/>
+    <Include file="quicksalvage\module.xml"/>
+    <Include file="reticle\module.xml"/>
+    <Include file="rotationassist\module.xml"/>
+    <Include file="skyriding\module.xml"/>
+    <Include file="tooltips\module.xml"/>
+</Ui>
