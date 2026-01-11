@@ -8,6 +8,9 @@ ns.QUI = QUI
 
 local crosshairFrame, horizLine, vertLine, horizBorder, vertBorder
 
+-- Separate frame for range checking (always visible so OnUpdate runs even when crosshair is hidden)
+local rangeCheckFrame
+
 -- Range tracking state
 local isOutOfRange = false
 local rangeCheckElapsed = 0
@@ -26,9 +29,115 @@ end
 
 ---------------------------------------------------------------------------
 -- Check if target is out of melee range
--- Uses C_Spell.IsSpellInRange with Attack spell for accurate auto-attack range
+-- Hybrid implementation: uses class-specific melee spells for accuracy,
+-- falls back to 5-yard item check for casters
 ---------------------------------------------------------------------------
-local ATTACK_SPELL_ID = 6603  -- Auto-attack spell ID
+
+-- Get player class once at load time
+local _, playerClass = UnitClass("player")
+
+-- Melee spell IDs by class and spec (for hitbox-accurate range detection)
+-- Multiple fallbacks per spec to handle talent variations
+-- Spec IDs: use GetSpecializationInfo(GetSpecialization()) to get current spec
+local MELEE_SPELLS_BY_SPEC = {
+    -- WARRIOR (Arms=71, Fury=72, Protection=73)
+    [71]  = { 12294, 772 },       -- Arms: Mortal Strike, Rend
+    [72]  = { 23881, 184367 },    -- Fury: Bloodthirst, Rampage
+    [73]  = { 23922, 6572 },      -- Protection: Shield Slam, Revenge
+    
+    -- PALADIN (Holy=65, Protection=66, Retribution=70)
+    [65]  = { 35395 },            -- Holy: Crusader Strike (if talented)
+    [66]  = { 53600, 31935 },     -- Protection: Shield of the Righteous, Avenger's Shield
+    [70]  = { 35395, 184575 },    -- Retribution: Crusader Strike, Blade of Justice
+    
+    -- HUNTER (Beast Mastery=253, Marksmanship=254, Survival=255)
+    [253] = { },                  -- BM: ranged, no melee
+    [254] = { },                  -- MM: ranged, no melee
+    [255] = { 186270, 259387 },   -- Survival: Raptor Strike, Mongoose Bite
+    
+    -- ROGUE (Assassination=259, Outlaw=260, Subtlety=261)
+    [259] = { 1329, 5374 },       -- Assassination: Mutilate, Mutilate (off-hand)
+    [260] = { 193315, 315341 },   -- Outlaw: Sinister Strike, Between the Eyes
+    [261] = { 185438, 53 },       -- Subtlety: Shadowstrike, Backstab
+    
+    -- PRIEST (Discipline=256, Holy=257, Shadow=258) - all ranged
+    [256] = { },
+    [257] = { },
+    [258] = { },
+    
+    -- DEATH KNIGHT (Blood=250, Frost=251, Unholy=252)
+    [250] = { 49998, 206930 },    -- Blood: Death Strike, Heart Strike
+    [251] = { 49143, 49998 },     -- Frost: Frost Strike, Death Strike
+    [252] = { 55090, 49998 },     -- Unholy: Scourge Strike, Death Strike
+    
+    -- SHAMAN (Elemental=262, Enhancement=263, Restoration=264)
+    [262] = { },                  -- Elemental: ranged
+    [263] = { 17364, 60103 },     -- Enhancement: Stormstrike, Lava Lash
+    [264] = { },                  -- Restoration: ranged healer
+    
+    -- MAGE (Arcane=62, Fire=63, Frost=64) - all ranged
+    [62]  = { },
+    [63]  = { },
+    [64]  = { },
+    
+    -- WARLOCK (Affliction=265, Demonology=266, Destruction=267) - all ranged
+    [265] = { },
+    [266] = { },
+    [267] = { },
+    
+    -- MONK (Brewmaster=268, Mistweaver=270, Windwalker=269)
+    [268] = { 100780 },   -- Brewmaster: Tiger Palm
+    [269] = { 100780, 107428 },   -- Windwalker: Tiger Palm, Rising Sun Kick
+    [270] = { 100780 },           -- Mistweaver: Tiger Palm
+    
+    -- DRUID (Balance=102, Feral=103, Guardian=104, Restoration=105)
+    [102] = { },                  -- Balance: ranged
+    [103] = { 5221, 1822 },       -- Feral: Shred, Rake
+    [104] = { 33917, 6807 },      -- Guardian: Mangle, Maul
+    [105] = { },                  -- Restoration: ranged healer
+    
+    -- DEMON HUNTER (Havoc=577, Vengeance=581)
+    [577] = { 162794 },   -- Havoc: Chaos Strike
+    [581] = { 228478 },   -- Vengeance: Soul Cleave
+    
+    -- EVOKER (Devastation=1467, Preservation=1468, Augmentation=1473) - all ranged/mid-range
+    [1467] = { },
+    [1468] = { },
+    [1473] = { },
+}
+
+-- Class-level fallback spells (used if spec detection fails or no spec spells available)
+local MELEE_SPELLS_CLASS_FALLBACK = {
+    WARRIOR = { 6552 },           -- Pummel (interrupt, all specs have it)
+    PALADIN = { 35395 },          -- Crusader Strike
+    ROGUE = { 1966 },             -- Feint (all specs)
+    DRUID = { 5176 },             -- Wrath (ranged fallback)
+    DEATHKNIGHT = { 49998 },      -- Death Strike (all specs)
+    MONK = { 100780 },            -- Tiger Palm (all specs)
+    SHAMAN = { 188389 },          -- Flame Shock (ranged fallback)
+    HUNTER = { },                 -- Most hunters are ranged
+    DEMONHUNTER = { 162243 },     -- Demon's Bite (baseline)
+    EVOKER = { },                 -- All ranged
+    PRIEST = { },                 -- All ranged
+    MAGE = { },                   -- All ranged
+    WARLOCK = { },                -- All ranged
+}
+
+-- Get the current spec's melee spells with fallback
+local function GetMeleeSpellsForCurrentSpec()
+    local specIndex = GetSpecialization and GetSpecialization()
+    if specIndex then
+        local specID = GetSpecializationInfo and GetSpecializationInfo(specIndex)
+        if specID and MELEE_SPELLS_BY_SPEC[specID] then
+            local spells = MELEE_SPELLS_BY_SPEC[specID]
+            if #spells > 0 then
+                return spells
+            end
+        end
+    end
+    -- Fallback to class-level spells
+    return MELEE_SPELLS_CLASS_FALLBACK[playerClass] or {}
+end
 
 local function IsOutOfMeleeRange()
     -- No target = not out of range (use normal color)
@@ -46,21 +155,32 @@ local function IsOutOfMeleeRange()
         return false
     end
     
-    -- Use auto-attack (Attack spell ID 6603) for accurate melee range
-    -- C_Spell.IsSpellInRange returns: true/1 = in range, false/0 = out of range, nil = not applicable
+    -- Try spec-specific melee spells (most accurate with hitbox)
+    local meleeSpells = GetMeleeSpellsForCurrentSpec()
     if C_Spell and C_Spell.IsSpellInRange then
-        local inRange = C_Spell.IsSpellInRange(ATTACK_SPELL_ID, "target")
-        -- Handle both true and 1 as valid "in range" values for compatibility
-        if inRange == true or inRange == 1 then
-            return false  -- In range, not out of range
-        elseif inRange == false or inRange == 0 then
-            return true   -- Out of range
+        for _, spellID in ipairs(meleeSpells) do
+            -- Check if spell is known before using it
+            local spellKnown = IsSpellKnown and IsSpellKnown(spellID)
+            if spellKnown then
+                local inRange = C_Spell.IsSpellInRange(spellID, "target")
+                if inRange == true or inRange == 1 then
+                    return false  -- In range
+                elseif inRange == false or inRange == 0 then
+                    return true   -- Out of range
+                end
+                -- nil = try next spell
+            end
         end
-        -- nil = spell check didn't work, fall through to fallback
     end
     
-    -- Fallback to CheckInteractDistance if spell check fails
+    -- Fallback: CheckInteractDistance index 3 (~10ish yards, closer to melee range)
     local inRange = CheckInteractDistance("target", 3)
+    if inRange ~= nil then
+        return not inRange
+    end
+    
+    -- Last resort: index 2 (~11ish yards)
+    inRange = CheckInteractDistance("target", 2)
     return not inRange
 end
 
@@ -106,12 +226,18 @@ local function OnRangeUpdate(self, elapsed)
         return
     end
     
+    local inCombat = InCombatLockdown()
+    
     -- Check if we should only track range in combat
-    if settings.rangeColorInCombatOnly and not InCombatLockdown() then
+    if settings.rangeColorInCombatOnly and not inCombat then
         -- Not in combat and combat-only is enabled, use normal color
         if isOutOfRange then
             isOutOfRange = false
             ApplyCrosshairColor(settings, false)
+        end
+        -- If hideUntilOutOfRange, hide the crosshair when not in combat
+        if settings.hideUntilOutOfRange and crosshairFrame then
+            crosshairFrame:Hide()
         end
         return
     end
@@ -121,6 +247,15 @@ local function OnRangeUpdate(self, elapsed)
         isOutOfRange = newOutOfRange
         ApplyCrosshairColor(settings, isOutOfRange)
     end
+    
+    -- Handle hideUntilOutOfRange visibility
+    if settings.hideUntilOutOfRange and crosshairFrame then
+        if inCombat and isOutOfRange then
+            crosshairFrame:Show()
+        else
+            crosshairFrame:Hide()
+        end
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -129,23 +264,44 @@ end
 local function UpdateRangeChecking()
     if not crosshairFrame then return end
     
+    -- Create the range check frame if needed (separate frame so OnUpdate runs even when crosshair is hidden)
+    if not rangeCheckFrame then
+        rangeCheckFrame = CreateFrame("Frame", "QuaziiUI_CrosshairRangeCheck", UIParent)
+        rangeCheckFrame:SetSize(1, 1)
+        rangeCheckFrame:SetPoint("CENTER")
+        rangeCheckFrame:Show()  -- Always visible
+    end
+    
     local settings = GetSettings()
     if settings and settings.enabled and settings.changeColorOnRange then
-        -- Enable range checking
+        -- Enable range checking on the always-visible frame
         rangeCheckElapsed = 0
-        crosshairFrame:SetScript("OnUpdate", OnRangeUpdate)
+        rangeCheckFrame:SetScript("OnUpdate", OnRangeUpdate)
+        
+        local inCombat = InCombatLockdown()
         
         -- Immediately check range (respecting combat-only setting)
-        if settings.rangeColorInCombatOnly and not InCombatLockdown() then
+        if settings.rangeColorInCombatOnly and not inCombat then
             isOutOfRange = false
             ApplyCrosshairColor(settings, false)
         else
             isOutOfRange = IsOutOfMeleeRange()
             ApplyCrosshairColor(settings, isOutOfRange)
         end
+        
+        -- Handle hideUntilOutOfRange initial visibility
+        if settings.hideUntilOutOfRange then
+            if inCombat and isOutOfRange then
+                crosshairFrame:Show()
+            else
+                crosshairFrame:Hide()
+            end
+        end
     else
         -- Disable range checking
-        crosshairFrame:SetScript("OnUpdate", nil)
+        if rangeCheckFrame then
+            rangeCheckFrame:SetScript("OnUpdate", nil)
+        end
         isOutOfRange = false
     end
 end

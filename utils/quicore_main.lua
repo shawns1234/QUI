@@ -996,6 +996,7 @@ local defaults = {
             changeColorOnRange = false,
             outOfRangeColor = { 1, 0.2, 0.2, 1 },  -- Red color when out of range
             rangeColorInCombatOnly = false,       -- Only change color in combat
+            hideUntilOutOfRange = false,          -- Only show crosshair when in combat AND out of range
         },
 
         -- Skyriding Vigor Bar
