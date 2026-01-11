@@ -1325,16 +1325,17 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
         local isEmpowered, numStages = DetectEmpoweredCast(isPlayer, spellID, unitSpellID, isEmpowerEvent, isChanneled, channelStages)
         
         -- If actually casting, show real cast
-        -- Validate that startTimeMS and endTimeMS are valid numbers before arithmetic
-        if spellName and startTimeMS and endTimeMS and type(startTimeMS) == "number" and type(endTimeMS) == "number" then
+        if spellName and startTimeMS and endTimeMS then
+            -- Use pcall to handle Midnight secret values (pass type checks but fail arithmetic)
+            local success, startTime, endTime = pcall(function()
+                return startTimeMS / 1000, endTimeMS / 1000
+            end)
+            if not success then return end
+
             -- Clear preview simulation if active
             if self.isPreviewSimulation then
                 ClearPreviewSimulation(self)
             end
-            
-            -- Normalize time to seconds
-            local startTime = startTimeMS / 1000
-            local endTime = endTimeMS / 1000
             
             -- Adjust end time for empowered hold time
             endTime = AdjustEmpoweredEndTime(self, isPlayer, isEmpowered, endTime)
@@ -1588,10 +1589,13 @@ function QUI_Castbar:SetupBossCastbar(castbar, unit, bossIndex, castSettings)
             end
         end
         
-        if spellName and startTimeMS and endTimeMS and type(startTimeMS) == "number" and type(endTimeMS) == "number" then
-            local startTime = startTimeMS / 1000
-            local endTime = endTimeMS / 1000
-            
+        if spellName and startTimeMS and endTimeMS then
+            -- Use pcall to handle Midnight secret values (pass type checks but fail arithmetic)
+            local success, startTime, endTime = pcall(function()
+                return startTimeMS / 1000, endTimeMS / 1000
+            end)
+            if not success then return end
+
             if isEmpowered and GetUnitEmpowerHoldAtMaxTime then
                 local ok, adjustedEndTime = pcall(function()
                     local ht = GetUnitEmpowerHoldAtMaxTime(self.unit)
@@ -1887,24 +1891,30 @@ function QUI_Castbar:CreateBossCastbar(unitFrame, unit, bossIndex)
         end
         
         -- If actually casting, show real cast (preview is hidden during real casts)
-        if spellName and startTimeMS and endTimeMS and type(startTimeMS) == "number" and type(endTimeMS) == "number" then
+        if spellName and startTimeMS and endTimeMS then
+            -- Use pcall to handle Midnight secret values (pass type checks but fail arithmetic)
+            local success, startTime, endTime = pcall(function()
+                return startTimeMS / 1000, endTimeMS / 1000
+            end)
+            if not success then return end
+
             -- Clear preview simulation
             if self.isPreviewSimulation then
                 ClearPreviewSimulation(self)
             end
-            local startTime = startTimeMS / 1000
-            local endTime = endTimeMS / 1000
-            
+
             local now = GetTime()
             self.startTime = startTime
             self.endTime = endTime
             self.isChanneled = isChanneled
             self.notInterruptible = notInterruptible
-            
+
             if self.startTime < now - 5 then
-                local dur = (endTimeMS - startTimeMS) / 1000
-                self.startTime = now
-                self.endTime = now + dur
+                local ok, dur = pcall(function() return (endTimeMS - startTimeMS) / 1000 end)
+                if ok and dur then
+                    self.startTime = now
+                    self.endTime = now + dur
+                end
             end
             
             -- Ensure status bar has texture
