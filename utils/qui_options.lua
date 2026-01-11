@@ -1087,6 +1087,76 @@ local function CreateGeneralQoLPage(parent)
 
         y = y - 10
 
+        -- Missing Raid Buffs Section
+        local raidBuffsHeader = GUI:CreateSectionHeader(tabContent, "Missing Raid Buffs")
+        raidBuffsHeader:SetPoint("TOPLEFT", PADDING, y)
+        y = y - raidBuffsHeader.gap
+
+        local raidBuffsDesc = GUI:CreateLabel(tabContent, "Display missing raid buffs when a buff-providing class is in your group. Shows out of combat only.", 11, C.textMuted)
+        raidBuffsDesc:SetPoint("TOPLEFT", PADDING, y)
+        raidBuffsDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        raidBuffsDesc:SetJustifyH("LEFT")
+        raidBuffsDesc:SetWordWrap(true)
+        raidBuffsDesc:SetHeight(20)
+        y = y - 30
+
+        -- Ensure raidBuffs settings exist
+        if not db.raidBuffs then
+            db.raidBuffs = { enabled = true, showOnlyInGroup = true, providerMode = false, iconSize = 32, labelFontSize = 12, position = nil }
+        end
+        local rbDB = db.raidBuffs
+
+        -- Refresh function for live preview
+        local function RefreshRaidBuffs()
+            if ns.RaidBuffs and ns.RaidBuffs.ForceUpdate then
+                ns.RaidBuffs:ForceUpdate()
+            end
+        end
+
+        local rbEnableCheck = GUI:CreateFormCheckbox(tabContent, "Enable Missing Raid Buffs", "enabled", rbDB, RefreshRaidBuffs)
+        rbEnableCheck:SetPoint("TOPLEFT", PADDING, y)
+        rbEnableCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local rbGroupOnlyCheck = GUI:CreateFormCheckbox(tabContent, "Show Only When In Group", "showOnlyInGroup", rbDB, RefreshRaidBuffs)
+        rbGroupOnlyCheck:SetPoint("TOPLEFT", PADDING, y)
+        rbGroupOnlyCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local rbProviderCheck = GUI:CreateFormCheckbox(tabContent, "Also Show Buffs You Can Provide", "providerMode", rbDB, RefreshRaidBuffs)
+        rbProviderCheck:SetPoint("TOPLEFT", PADDING, y)
+        rbProviderCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local providerDesc = GUI:CreateLabel(tabContent, "When enabled, also shows buffs you can cast that party members are missing.", 11, C.textMuted)
+        providerDesc:SetPoint("TOPLEFT", PADDING, y + 4)
+        providerDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        providerDesc:SetJustifyH("LEFT")
+        y = y - 20
+
+        local rbIconSizeSlider = GUI:CreateFormSlider(tabContent, "Icon Size", 20, 64, 2, "iconSize", rbDB, RefreshRaidBuffs)
+        rbIconSizeSlider:SetPoint("TOPLEFT", PADDING, y)
+        rbIconSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local rbFontSizeSlider = GUI:CreateFormSlider(tabContent, "Label Font Size", 10, 32, 1, "labelFontSize", rbDB, RefreshRaidBuffs)
+        rbFontSizeSlider:SetPoint("TOPLEFT", PADDING, y)
+        rbFontSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        -- Preview toggle button
+        local previewBtn = GUI:CreateButton(tabContent, "Toggle Preview", 120, 24)
+        previewBtn:SetPoint("TOPLEFT", PADDING, y)
+        previewBtn:SetScript("OnClick", function()
+            if _G.QuaziiUI_ToggleRaidBuffsPreview then
+                local isPreview = _G.QuaziiUI_ToggleRaidBuffsPreview()
+                previewBtn:SetText(isPreview and "Hide Preview" or "Toggle Preview")
+            end
+        end)
+        y = y - 35
+
+        y = y - 10
+
         -- Quick Salvage Section
         local quickSalvageHeader = GUI:CreateSectionHeader(tabContent, "Quick Salvage")
         quickSalvageHeader:SetPoint("TOPLEFT", PADDING, y)
@@ -2066,6 +2136,24 @@ local function CreateGeneralQoLPage(parent)
             hideButtonsInfo:SetPoint("TOPLEFT", PADDING, y)
             hideButtonsInfo:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
             hideButtonsInfo:SetJustifyH("LEFT")
+            y = y - 20
+
+            y = y - FORM_ROW
+
+            -- SECTION: Copy Button
+            local copyHeader = GUI:CreateSectionHeader(tabContent, "Copy Button")
+            copyHeader:SetPoint("TOPLEFT", PADDING, y)
+            y = y - copyHeader.gap
+
+            local copyButtonCheck = GUI:CreateFormCheckbox(tabContent, "Show Copy Button", "copyButton", chat, RefreshChat)
+            copyButtonCheck:SetPoint("TOPLEFT", PADDING, y)
+            copyButtonCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            local copyButtonInfo = GUI:CreateLabel(tabContent, "Adds a button to each chat frame to copy full chat history.", 10, C.textMuted)
+            copyButtonInfo:SetPoint("TOPLEFT", PADDING, y)
+            copyButtonInfo:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            copyButtonInfo:SetJustifyH("LEFT")
             y = y - 20
         end
 
