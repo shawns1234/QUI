@@ -1804,7 +1804,11 @@ function ActionBars:Initialize()
     ApplyBarLayoutSettings()
 
     -- Apply button padding
-    ApplyPaddingToActionBars()
+    -- NOTE: Disabled - ApplyPaddingToActionBars() causes bar paging to fail in combat
+    -- and triggers ADDON_ACTION_BLOCKED errors on stance/pet bars. The function sets
+    -- minButtonPadding and hooks UpdateGridLayout which interferes with Blizzard's
+    -- secure bar handling. Needs redesign for Midnight compatibility.
+    -- ApplyPaddingToActionBars()
 
     -- Apply page arrow visibility
     if db.bars and db.bars.bar1 then
