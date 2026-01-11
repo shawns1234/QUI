@@ -859,11 +859,11 @@ function QUI_Castbar:GetEmpoweredLevel()
     end
 
     local progressPercent = progress / duration
-    local currentStage = 1
+    local currentStage = 0  -- Start at 0 (before first stage boundary)
 
     for i = 2, #playerCastbar.stagePositions do
         if progressPercent >= playerCastbar.stagePositions[i] then
-            currentStage = i
+            currentStage = i - 1  -- Convert array index to stage number (1-based stages)
         else
             break
         end
