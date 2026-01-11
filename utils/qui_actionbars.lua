@@ -1803,6 +1803,9 @@ function ActionBars:Initialize()
     -- Apply bar layout settings (scale, lock, range indicator, empty slots)
     ApplyBarLayoutSettings()
 
+    -- Apply button padding
+    ApplyPaddingToActionBars()
+
     -- Apply page arrow visibility
     if db.bars and db.bars.bar1 then
         ApplyPageArrowVisibility(db.bars.bar1.hidePageArrow)

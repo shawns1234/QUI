@@ -1206,7 +1206,7 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
                 self:Hide()
                 return
             end
-            
+
             local now = GetTime()
             if now >= endTime then
                 if isPlayer then
@@ -1432,9 +1432,12 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
                 -- Another cast started, transition to it
                 ClearEmpoweredState(self)
                 self:Cast(spellID, false)
+            else
+                -- Cast ended (cancelled, interrupted, or completed) - hide immediately
+                ClearEmpoweredState(self)
+                self:SetScript("OnUpdate", nil)
+                self:Hide()
             end
-            -- Don't hide here - let OnUpdate handle it via isInEmpoweredHold check
-            -- OnUpdate will hide the bar when endTime is reached
         end
     end
     
@@ -1702,19 +1705,14 @@ function QUI_Castbar:SetupBossCastbar(castbar, unit, bossIndex, castSettings)
         elseif event == "UNIT_SPELLCAST_EMPOWER_STOP" then
             local name = UnitCastingInfo(self.unit)
             if name then
+                -- Another cast started, transition to it
                 ClearEmpoweredState(self)
                 self:Cast(spellID, false)
             else
-                -- Check if still in hold phase (endTime includes holdAtMaxTime)
-                local now = GetTime()
-                if self.isEmpowered and self.endTime and now < self.endTime then
-                    -- Still in hold phase - keep showing
-                    self.isInHoldPhase = true
-                else
-                    ClearEmpoweredState(self)
-                    self:SetScript("OnUpdate", nil)
-                    self:Hide()
-                end
+                -- Cast ended (cancelled, interrupted, or completed) - hide immediately
+                ClearEmpoweredState(self)
+                self:SetScript("OnUpdate", nil)
+                self:Hide()
             end
         elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_CHANNEL_STOP"
             or event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then

@@ -663,9 +663,9 @@ local function UpdateAbsorbs(frame)
             frame.absorbOverflowBar:SetStatusBarTexture("Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe")
             local overflowBarTex = frame.absorbOverflowBar:GetStatusBarTexture()
             if overflowBarTex then
-                overflowBarTex:SetHorizTile(true)
-                overflowBarTex:SetVertTile(true)
-                overflowBarTex:SetTexCoord(1, 0, 0, 1)  -- Flip horizontally to match attached bar orientation
+                overflowBarTex:SetHorizTile(false)
+                overflowBarTex:SetVertTile(false)
+                overflowBarTex:SetTexCoord(0, 1, 0, 1)
             end
             frame.absorbOverflowBar:SetFrameLevel(frame.healthBar:GetFrameLevel() + 2)
             frame.absorbOverflowBar:EnableMouse(false)
@@ -1284,8 +1284,9 @@ local function CreateBossFrame(unit, frameKey, bossIndex)
     absorbBar:SetStatusBarTexture("Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe")
     local absorbBarTex = absorbBar:GetStatusBarTexture()
     if absorbBarTex then
-        absorbBarTex:SetHorizTile(true)
-        absorbBarTex:SetVertTile(true)
+        absorbBarTex:SetHorizTile(false)
+        absorbBarTex:SetVertTile(false)
+        absorbBarTex:SetTexCoord(0, 1, 0, 1)
     end
     local absorbSettings = settings.absorbs or {}
     local ac = absorbSettings.color or { 1, 1, 1 }
@@ -1589,8 +1590,9 @@ local function CreateUnitFrame(unit, unitKey)
     absorbBar:SetStatusBarTexture("Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe")
     local absorbBarTex = absorbBar:GetStatusBarTexture()
     if absorbBarTex then
-        absorbBarTex:SetHorizTile(true)
-        absorbBarTex:SetVertTile(true)
+        absorbBarTex:SetHorizTile(false)
+        absorbBarTex:SetVertTile(false)
+        absorbBarTex:SetTexCoord(0, 1, 0, 1)
     end
     local absorbSettings = settings.absorbs or {}
     local ac = absorbSettings.color or { 1, 1, 1 }
@@ -1669,11 +1671,12 @@ local function CreateUnitFrame(unit, unitKey)
         local portraitBorderSize = Scale(settings.portraitBorderSize or 1)
         portrait:SetSize(portraitSize, portraitSize)
 
+        local portraitGap = Scale(settings.portraitGap or 0)
         local side = settings.portraitSide or "LEFT"
         if side == "LEFT" then
-            portrait:SetPoint("RIGHT", frame, "LEFT", -1, 0)
+            portrait:SetPoint("RIGHT", frame, "LEFT", -portraitGap, 0)
         else
-            portrait:SetPoint("LEFT", frame, "RIGHT", 1, 0)
+            portrait:SetPoint("LEFT", frame, "RIGHT", portraitGap, 0)
         end
 
         -- Border around portrait
@@ -3238,6 +3241,7 @@ function QUI_UF:RefreshFrame(unitKey)
     if settings.showPortrait then
         local portraitSize = Scale(settings.height or 40) * (settings.portraitScale or 1.0)
         local portraitBorderSize = Scale(settings.portraitBorderSize or 1)
+        local portraitGap = Scale(settings.portraitGap or 0)
         local side = settings.portraitSide or "LEFT"
 
         if not frame.portrait then
@@ -3251,9 +3255,9 @@ function QUI_UF:RefreshFrame(unitKey)
         frame.portrait:SetSize(portraitSize, portraitSize)
         frame.portrait:ClearAllPoints()
         if side == "LEFT" then
-            frame.portrait:SetPoint("RIGHT", frame, "LEFT", -1, 0)
+            frame.portrait:SetPoint("RIGHT", frame, "LEFT", -portraitGap, 0)
         else
-            frame.portrait:SetPoint("LEFT", frame, "RIGHT", 1, 0)
+            frame.portrait:SetPoint("LEFT", frame, "RIGHT", portraitGap, 0)
         end
 
         -- Determine border color first (needed for both styles)

@@ -388,6 +388,7 @@ local defaults = {
             questHoldShift = true,
             fastAutoLoot = true,
             autoSelectGossip = true,  -- Auto-select single gossip options
+            autoCombatLog = false,  -- Auto start/stop combat logging in M+ (opt-in)
             -- Quick Salvage settings
             quickSalvage = {
                 enabled = false,  -- Opt-in, OFF by default
@@ -1343,6 +1344,7 @@ local defaults = {
                 portraitBorderSize = 1,
                 portraitBorderUseClassColor = false,
                 portraitBorderColor = { 0, 0, 0, 1 },
+                portraitGap = 0,
                 -- Name text
                 showName = true,
                 nameTextUseClassColor = false,
@@ -1520,6 +1522,7 @@ local defaults = {
                 portraitBorderSize = 1,
                 portraitBorderUseClassColor = false,
                 portraitBorderColor = { 0, 0, 0, 1 },
+                portraitGap = 0,
                 -- Name text
                 showName = true,
                 nameTextUseClassColor = false,
@@ -1846,6 +1849,7 @@ local defaults = {
                 portraitBorderSize = 1,
                 portraitBorderUseClassColor = false,
                 portraitBorderColor = { 0, 0, 0, 1 },
+                portraitGap = 0,
                 -- Name text
                 showName = true,
                 nameTextUseClassColor = false,

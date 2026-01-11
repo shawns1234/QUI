@@ -257,6 +257,48 @@ local function OnLootReady()
 end
 
 ---------------------------------------------------------------------------
+-- M+ COMBAT LOGGING
+---------------------------------------------------------------------------
+
+local wasLoggingBeforeChallenge = false
+
+local function OnChallengeModeStart()
+    local settings = GetSettings()
+    if not settings or not settings.autoCombatLog then return end
+
+    -- Remember if user already had logging enabled (don't disable their manual logging)
+    wasLoggingBeforeChallenge = LoggingCombat()
+
+    if not wasLoggingBeforeChallenge then
+        LoggingCombat(true)
+        print("|cFF30D1FFQuaziiUI:|r Combat logging started for M+")
+    end
+end
+
+local function OnChallengeModeEnd()
+    local settings = GetSettings()
+    if not settings or not settings.autoCombatLog then return end
+
+    -- Only stop if WE started it (don't disable user's manual logging)
+    if not wasLoggingBeforeChallenge and LoggingCombat() then
+        LoggingCombat(false)
+        print("|cFF30D1FFQuaziiUI:|r Combat logging stopped")
+    end
+    wasLoggingBeforeChallenge = false
+end
+
+-- Handle reconnect: if in active M+ and setting enabled, resume logging
+local function CheckResumeLogging()
+    local settings = GetSettings()
+    if not settings or not settings.autoCombatLog then return end
+
+    if C_ChallengeMode.IsChallengeModeActive() and not LoggingCombat() then
+        LoggingCombat(true)
+        print("|cFF30D1FFQuaziiUI:|r Combat logging resumed (reconnected to M+)")
+    end
+end
+
+---------------------------------------------------------------------------
 -- EVENT REGISTRATION
 ---------------------------------------------------------------------------
 
@@ -268,6 +310,10 @@ qolFrame:RegisterEvent("QUEST_COMPLETE")
 qolFrame:RegisterEvent("GOSSIP_SHOW")
 qolFrame:RegisterEvent("GOSSIP_CLOSED")
 qolFrame:RegisterEvent("LOOT_READY")
+qolFrame:RegisterEvent("CHALLENGE_MODE_START")
+qolFrame:RegisterEvent("CHALLENGE_MODE_COMPLETED")
+qolFrame:RegisterEvent("CHALLENGE_MODE_RESET")
+qolFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 
 qolFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "MERCHANT_SHOW" then
@@ -286,5 +332,11 @@ qolFrame:SetScript("OnEvent", function(self, event, ...)
         OnGossipClosed()
     elseif event == "LOOT_READY" then
         OnLootReady()
+    elseif event == "CHALLENGE_MODE_START" then
+        OnChallengeModeStart()
+    elseif event == "CHALLENGE_MODE_COMPLETED" or event == "CHALLENGE_MODE_RESET" then
+        OnChallengeModeEnd()
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        C_Timer.After(2, CheckResumeLogging)
     end
 end)

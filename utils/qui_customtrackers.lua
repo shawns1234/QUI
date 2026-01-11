@@ -136,6 +136,12 @@ local function PositionBar(bar)
     -- UNLOCKED: normal UIParent positioning
     bar:SetParent(UIParent)
 
+    -- Re-apply draggable state (SetParent can reset these properties)
+    bar:SetMovable(true)
+    bar:EnableMouse(true)
+    bar:RegisterForDrag("LeftButton")
+    bar:SetClampedToScreen(true)
+
     local offsetX = config.offsetX or 0
     local offsetY = config.offsetY or -300
     local growDir = config.growDirection or "RIGHT"
@@ -689,6 +695,7 @@ local function CreateTrackerIcon(parent)
     icon.cooldown:SetDrawSwipe(false)             -- NO swipe animation
     icon.cooldown:SetDrawEdge(false)              -- NO edge glow
     icon.cooldown:SetHideCountdownNumbers(false)  -- Still show countdown numbers!
+    icon.cooldown:EnableMouse(false)              -- Don't block drag events
 
     -- Duration text (on icon, not cooldown - more control)
     icon.durationText = icon:CreateFontString(nil, "OVERLAY")
@@ -724,6 +731,26 @@ local function CreateTrackerIcon(parent)
 
     icon:SetScript("OnLeave", function()
         GameTooltip:Hide()
+    end)
+
+    -- Forward drag events to parent bar (so clicking on icons still allows dragging)
+    icon:RegisterForDrag("LeftButton")
+    icon:SetScript("OnDragStart", function(self)
+        local bar = self:GetParent()
+        if bar and bar.config and not bar.config.locked and not bar.config.lockedToPlayer and not bar.config.lockedToTarget then
+            bar:StartMoving()
+        end
+    end)
+    icon:SetScript("OnDragStop", function(self)
+        local bar = self:GetParent()
+        if bar then
+            bar:StopMovingOrSizing()
+            -- Fire the bar's drag stop handler to save position
+            local dragStopHandler = bar:GetScript("OnDragStop")
+            if dragStopHandler then
+                dragStopHandler(bar)
+            end
+        end
     end)
 
     return icon
@@ -1393,7 +1420,7 @@ function CustomTrackers:SetupDragging(bar)
     bar:SetClampedToScreen(true)
 
     bar:SetScript("OnDragStart", function(self)
-        if not self.config.locked and not self.config.lockedToPlayer then
+        if not self.config.locked and not self.config.lockedToPlayer and not self.config.lockedToTarget then
             self:StartMoving()
         end
     end)

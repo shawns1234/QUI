@@ -869,6 +869,11 @@ local function CreateGeneralQoLPage(parent)
         keystoneCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
         y = y - FORM_ROW
 
+        local combatLogCheck = GUI:CreateFormCheckbox(tabContent, "Auto Combat Log in M+", "autoCombatLog", db.general, nil)
+        combatLogCheck:SetPoint("TOPLEFT", PADDING, y)
+        combatLogCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
         local sellJunkCheck = GUI:CreateFormCheckbox(tabContent, "Sell Gray Items", "sellJunk", db.general, nil)
         sellJunkCheck:SetPoint("TOPLEFT", PADDING, y)
         sellJunkCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
@@ -10306,6 +10311,12 @@ local function CreateUnitFramesPage(parent)
             borderSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
 
+            -- Portrait Gap slider
+            if unitDB.portraitGap == nil then unitDB.portraitGap = 0 end
+            local gapSlider = GUI:CreateFormSlider(tabContent, "Portrait Gap", 0, 10, 1, "portraitGap", unitDB, RefreshUnit)
+            gapSlider:SetPoint("TOPLEFT", PAD, y)
+            gapSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
 
             -- Initialize border color defaults
             if unitDB.portraitBorderUseClassColor == nil then unitDB.portraitBorderUseClassColor = false end
