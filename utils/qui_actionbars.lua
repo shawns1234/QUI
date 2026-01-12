@@ -1804,7 +1804,11 @@ function ActionBars:Initialize()
     ApplyBarLayoutSettings()
 
     -- Apply button padding
-    ApplyPaddingToActionBars()
+    -- NOTE: Disabled - ApplyPaddingToActionBars() causes bar paging to fail in combat
+    -- and triggers ADDON_ACTION_BLOCKED errors on stance/pet bars. The function sets
+    -- minButtonPadding and hooks UpdateGridLayout which interferes with Blizzard's
+    -- secure bar handling. Needs redesign for Midnight compatibility.
+    -- ApplyPaddingToActionBars()
 
     -- Apply page arrow visibility
     if db.bars and db.bars.bar1 then
@@ -1992,8 +1996,13 @@ ApplyPaddingToActionBars = function()
         if not bar._quiPaddingHooked then
             bar._quiPaddingHooked = true
             hooksecurefunc(bar, "UpdateGridLayout", function(self)
-                if self.minButtonPadding ~= -10 then
-                    self.minButtonPadding = -10
+                -- Early return if in combat - don't modify anything during combat
+                if InCombatLockdown() then
+                    return
+                end
+
+                if self.minButtonPadding ~= minPadding then
+                    self.minButtonPadding = minPadding
                     local currentSettings = GetGlobalSettings()
                     if currentSettings and currentSettings.buttonPadding ~= nil then
                         self.buttonPadding = currentSettings.buttonPadding
@@ -2003,7 +2012,8 @@ ApplyPaddingToActionBars = function()
                         self._quiPaddingUpdatePending = true
                         C_Timer.After(0, function()
                             self._quiPaddingUpdatePending = nil
-                            if self and self.UpdateGridLayout then
+                            -- Check combat again before calling UpdateGridLayout
+                            if not InCombatLockdown() and self and self.UpdateGridLayout then
                                 self:UpdateGridLayout()
                             end
                         end)
@@ -2012,7 +2022,19 @@ ApplyPaddingToActionBars = function()
             end)
         end
 
-        bar:UpdateGridLayout()
+        -- Defer UpdateGridLayout call to avoid triggering protected calls during initialization
+        -- This ensures padding is applied on reload while avoiding combat issues
+        if not InCombatLockdown() then
+            if not bar._quiPaddingUpdateScheduled then
+                bar._quiPaddingUpdateScheduled = true
+                C_Timer.After(0.1, function()
+                    bar._quiPaddingUpdateScheduled = nil
+                    if bar and bar.UpdateGridLayout and not InCombatLockdown() then
+                        bar:UpdateGridLayout()
+                    end
+                end)
+            end
+        end
     end
 end
 
