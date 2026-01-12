@@ -237,19 +237,21 @@ local function CreateIcon(anchorFrame, iconSize, iconBorderSize, iconBorderColor
     local iconFrame = CreateFrame("Frame", nil, anchorFrame)
     iconFrame:SetSize(iconSize, iconSize)
     iconFrame:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", 0, 0)
-    
+
+    -- Border fills the iconFrame (background layer)
     local border = iconFrame:CreateTexture(nil, "BACKGROUND", nil, -8)
     local r, g, b, a = GetSafeColor(iconBorderColor, {0, 0, 0, 1})
     border:SetColorTexture(r, g, b, a)
-    border:SetPoint("TOPLEFT", iconFrame, "TOPLEFT", -iconBorderSize, iconBorderSize)
-    border:SetPoint("BOTTOMRIGHT", iconFrame, "BOTTOMRIGHT", iconBorderSize, -iconBorderSize)
+    border:SetAllPoints(iconFrame)
     iconFrame.border = border
-    
+
+    -- Icon texture is inset by borderSize so border shows around it
     local iconTexture = iconFrame:CreateTexture(nil, "ARTWORK")
-    iconTexture:SetAllPoints(iconFrame)
+    iconTexture:SetPoint("TOPLEFT", iconFrame, "TOPLEFT", iconBorderSize, -iconBorderSize)
+    iconTexture:SetPoint("BOTTOMRIGHT", iconFrame, "BOTTOMRIGHT", -iconBorderSize, iconBorderSize)
     iconTexture:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     iconFrame.texture = iconTexture
-    
+
     anchorFrame.icon = iconFrame
     anchorFrame.iconTexture = iconTexture
     anchorFrame.iconBorder = border
@@ -391,34 +393,37 @@ local function UpdateIconPosition(anchorFrame, castSettings, iconSize, iconScale
     local iconFrame = anchorFrame.icon
     local iconTexture = anchorFrame.iconTexture
     local iconBorder = anchorFrame.iconBorder
-    
+
     if not ShouldShowIcon(anchorFrame, castSettings) or not iconFrame then
         if iconFrame then iconFrame:Hide() end
         return false
     end
-    
+
     local baseIconSize = iconSize * iconScale
     iconFrame:SetSize(baseIconSize, baseIconSize)
     iconFrame:ClearAllPoints()
     local iconAnchor = castSettings.iconAnchor or "TOPLEFT"
     iconFrame:SetPoint(iconAnchor, anchorFrame, iconAnchor, 0, 0)
-    
+
     local textureToUse = anchorFrame.currentIconTexture or anchorFrame.previewIconTexture
     if textureToUse and iconTexture then
         iconTexture:SetTexture(textureToUse)
+        -- Inset texture by borderSize so border shows around it
+        iconTexture:ClearAllPoints()
+        iconTexture:SetPoint("TOPLEFT", iconFrame, "TOPLEFT", iconBorderSize, -iconBorderSize)
+        iconTexture:SetPoint("BOTTOMRIGHT", iconFrame, "BOTTOMRIGHT", -iconBorderSize, iconBorderSize)
         if ShouldShowIcon(anchorFrame, castSettings) then
             iconFrame:Show()
         else
-        iconFrame:Hide()
-        return false
-    end
-    
-    if iconBorder then
+            iconFrame:Hide()
+            return false
+        end
+
+        if iconBorder then
             local r, g, b, a = GetSafeColor(castSettings.iconBorderColor, {0, 0, 0, 1})
             iconBorder:SetColorTexture(r, g, b, a)
             iconBorder:ClearAllPoints()
-            iconBorder:SetPoint("TOPLEFT", iconFrame, "TOPLEFT", -iconBorderSize, iconBorderSize)
-            iconBorder:SetPoint("BOTTOMRIGHT", iconFrame, "BOTTOMRIGHT", iconBorderSize, -iconBorderSize)
+            iconBorder:SetAllPoints(iconFrame)
         end
         return true
     else
@@ -430,36 +435,38 @@ end
 local function UpdateStatusBarPosition(anchorFrame, castSettings, barHeight, iconSize, iconScale, borderSize)
     local statusBar = anchorFrame.statusBar
     local border = statusBar and statusBar.Border
-    
+
     if not statusBar then return end
-    
+
     statusBar:SetHeight(barHeight)
     statusBar:ClearAllPoints()
-    
+
+    -- Inset statusBar by borderSize so border is visible around it (like unit frames)
     if ShouldShowIcon(anchorFrame, castSettings) then
         local iconSizePx = iconSize * iconScale
         local iconSpacing = Scale(castSettings.iconSpacing or 0)
         local iconAnchor = castSettings.iconAnchor or "TOPLEFT"
         if iconAnchor:find("LEFT") then
-            statusBar:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", iconSizePx + iconSpacing, 0)
-            statusBar:SetPoint("BOTTOMRIGHT", anchorFrame, "BOTTOMRIGHT", 0, 0)
+            statusBar:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", iconSizePx + iconSpacing + borderSize, -borderSize)
+            statusBar:SetPoint("BOTTOMRIGHT", anchorFrame, "BOTTOMRIGHT", -borderSize, borderSize)
         elseif iconAnchor:find("RIGHT") then
-            statusBar:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", 0, 0)
-            statusBar:SetPoint("BOTTOMRIGHT", anchorFrame, "BOTTOMRIGHT", -iconSizePx - iconSpacing, 0)
+            statusBar:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", borderSize, -borderSize)
+            statusBar:SetPoint("BOTTOMRIGHT", anchorFrame, "BOTTOMRIGHT", -iconSizePx - iconSpacing - borderSize, borderSize)
         else
-            statusBar:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", 0, 0)
-            statusBar:SetPoint("BOTTOMRIGHT", anchorFrame, "BOTTOMRIGHT", 0, 0)
+            statusBar:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", borderSize, -borderSize)
+            statusBar:SetPoint("BOTTOMRIGHT", anchorFrame, "BOTTOMRIGHT", -borderSize, borderSize)
         end
     else
-        statusBar:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", 0, 0)
-        statusBar:SetPoint("BOTTOMRIGHT", anchorFrame, "BOTTOMRIGHT", 0, 0)
+        statusBar:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", borderSize, -borderSize)
+        statusBar:SetPoint("BOTTOMRIGHT", anchorFrame, "BOTTOMRIGHT", -borderSize, borderSize)
     end
     
     if border then
         border:SetFrameLevel(statusBar:GetFrameLevel() - 1)
         border:ClearAllPoints()
-        border:SetPoint("TOPLEFT", statusBar, "TOPLEFT", -borderSize, borderSize)
-        border:SetPoint("BOTTOMRIGHT", statusBar, "BOTTOMRIGHT", borderSize, -borderSize)
+        -- Border anchors to anchorFrame (full size), statusBar is inset inside it
+        border:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", 0, 0)
+        border:SetPoint("BOTTOMRIGHT", anchorFrame, "BOTTOMRIGHT", 0, 0)
         border:SetBackdrop({
             edgeFile = "Interface\\Buttons\\WHITE8x8",
             edgeSize = borderSize,
@@ -2040,8 +2047,8 @@ function QUI_Castbar:CreateBossCastbar(unitFrame, unit, bossIndex)
             self.notInterruptible = notInterruptible
 
             if self.startTime < now - 5 then
-                local ok, dur = pcall(function() return (endTimeMS - startTimeMS) / 1000 end)
-                if ok and dur then
+                local dur = self.endTime - self.startTime
+                if dur and dur > 0 then
                     self.startTime = now
                     self.endTime = now + dur
                 end

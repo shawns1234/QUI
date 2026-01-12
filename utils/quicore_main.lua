@@ -2903,15 +2903,38 @@ function QUICore:OnInitialize()
 end
 
 function QUICore:OnProfileChanged(event, db, profileKey)
-    
+
+    -- Helper to apply UIParent scale safely (defers if in combat)
+    local function ApplyUIScale(scale)
+        if InCombatLockdown() then
+            QUICore._pendingUIScale = scale
+            if not QUICore._scaleRegenFrame then
+                QUICore._scaleRegenFrame = CreateFrame("Frame")
+                QUICore._scaleRegenFrame:SetScript("OnEvent", function(self)
+                    self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+                    if QUICore._pendingUIScale and not InCombatLockdown() then
+                        UIParent:SetScale(QUICore._pendingUIScale)
+                        QUICore._pendingUIScale = nil
+                        if QUICore.UIMult then
+                            QUICore:UIMult()
+                        end
+                    end
+                end)
+            end
+            QUICore._scaleRegenFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+        else
+            UIParent:SetScale(scale)
+        end
+    end
+
     -- Handle UI scale on profile change
     if self.db.profile.general then
         local newProfileScale = self.db.profile.general.uiScale
-        
+
         if not newProfileScale or newProfileScale == 0 then
             -- New/reset profile has no scale - use the preserved one
             local scaleToUse = self._preservedUIScale
-            
+
             -- If no preserved scale, use smart default based on resolution
             if not scaleToUse then
                 if self.GetSmartDefaultScale then
@@ -2928,18 +2951,18 @@ function QUICore:OnProfileChanged(event, db, profileKey)
                     end
                 end
             end
-            
+
             self.db.profile.general.uiScale = scaleToUse
-            UIParent:SetScale(scaleToUse)
+            ApplyUIScale(scaleToUse)
         else
             -- Existing profile has a saved scale - apply it
-            UIParent:SetScale(newProfileScale)
+            ApplyUIScale(newProfileScale)
             -- Only update preserved scale when switching to a profile with a valid saved scale
             self._preservedUIScale = newProfileScale
         end
-        
-        -- Update pixel perfect calculations
-        if self.UIMult then
+
+        -- Update pixel perfect calculations (skip if deferred to combat end)
+        if not InCombatLockdown() and self.UIMult then
             self:UIMult()
         end
     end

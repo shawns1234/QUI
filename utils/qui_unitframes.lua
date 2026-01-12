@@ -4089,10 +4089,8 @@ function QUI_UF:HideBlizzardFrames()
         KillBlizzardFrame(PetFrame)
     end
     
-    -- Hide Focus frame visuals
-    if db.focus and db.focus.enabled then
-        HideBlizzardFocusVisuals()
-    end
+    -- Hide Focus frame visuals (always hide Blizzard focus frame when QUI unit frames are enabled)
+    HideBlizzardFocusVisuals()
     
     -- Hide Boss frames (allow in Edit Mode)
     if db.boss and db.boss.enabled then
