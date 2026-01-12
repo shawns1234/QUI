@@ -5,7 +5,6 @@
 
 local ADDON_NAME, ns = ...
 local LSM = LibStub("LibSharedMedia-3.0")
-local Masque = LibStub("Masque", true)
 
 ---------------------------------------------------------------------------
 -- MIDNIGHT (12.0+) DETECTION
@@ -87,22 +86,6 @@ local BINDING_COMMANDS = {
     stance = "SHAPESHIFTBUTTON",     -- SHAPESHIFTBUTTON1-10
 }
 
--- Masque group labels (displayed in Masque's configuration UI)
-local MASQUE_GROUP_LABELS = {
-    bar1 = "Action Bar 1",
-    bar2 = "Action Bar 2",
-    bar3 = "Action Bar 3",
-    bar4 = "Action Bar 4",
-    bar5 = "Action Bar 5",
-    bar6 = "Action Bar 6",
-    bar7 = "Action Bar 7",
-    bar8 = "Action Bar 8",
-    pet = "Pet Bar",
-    stance = "Stance Bar",
-}
-
-local MasqueGroups = {}
-
 ---------------------------------------------------------------------------
 -- MODULE STATE
 ---------------------------------------------------------------------------
@@ -113,84 +96,6 @@ local ActionBars = {
     fadeState = {},             -- Per-bar fade state tracking
     fadeFrame = nil,            -- OnUpdate frame for smooth fading
 }
-
--- Forward declarations (defined later in file)
-local SkinAllBars
-local ApplyPaddingToActionBars
-
----------------------------------------------------------------------------
--- MASQUE INTEGRATION
----------------------------------------------------------------------------
-
-local function GetMasqueGroup(barKey)
-    if not Masque then return nil end
-    local label = MASQUE_GROUP_LABELS[barKey]
-    if not label then return nil end
-
-    if not MasqueGroups[barKey] then
-        local group = Masque:Group("QuaziiUI", label)
-        MasqueGroups[barKey] = group
-
-        -- Register callback to detect when Masque settings change
-        if group and group.RegisterCallback then
-            group:RegisterCallback(function(Group, Option, Value)
-                if Option == "Disabled" or Option == "SkinID" then
-                    -- Use QUI's custom confirmation dialog
-                    if QuaziiUI and QuaziiUI.GUI and QuaziiUI.GUI.ShowConfirmation then
-                        QuaziiUI.GUI:ShowConfirmation({
-                            title = "Masque Settings Changed",
-                            message = "Masque settings for QuaziiUI have changed.\n\nReload UI to apply changes.",
-                            acceptText = "Reload Now",
-                            cancelText = "Later",
-                            onAccept = function() ReloadUI() end,
-                        })
-                    end
-                end
-            end)
-        end
-    end
-    return MasqueGroups[barKey]
-end
-
-local function IsMasqueEnabledForBar(barKey)
-    local group = MasqueGroups[barKey]
-    if not group then return false end
-
-    -- Check if Masque is enabled for this group
-    if group.IsEnabled then
-        return group:IsEnabled()
-    else
-        return not (group.db and group.db.Disabled)
-    end
-end
-
-local function RegisterButtonWithMasque(barKey, button)
-    if not button then return end
-    local group = GetMasqueGroup(barKey)
-    if not group then return end
-
-    -- Only add to Masque if not already registered
-    if button._quiMasqueRegistered then return end
-
-    local icon = button.icon or button.Icon
-    local cooldown = button.cooldown or button.Cooldown
-
-    group:AddButton(button, {
-        Icon = icon,
-        Cooldown = cooldown,
-        Count = button.Count,
-        HotKey = button.HotKey or button.hotKey,
-        Name = button.Name,
-        Border = button.Border,
-        Flash = button.Flash,
-        Normal = button.NormalTexture or button:GetNormalTexture(),
-        Pushed = button.PushedTexture or button:GetPushedTexture(),
-        Checked = button.CheckedTexture or button:GetCheckedTexture(),
-        Highlight = button.HighlightTexture or button:GetHighlightTexture(),
-    })
-
-    button._quiMasqueRegistered = true
-end
 
 ---------------------------------------------------------------------------
 -- HELPER FUNCTIONS
@@ -1208,15 +1113,7 @@ end
 
 -- Debounced event handler (prevents rapid-fire updates)
 local usabilityUpdatePending = false
-local combatUpdateQueued = false  -- Track if update needed after combat ends
 local function ScheduleUsabilityUpdate()
-    -- If in combat, defer until combat ends (modifying icons triggers Blizzard's
-    -- ActionButton:Update() which tries SetAttribute(), causing secret value errors)
-    if InCombatLockdown() then
-        combatUpdateQueued = true
-        return
-    end
-
     if usabilityUpdatePending then return end
     usabilityUpdatePending = true
     C_Timer.After(0.05, function()
@@ -1261,19 +1158,9 @@ local function UpdateUsabilityPolling()
         usabilityCheckFrame:RegisterEvent("SPELL_UPDATE_CHARGES")
         usabilityCheckFrame:RegisterEvent("UNIT_POWER_UPDATE")
         usabilityCheckFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
-        usabilityCheckFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-        usabilityCheckFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 
         usabilityCheckFrame:SetScript("OnEvent", function(self, event, ...)
-            if event == "PLAYER_REGEN_ENABLED" then
-                -- Combat ended - process any queued update
-                if combatUpdateQueued then
-                    combatUpdateQueued = false
-                    ScheduleUsabilityUpdate()
-                end
-            else
-                ScheduleUsabilityUpdate()
-            end
+            ScheduleUsabilityUpdate()
         end)
 
         -- Initial update
@@ -1287,7 +1174,6 @@ local function UpdateUsabilityPolling()
     -- Only poll when range indicator is enabled, at 250ms (was 100ms)
     if rangeEnabled then
         usabilityCheckFrame:SetScript("OnUpdate", function(self, elapsed)
-            if InCombatLockdown() then return end  -- Skip during combat
             self.elapsed = self.elapsed + elapsed
             if self.elapsed < GetUpdateInterval() then return end
             self.elapsed = 0
@@ -1678,21 +1564,10 @@ local function SkinBar(barKey)
     local effectiveSettings = GetEffectiveSettings(barKey)
     if not effectiveSettings then return end
 
-    -- Check if Masque should handle skinning for this bar
-    local masqueGroup = GetMasqueGroup(barKey)
-    local useMasque = masqueGroup and IsMasqueEnabledForBar(barKey)
-
     local buttons = GetBarButtons(barKey)
 
     for _, button in ipairs(buttons) do
-        if useMasque then
-            -- Masque handles visuals - just register the button
-            RegisterButtonWithMasque(barKey, button)
-        else
-            -- QUI custom skin
-            SkinButton(button, effectiveSettings)
-        end
-
+        SkinButton(button, effectiveSettings)
         UpdateButtonText(button, effectiveSettings)
 
         -- Add LibKeyBound methods for mousewheel binding support
@@ -1770,7 +1645,6 @@ function ActionBars:Refresh()
 
     SkinAllBars()
     ApplyBarLayoutSettings()
-    ApplyPaddingToActionBars()
 
     -- Apply page arrow visibility
     local db = GetDB()
@@ -1802,13 +1676,6 @@ function ActionBars:Initialize()
 
     -- Apply bar layout settings (scale, lock, range indicator, empty slots)
     ApplyBarLayoutSettings()
-
-    -- Apply button padding
-    -- NOTE: Disabled - ApplyPaddingToActionBars() causes bar paging to fail in combat
-    -- and triggers ADDON_ACTION_BLOCKED errors on stance/pet bars. The function sets
-    -- minButtonPadding and hooks UpdateGridLayout which interferes with Blizzard's
-    -- secure bar handling. Needs redesign for Midnight compatibility.
-    -- ApplyPaddingToActionBars()
 
     -- Apply page arrow visibility
     if db.bars and db.bars.bar1 then
@@ -1939,106 +1806,6 @@ _G.QuaziiUI_RefreshActionBars = function()
     end
     ActionBars:Refresh()
 end
-
----------------------------------------------------------------------------
--- LATE MASQUE LOADING HANDLER
----------------------------------------------------------------------------
-
--- Handle Masque loading after QUI (ensures callbacks are registered)
-local masqueEventFrame = CreateFrame("Frame")
-masqueEventFrame:RegisterEvent("ADDON_LOADED")
-masqueEventFrame:SetScript("OnEvent", function(_, event, addonName)
-    if addonName ~= "Masque" then return end
-    Masque = Masque or LibStub("Masque", true)
-    -- Pre-create groups so callbacks are registered
-    for barKey, _ in pairs(MASQUE_GROUP_LABELS) do
-        GetMasqueGroup(barKey)
-    end
-end)
-
----------------------------------------------------------------------------
--- ACTION BAR PADDING CONTROL
----------------------------------------------------------------------------
-
-local function FindAllActionBars()
-    local bars = {}
-    local barNames = {
-        "MainActionBar", "MainMenuBar",
-        "MultiBarBottomLeft", "MultiBarBottomRight",
-        "MultiBarRight", "MultiBarLeft",
-        "MultiBar5", "MultiBar6", "MultiBar7",
-        "PetActionBar", "StanceBar",
-    }
-    for _, name in ipairs(barNames) do
-        local bar = _G[name]
-        if bar and bar.UpdateGridLayout and bar.minButtonPadding ~= nil then
-            table.insert(bars, bar)
-        end
-    end
-    return bars
-end
-
-ApplyPaddingToActionBars = function()
-    local settings = GetGlobalSettings()
-    if not settings then return end
-
-    local minPadding = -10  -- Always override Blizzard's minimum
-    local buttonPadding = settings.buttonPadding
-
-    local bars = FindAllActionBars()
-    for _, bar in ipairs(bars) do
-        bar.minButtonPadding = minPadding
-        if buttonPadding ~= nil then
-            bar.buttonPadding = buttonPadding
-        end
-
-        -- Hook UpdateGridLayout to persist the override (only hook once per bar)
-        if not bar._quiPaddingHooked then
-            bar._quiPaddingHooked = true
-            hooksecurefunc(bar, "UpdateGridLayout", function(self)
-                -- Early return if in combat - don't modify anything during combat
-                if InCombatLockdown() then
-                    return
-                end
-
-                if self.minButtonPadding ~= minPadding then
-                    self.minButtonPadding = minPadding
-                    local currentSettings = GetGlobalSettings()
-                    if currentSettings and currentSettings.buttonPadding ~= nil then
-                        self.buttonPadding = currentSettings.buttonPadding
-                    end
-                    -- Defer re-layout to avoid recursion
-                    if not self._quiPaddingUpdatePending then
-                        self._quiPaddingUpdatePending = true
-                        C_Timer.After(0, function()
-                            self._quiPaddingUpdatePending = nil
-                            -- Check combat again before calling UpdateGridLayout
-                            if not InCombatLockdown() and self and self.UpdateGridLayout then
-                                self:UpdateGridLayout()
-                            end
-                        end)
-                    end
-                end
-            end)
-        end
-
-        -- Defer UpdateGridLayout call to avoid triggering protected calls during initialization
-        -- This ensures padding is applied on reload while avoiding combat issues
-        if not InCombatLockdown() then
-            if not bar._quiPaddingUpdateScheduled then
-                bar._quiPaddingUpdateScheduled = true
-                C_Timer.After(0.1, function()
-                    bar._quiPaddingUpdateScheduled = nil
-                    if bar and bar.UpdateGridLayout and not InCombatLockdown() then
-                        bar:UpdateGridLayout()
-                    end
-                end)
-            end
-        end
-    end
-end
-
-_G.QuaziiUI_ApplyPaddingToActionBars = ApplyPaddingToActionBars
 
 ---------------------------------------------------------------------------
 -- EXPOSE MODULE

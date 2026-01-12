@@ -10815,6 +10815,9 @@ local function CreateUnitFramesPage(parent)
             local auraDB = unitDB.auras
             if auraDB.showBuffs == nil then auraDB.showBuffs = false end
             if auraDB.showDebuffs == nil then auraDB.showDebuffs = false end
+            if unitKey ~= "player" then
+                if auraDB.onlyMyDebuffs == nil then auraDB.onlyMyDebuffs = true end
+            end
             if auraDB.iconSize == nil then auraDB.iconSize = 22 end
             if auraDB.buffIconSize == nil then auraDB.buffIconSize = 22 end
             if auraDB.debuffAnchor == nil then auraDB.debuffAnchor = "TOPLEFT" end
@@ -10866,6 +10869,13 @@ local function CreateUnitFramesPage(parent)
             debuffHideSwipe:SetPoint("TOPLEFT", PAD, y)
             debuffHideSwipe:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
+
+            if unitKey ~= "player" then
+                local onlyMyDebuffsCheck = GUI:CreateFormCheckbox(tabContent, "Only My Debuffs", "onlyMyDebuffs", auraDB, RefreshAuras)
+                onlyMyDebuffsCheck:SetPoint("TOPLEFT", PAD, y)
+                onlyMyDebuffsCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+            end
 
             -- Debuff Preview toggle (pill-shaped, matches Castbar Preview style)
             local debuffPreviewContainer = CreateFrame("Frame", nil, tabContent)
@@ -11604,14 +11614,14 @@ local function CreateActionBarsPage(parent)
         y = y - FORM_ROW
 
         local tipText = GUI:CreateLabel(tabContent,
-            "Position bars via Edit Mode. If using a standalone actionbar addon (e.g., Bartender4, Dominos), disable QUI Action Bars above for compatibility.",
+            "QUI hooks into Blizzard action bars to skin them. Position and resize bars via Edit Mode (Blizzard minimum padding: 2px). If you need actionbar paging (stance/form swapping), want to use action bars as your CDM, or prefer more control - disable QUI Action Bars and use a dedicated addon (e.g., Bartender4, Dominos).",
             11, C.warning)
         tipText:SetPoint("TOPLEFT", PAD, y)
         tipText:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         tipText:SetJustifyH("LEFT")
         tipText:SetWordWrap(true)
-        tipText:SetHeight(30)
-        y = y - 40
+        tipText:SetHeight(45)
+        y = y - 55
 
         ---------------------------------------------------------
         -- Section: Button Appearance
@@ -11758,24 +11768,6 @@ local function CreateActionBarsPage(parent)
         layoutTipText:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         layoutTipText:SetJustifyH("LEFT")
         layoutTipText:SetWordWrap(true)
-        y = y - 40
-
-        -- Button Padding
-        local buttonPaddingSlider = GUI:CreateFormSlider(tabContent, "Button Padding", -10, 20, 1,
-            "buttonPadding", global, function()
-                if _G.QuaziiUI_ApplyPaddingToActionBars then
-                    _G.QuaziiUI_ApplyPaddingToActionBars()
-                end
-            end)
-        buttonPaddingSlider:SetPoint("TOPLEFT", PAD, y)
-        buttonPaddingSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        local paddingDesc = GUI:CreateLabel(tabContent, "Adjust button spacing. Negative values allow overlap.", 11, C.muted)
-        paddingDesc:SetPoint("TOPLEFT", PAD, y + 4)
-        paddingDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-        paddingDesc:SetJustifyH("LEFT")
-        paddingDesc:SetWordWrap(true)
         y = y - 40
 
         ---------------------------------------------------------

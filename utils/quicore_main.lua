@@ -1139,7 +1139,6 @@ local defaults = {
                 barScale = 1.0,             -- Global scale multiplier (0.5 - 2.0)
                 hideEmptySlots = false,     -- Hide buttons with no ability assigned
                 lockButtons = false,        -- Prevent dragging abilities off buttons
-                buttonPadding = 0,          -- Default button padding
                 -- Range indicator settings
                 rangeIndicator = false,     -- Tint out-of-range buttons
                 rangeColor = {0.8, 0.1, 0.1, 1}, -- Red tint color

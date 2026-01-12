@@ -2169,6 +2169,7 @@ local function UpdateAuras(frame)
     local buffIconSize = auraSettings.buffIconSize or 22  -- Buff icon size
     local showBuffs = auraSettings.showBuffs ~= false  -- default true
     local showDebuffs = auraSettings.showDebuffs ~= false  -- default true
+    local onlyMyDebuffs = auraSettings.onlyMyDebuffs ~= false  -- default true
 
     -- Check if in preview mode for either aura type
     local unitKey = frame.unitKey
@@ -2283,9 +2284,14 @@ local function UpdateAuras(frame)
     -- Populate debuffs (skip if preview is active)
     local debuffCount = 0
     local debuffIndex = 1
+    -- Filter: player frame always shows all; others respect onlyMyDebuffs setting
+    local debuffFilter = "HARMFUL"
+    if unit ~= "player" and onlyMyDebuffs then
+        debuffFilter = "HARMFUL|PLAYER"
+    end
     if showDebuffs and not debuffPreviewActive then
         while debuffCount < debuffMaxIcons do
-            local auraData = C_UnitAuras.GetAuraDataByIndex(unit, debuffIndex, "HARMFUL")
+            local auraData = C_UnitAuras.GetAuraDataByIndex(unit, debuffIndex, debuffFilter)
             if not auraData then break end
             
             debuffCount = debuffCount + 1
@@ -2295,7 +2301,7 @@ local function UpdateAuras(frame)
             -- Store aura data for tooltip
             icon.unit = unit
             icon.auraInstanceID = auraData.auraInstanceID
-            icon.filter = "HARMFUL"
+            icon.filter = debuffFilter
 
             -- Safely set texture (icon field is always safe)
             if auraData.icon then
