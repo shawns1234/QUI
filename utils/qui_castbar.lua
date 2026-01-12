@@ -301,7 +301,17 @@ local function ApplyBackgroundColor(bgBar, bgColor)
 end
 
 local function ApplyCastColor(statusBar, notInterruptible, customColor)
-    if notInterruptible then
+    -- Safely handle secret values (TWW API protection)
+    -- Wrap entire check in pcall - if ANY comparison fails, default to interruptible (false)
+    local isNotInterruptible = false
+    local ok, result = pcall(function()
+        return notInterruptible == true
+    end)
+    if ok and result then
+        isNotInterruptible = true
+    end
+
+    if isNotInterruptible then
         local r, g, b, a = GetSafeColor(NOT_INTERRUPTIBLE_COLOR)
         statusBar:SetStatusBarColor(r, g, b, a)
     else
@@ -1010,29 +1020,45 @@ end
 -- CAST FUNCTION HELPERS
 ---------------------------------------------------------------------------
 -- Get cast information from UnitCastingInfo or UnitChannelInfo
+-- Returns: spellName, text, texture, startTimeMS, endTimeMS, notInterruptible, unitSpellID, isChanneled, channelStages, durationObj, hasSecretTiming
 local function GetCastInfo(castbar, unit)
     local spellName, text, texture, startTimeMS, endTimeMS, _, _, notInterruptible, unitSpellID = UnitCastingInfo(unit)
     local isChanneled = false
     local channelStages = 0
-    
+
     if not spellName then
         spellName, text, texture, startTimeMS, endTimeMS, _, notInterruptible, _, _, channelStages = UnitChannelInfo(unit)
         isChanneled = true
     end
-    
-    -- Check for secret values (API restriction for target units in combat)
-    -- issecretvalue() only exists in 12.0+, so check for its existence first
-    if spellName and startTimeMS and endTimeMS then
-        if IsSecretValue(startTimeMS) or IsSecretValue(endTimeMS) then
-            return nil, nil, nil, nil, nil, nil, nil, false, 0
-        end
-        -- Also check if values are valid numbers (not nil and numeric)
-        if type(startTimeMS) ~= "number" or type(endTimeMS) ~= "number" then
-            return nil, nil, nil, nil, nil, nil, nil, false, 0
+
+    -- Get duration object for engine-driven animation (Midnight 12.0+)
+    -- This is used for non-player units where timing values may be secret
+    local durationObj = nil
+    if spellName then
+        local getDurationFn = isChanneled and UnitChannelDuration or UnitCastingDuration
+        if type(getDurationFn) == "function" then
+            local ok, dur = pcall(getDurationFn, unit)
+            if ok then durationObj = dur end
         end
     end
-    
-    return spellName, text, texture, startTimeMS, endTimeMS, notInterruptible, unitSpellID, isChanneled, channelStages
+
+    -- Check for secret timing values (API restriction for target units in combat)
+    local hasSecretTiming = false
+    if spellName and startTimeMS and endTimeMS then
+        -- Check using issecretvalue if available (12.0+)
+        if IsSecretValue(startTimeMS) or IsSecretValue(endTimeMS) then
+            hasSecretTiming = true
+        end
+        -- Also validate with pcall (secret values pass type checks but fail arithmetic)
+        if not hasSecretTiming then
+            local ok = pcall(function() return startTimeMS + 0 end)
+            if not ok then hasSecretTiming = true end
+        end
+    end
+
+    -- Return all data - don't throw away usable info when timing is secret
+    -- Caller can check hasSecretTiming and use durationObj for engine-driven animation
+    return spellName, text, texture, startTimeMS, endTimeMS, notInterruptible, unitSpellID, isChanneled, channelStages, durationObj, hasSecretTiming
 end
 
 -- Detect if cast is empowered (player only)
@@ -1094,42 +1120,46 @@ local function UpdateCastbarVisuals(castbar, castSettings, unitKey, texture, tex
     -- Get current settings
     local currentSettings = GetUnitSettings(unitKey)
     local currentCastSettings = currentSettings and currentSettings.castbar or castSettings
-    
+
     -- Update status bar texture
     if castbar.statusBar then
         castbar.statusBar:SetStatusBarTexture(GetTexturePath(currentCastSettings.texture))
     end
-    
+
     -- Icon texture is already set in Cast function before this is called
     -- This function just updates other visual elements
-    
+
     -- Update spell text
     UpdateSpellText(castbar, text, spellName, castSettings, unit)
-    
+
     -- Never use reverse fill - drain effect achieved via progress calculation
     local isEmpowered = castbar.isEmpowered
     castbar.statusBar:SetReverseFill(false)
 
-    -- Set initial bar value
-    local now = GetTime()
-    local duration = endTime - startTime
-    local channelFillForward = currentCastSettings and currentCastSettings.channelFillForward
-    local shouldDrain = isChanneled and not isEmpowered and not channelFillForward
-    local progress = shouldDrain and (endTime - now) or (now - startTime)
-    
-    if duration > 0 then
-        castbar.statusBar:SetMinMaxValues(0, duration)
-        castbar.statusBar:SetValue(math.max(0, math.min(duration, progress)))
-    end
-    
-    -- Set color using helper
-    ApplyCastColor(castbar.statusBar, notInterruptible, castbar.customColor)
+    -- Set initial bar value and time text
+    -- Only calculate progress if we have timing values (non-timer-driven mode)
+    -- For timer-driven mode, SetTimerDuration already set up the bar
+    if startTime and endTime then
+        local now = GetTime()
+        local duration = endTime - startTime
+        local channelFillForward = currentCastSettings and currentCastSettings.channelFillForward
+        local shouldDrain = isChanneled and not isEmpowered and not channelFillForward
+        local progress = shouldDrain and (endTime - now) or (now - startTime)
 
-    -- Set initial time text
-    if castbar.timeText then
-        local remaining = endTime - now
-        castbar.timeText:SetText(string.format("%.1f", math.max(0, remaining)))
+        if duration > 0 then
+            castbar.statusBar:SetMinMaxValues(0, duration)
+            castbar.statusBar:SetValue(math.max(0, math.min(duration, progress)))
+        end
+
+        -- Set initial time text
+        if castbar.timeText then
+            local remaining = endTime - now
+            castbar.timeText:SetText(string.format("%.1f", math.max(0, remaining)))
+        end
     end
+
+    -- Set color using helper (always apply, regardless of timer mode)
+    ApplyCastColor(castbar.statusBar, notInterruptible, castbar.customColor)
 end
 
 -- Update empowered cast state
@@ -1150,7 +1180,11 @@ local function HandleNoCast(castbar, castSettings, isPlayer, onUpdateHandler)
             if isPlayer then
                 ClearEmpoweredState(castbar)
             end
-            
+
+            -- Clear timer-driven state
+            castbar.timerDriven = false
+            castbar.durationObj = nil
+
             local settings = GetUnitSettings(castbar.unitKey)
             if settings and settings.castbar and settings.castbar.previewMode then
                 -- Show preview simulation
@@ -1185,7 +1219,55 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
 
         if spellName or channelName or isInEmpoweredHold then
             -- Real cast - use real cast data
-            -- Normalize time units: convert milliseconds to seconds for unified handling
+
+            -- Handle timer-driven mode (non-player units with secret timing)
+            if self.timerDriven and not isPlayer then
+                -- Engine is driving the animation via SetTimerDuration
+                -- Just update time text by reading from the StatusBar
+
+                -- Read progress from StatusBar and convert secret values to plain numbers
+                local remaining = 0
+                if self.statusBar and self.statusBar.GetValue and self.statusBar.GetMinMaxValues then
+                    local okV, value = pcall(self.statusBar.GetValue, self.statusBar)
+                    local okMM, minV, maxV = pcall(self.statusBar.GetMinMaxValues, self.statusBar)
+
+                    -- Convert secret values to plain numbers using ToPlain() if available
+                    -- Then validate with pcall arithmetic
+                    local function toPlainNumber(v)
+                        if v == nil then return nil end
+                        -- Try ToPlain first (Midnight 12.0+)
+                        if type(ToPlain) == "function" then
+                            local ok, pv = pcall(ToPlain, v)
+                            if ok then v = pv end
+                        end
+                        -- Validate with arithmetic test
+                        local ok = pcall(function() return v + 0 end)
+                        return ok and v or nil
+                    end
+
+                    value = toPlainNumber(value)
+                    minV = toPlainNumber(minV)
+                    maxV = toPlainNumber(maxV)
+
+                    if value and minV and maxV then
+                        -- Determine remaining time based on bar direction
+                        local channelFillForward = castSettings and castSettings.channelFillForward
+                        local shouldDrain = self.isChanneled and not channelFillForward
+                        if shouldDrain then
+                            remaining = value - minV
+                        else
+                            remaining = maxV - value
+                        end
+                        if remaining < 0 then remaining = 0 end
+                    end
+                end
+
+                -- Update time text (throttled)
+                UpdateThrottledText(self, elapsed, self.timeText, remaining)
+                return
+            end
+
+            -- Normal mode: calculate progress from stored timing values
             local startTime, endTime
             if isPlayer then
                 startTime = self.startTime
@@ -1200,7 +1282,7 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
                 startTime = self.castStartTime / 1000
                 endTime = self.castEndTime / 1000
             end
-            
+
             if not startTime or not endTime then
                 self:SetScript("OnUpdate", nil)
                 self:Hide()
@@ -1216,10 +1298,10 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
                 self:Hide()
                 return
             end
-            
+
             local duration = endTime - startTime
             if duration <= 0 then duration = 0.001 end
-            
+
             -- Never use reverse fill - drain effect achieved via progress calculation
             self.statusBar:SetReverseFill(false)
 
@@ -1318,47 +1400,97 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
     
     -- Unified Cast function
     function castbar:Cast(spellID, isEmpowerEvent)
-        -- Get cast information
-        local spellName, text, texture, startTimeMS, endTimeMS, notInterruptible, unitSpellID, isChanneled, channelStages = GetCastInfo(self, self.unit)
-        
+        -- Get cast information (now includes durationObj and hasSecretTiming)
+        local spellName, text, texture, startTimeMS, endTimeMS, notInterruptible, unitSpellID, isChanneled, channelStages, durationObj, hasSecretTiming = GetCastInfo(self, self.unit)
+
         -- Detect empowered cast (player only)
         local isEmpowered, numStages = DetectEmpoweredCast(isPlayer, spellID, unitSpellID, isEmpowerEvent, isChanneled, channelStages)
-        
-        -- If actually casting, show real cast
-        if spellName and startTimeMS and endTimeMS then
-            -- Use pcall to handle Midnight secret values (pass type checks but fail arithmetic)
-            local success, startTime, endTime = pcall(function()
-                return startTimeMS / 1000, endTimeMS / 1000
-            end)
-            if not success then return end
 
+        -- If actually casting, show real cast
+        -- For non-player units: can cast if we have spellName and durationObj (even with secret timing)
+        -- For player: need actual timing values
+        local canShowCast = false
+        local useTimerDriven = false
+        local startTime, endTime
+
+        if spellName then
+            if isPlayer then
+                -- Player castbar: need actual timing values
+                if startTimeMS and endTimeMS then
+                    local success
+                    success, startTime, endTime = pcall(function()
+                        return startTimeMS / 1000, endTimeMS / 1000
+                    end)
+                    canShowCast = success
+                end
+            else
+                -- Non-player (target/focus/boss): use engine-driven animation if timing is secret
+                if hasSecretTiming and durationObj and self.statusBar and self.statusBar.SetTimerDuration then
+                    -- Engine-driven mode: use SetTimerDuration
+                    useTimerDriven = true
+                    canShowCast = true
+                elseif startTimeMS and endTimeMS then
+                    -- Normal mode: timing values are accessible
+                    local success
+                    success, startTime, endTime = pcall(function()
+                        return startTimeMS / 1000, endTimeMS / 1000
+                    end)
+                    canShowCast = success
+                elseif durationObj and self.statusBar and self.statusBar.SetTimerDuration then
+                    -- Fallback: timing not explicitly secret but also not accessible, try engine-driven
+                    useTimerDriven = true
+                    canShowCast = true
+                end
+            end
+        end
+
+        if canShowCast then
             -- Clear preview simulation if active
             if self.isPreviewSimulation then
                 ClearPreviewSimulation(self)
             end
-            
-            -- Adjust end time for empowered hold time
-            endTime = AdjustEmpoweredEndTime(self, isPlayer, isEmpowered, endTime)
-            
-            -- Store times and cast state
-            StoreCastTimes(self, isPlayer, startTimeMS, endTimeMS, startTime, endTime)
+
+            -- Store cast state
             self.isChanneled = isChanneled
             self.isEmpowered = isEmpowered
             self.numStages = numStages or 0
             self.notInterruptible = notInterruptible
-            
-            -- Set icon texture IMMEDIATELY (exactly like Blizzard: if Icon exists, SetTexture)
-            -- Blizzard does: if ( self.Icon ) then self.Icon:SetTexture(texture); end
+            self.timerDriven = useTimerDriven
+            self.durationObj = durationObj
+
+            if useTimerDriven then
+                -- Engine-driven animation for non-player units with secret timing
+                -- Use SetTimerDuration to let the engine animate the bar
+                if self.statusBar and self.statusBar.SetTimerDuration then
+                    -- Determine direction: 0=fill (casts), 1=drain (channels that should drain)
+                    local channelFillForward = castSettings and castSettings.channelFillForward
+                    local direction = (isChanneled and not channelFillForward) and 1 or 0
+                    local ok = pcall(self.statusBar.SetTimerDuration, self.statusBar, durationObj, direction)
+                    if not ok then
+                        -- Fallback: try without direction parameter
+                        pcall(self.statusBar.SetTimerDuration, self.statusBar, durationObj)
+                    end
+                end
+                -- Don't store timing values - we'll read progress from the StatusBar
+                self.castStartTime = nil
+                self.castEndTime = nil
+            else
+                -- Normal mode: store timing values for OnUpdate calculation
+                -- Adjust end time for empowered hold time
+                endTime = AdjustEmpoweredEndTime(self, isPlayer, isEmpowered, endTime)
+                StoreCastTimes(self, isPlayer, startTimeMS, endTimeMS, startTime, endTime)
+            end
+
+            -- Set icon texture IMMEDIATELY
             if SetIconTexture(self, texture) then
-                -- Only show icon if showIcon is enabled
                 if ShouldShowIcon(self, castSettings) then
                     self.icon:Show()
                 else
                     self.icon:Hide()
                 end
             end
-            
-            -- Update visual elements
+
+            -- Update visual elements (pass nil for startTime/endTime if timer-driven)
             UpdateCastbarVisuals(self, castSettings, self.unitKey, texture, text, spellName, self.unit, isChanneled, notInterruptible, startTime, endTime)
 
             -- Store showEmpoweredLevel setting for OnUpdate
@@ -1368,7 +1500,7 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
 
             -- Update empowered state
             UpdateEmpoweredState(self, isPlayer, isEmpowered, numStages)
-            
+
             -- Start OnUpdate handler and show
             self:SetScript("OnUpdate", CastBar_OnUpdate)
             self:Show()
