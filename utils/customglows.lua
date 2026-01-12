@@ -191,12 +191,6 @@ local function ApplyLibCustomGlow(icon, viewerSettings)
             glowFrame:SetPoint("TOPLEFT", icon, "TOPLEFT", -xOffset, xOffset)
             glowFrame:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", xOffset, -xOffset)
         end
-
-    elseif glowType == "Button Glow" then
-        -- Button Glow: classic WoW spell alert pulse (Blizzard style)
-        -- Parameters: frame, color, frequency
-        -- Note: Button Glow doesn't support X/Y offset
-        LCG.ButtonGlow_Start(icon, color, frequency)
     end
 
     -- Flag already set by StartGlow, just ensure it's there
@@ -237,7 +231,6 @@ function StopGlow(icon)
     if LCG then
         pcall(LCG.PixelGlow_Stop, icon, "_QUICustomGlow")
         pcall(LCG.AutoCastGlow_Stop, icon, "_QUICustomGlow")
-        pcall(LCG.ButtonGlow_Stop, icon)
     end
     
     icon._QUICustomGlowActive = nil

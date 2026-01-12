@@ -596,7 +596,7 @@ local function StartActiveGlow(icon, config)
 
     if config and config.activeGlowEnabled == false then return end
 
-    local glowType = (config and config.activeGlowType) or "Button Glow"
+    local glowType = (config and config.activeGlowType) or "Pixel Glow"
     local color = (config and config.activeGlowColor) or { 1, 0.85, 0.3, 1 }
     local lines = (config and config.activeGlowLines) or 8
     local frequency = (config and config.activeGlowFrequency) or 0.25
@@ -635,8 +635,6 @@ local function StartActiveGlow(icon, config)
         LCG.PixelGlow_Start(icon, color, lines, frequency, nil, thickness, 0, 0, true, "_QUIActiveGlow")
     elseif glowType == "Autocast Shine" then
         LCG.AutoCastGlow_Start(icon, color, lines, frequency, scale, 0, 0, "_QUIActiveGlow")
-    else
-        LCG.ButtonGlow_Start(icon, color, frequency)
     end
 
     icon._activeGlowShown = true
@@ -647,16 +645,16 @@ local function StopActiveGlow(icon)
     if not icon or not LCG then return end
     if not icon._activeGlowShown then return end
 
-    local glowType = icon._activeGlowType or "Button Glow"
+    local glowType = icon._activeGlowType or "Pixel Glow"
 
     if glowType == "Proc Glow" then
         pcall(LCG.ProcGlow_Stop, icon, "_QUIActiveGlow")
-        
+
         -- Remove mask from icon texture
         if icon.tex and icon._procGlowMask then
             icon.tex:RemoveMaskTexture(icon._procGlowMask)
         end
-        
+
         -- Restore border if it was hidden
         if icon._borderWasShown and icon.border then
             icon.border:Show()
@@ -666,8 +664,6 @@ local function StopActiveGlow(icon)
         pcall(LCG.PixelGlow_Stop, icon, "_QUIActiveGlow")
     elseif glowType == "Autocast Shine" then
         pcall(LCG.AutoCastGlow_Stop, icon, "_QUIActiveGlow")
-    else
-        pcall(LCG.ButtonGlow_Stop, icon)
     end
 
     icon._activeGlowShown = nil

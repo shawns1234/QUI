@@ -2763,7 +2763,7 @@ local defaults = {
                     -- Active state (buff/cast/channel display)
                     showActiveState = true,
                     activeGlowEnabled = true,
-                    activeGlowType = "Button Glow",
+                    activeGlowType = "Pixel Glow",
                     activeGlowColor = {1, 0.85, 0.3, 1},
                     -- Pre-populated with Algari Healing Potion
                     entries = {

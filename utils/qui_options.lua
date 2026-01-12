@@ -9356,7 +9356,6 @@ local function CreateCustomTrackersPage(parent)
         y = y - FORM_ROW
 
         local glowTypeOptions = {
-            {value = "Button Glow", text = "Button Glow"},
             {value = "Pixel Glow", text = "Pixel Glow"},
             {value = "Autocast Shine", text = "Autocast Shine"},
             {value = "Proc Glow", text = "Proc Glow"},
