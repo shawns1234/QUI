@@ -184,16 +184,10 @@ local function SetupTooltipHook()
             return  -- Module disabled, use default behavior
         end
 
-        -- Early exit in combat to avoid triggering Blizzard MoneyFrame secret value bug
-        if settings.hideInCombat and InCombatLockdown() then
-            tooltip:Hide()
-            return
-        end
-
         -- Get context from parent (owner)
         local context = GetTooltipContext(parent)
 
-        -- Check visibility for this context
+        -- Check visibility for this context (handles combat + modifier key logic)
         if not ShouldShowTooltip(context) then
             tooltip:Hide()
             return
