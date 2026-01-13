@@ -1048,6 +1048,43 @@ local function CreateGeneralQoLPage(parent)
         consumableHSDesc:SetJustifyH("LEFT")
         y = y - 20
 
+        y = y - 10
+
+        -- Expiration Warning section
+        local expirationHeader = GUI:CreateLabel(tabContent, "Expiration Warning", 12, C.textAccent)
+        expirationHeader:SetPoint("TOPLEFT", PADDING, y)
+        y = y - 20
+
+        if db.general.consumableExpirationWarning == nil then db.general.consumableExpirationWarning = false end
+
+        local expirationCheck = GUI:CreateFormCheckbox(tabContent, "Warn When Buffs Expiring", "consumableExpirationWarning", db.general, nil)
+        expirationCheck:SetPoint("TOPLEFT", PADDING, y)
+        expirationCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local expirationDesc = GUI:CreateLabel(tabContent, "Show consumables window when food/flask/rune is about to expire (instanced content only).", 11, C.textMuted)
+        expirationDesc:SetPoint("TOPLEFT", PADDING, y + 4)
+        expirationDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        expirationDesc:SetJustifyH("LEFT")
+        expirationDesc:SetWordWrap(true)
+        expirationDesc:SetHeight(28)
+        y = y - 32
+
+        if db.general.consumableExpirationThreshold == nil then db.general.consumableExpirationThreshold = 300 end
+
+        local thresholdSlider = GUI:CreateFormSlider(tabContent, "Warning Threshold (seconds)", 60, 600, 30, "consumableExpirationThreshold", db.general, nil)
+        thresholdSlider:SetPoint("TOPLEFT", PADDING, y)
+        thresholdSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local thresholdDesc = GUI:CreateLabel(tabContent, "Show warning when buff has less than this time remaining (60-600 seconds, default 300 = 5 min).", 11, C.textMuted)
+        thresholdDesc:SetPoint("TOPLEFT", PADDING, y + 4)
+        thresholdDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        thresholdDesc:SetJustifyH("LEFT")
+        thresholdDesc:SetWordWrap(true)
+        thresholdDesc:SetHeight(28)
+        y = y - 32
+
         -- Refresh function for live preview (preserves position - for icon size)
         local function RefreshConsumables()
             if _G.QuaziiUI_RefreshConsumables then
@@ -1062,15 +1099,74 @@ local function CreateGeneralQoLPage(parent)
             end
         end
 
+        -- Positioning section
+        local positionHeader = GUI:CreateLabel(tabContent, "Positioning", 12, C.textAccent)
+        positionHeader:SetPoint("TOPLEFT", PADDING, y)
+        y = y - 20
+
+        -- Anchor mode toggle
+        if db.general.consumableAnchorMode == nil then db.general.consumableAnchorMode = true end
+
+        -- Forward declare for callback reference
+        local iconOffsetSlider
+
+        local anchorModeCheck = GUI:CreateFormCheckbox(tabContent, "Anchor to Ready Check", "consumableAnchorMode", db.general, function()
+            -- Update icon offset slider state based on anchor mode
+            if iconOffsetSlider then
+                if db.general.consumableAnchorMode then
+                    iconOffsetSlider:Enable()
+                    iconOffsetSlider:SetAlpha(1)
+                else
+                    iconOffsetSlider:Disable()
+                    iconOffsetSlider:SetAlpha(0.5)
+                end
+            end
+            RepositionConsumables()
+        end)
+        anchorModeCheck:SetPoint("TOPLEFT", PADDING, y)
+        anchorModeCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local anchorModeDesc = GUI:CreateLabel(tabContent, "When enabled, icons anchor above the Ready Check frame. When disabled, use the mover to position freely.", 11, C.textMuted)
+        anchorModeDesc:SetPoint("TOPLEFT", PADDING, y + 4)
+        anchorModeDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        anchorModeDesc:SetJustifyH("LEFT")
+        anchorModeDesc:SetWordWrap(true)
+        anchorModeDesc:SetHeight(28)
+        y = y - 32
+
+        -- Show Mover button
+        local moverButton = GUI:CreateButton(tabContent, "Show Mover", 120, 24)
+        moverButton:SetPoint("TOPLEFT", PADDING, y)
+        moverButton:SetScript("OnClick", function()
+            if _G.QUI_ToggleConsumablesMover then
+                _G.QUI_ToggleConsumablesMover()
+            end
+        end)
+        y = y - 30
+
+        local moverDesc = GUI:CreateLabel(tabContent, "Drag the mover to set free position (only used when 'Anchor to Ready Check' is off).", 11, C.textMuted)
+        moverDesc:SetPoint("TOPLEFT", PADDING, y + 4)
+        moverDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        moverDesc:SetJustifyH("LEFT")
+        moverDesc:SetWordWrap(true)
+        moverDesc:SetHeight(28)
+        y = y - 32
+
         -- Icon offset slider
         if db.general.consumableIconOffset == nil then db.general.consumableIconOffset = 5 end
 
-        local iconOffsetSlider = GUI:CreateFormSlider(tabContent, "Icon Offset", -10, 30, 1, "consumableIconOffset", db.general, RepositionConsumables)
+        iconOffsetSlider = GUI:CreateFormSlider(tabContent, "Icon Offset", -10, 30, 1, "consumableIconOffset", db.general, RepositionConsumables)
         iconOffsetSlider:SetPoint("TOPLEFT", PADDING, y)
         iconOffsetSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        -- Disable slider if not in anchor mode
+        if not db.general.consumableAnchorMode then
+            iconOffsetSlider:Disable()
+            iconOffsetSlider:SetAlpha(0.5)
+        end
         y = y - FORM_ROW
 
-        local iconOffsetDesc = GUI:CreateLabel(tabContent, "Distance (pixels) between icons and ready check frame.", 11, C.textMuted)
+        local iconOffsetDesc = GUI:CreateLabel(tabContent, "Distance (pixels) between icons and ready check frame (anchor mode only).", 11, C.textMuted)
         iconOffsetDesc:SetPoint("TOPLEFT", PADDING, y + 4)
         iconOffsetDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
         iconOffsetDesc:SetJustifyH("LEFT")
