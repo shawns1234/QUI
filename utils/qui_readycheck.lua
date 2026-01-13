@@ -12,6 +12,10 @@ local DEFAULT_BUTTON_SIZE = 40
 local BUTTON_SPACING = 0  -- Seamless icon layout
 local STATUS_ICON_SIZE = 18
 
+-- Inventory slot constants for weapon enchants
+local INVSLOT_MAINHAND = 16
+local INVSLOT_OFFHAND = 17
+
 -- Consumable spell IDs for The War Within (Season 3)
 local FOOD_BUFFS = {
     -- TWW Food (Well Fed buffs)
@@ -83,52 +87,60 @@ local OIL_ITEMS = {
     191948, 191949, 191950,
 }
 
--- Weapon enchant icon mapping
+-- Weapon enchant mapping (enchantID -> icon + itemID, like MRT's wenchants)
 local WEAPON_ENCHANTS = {
-    -- TWW Oils/Stones (7xxx enchant IDs)
-    [7550] = { icon = 3622199 },
-    [7551] = { icon = 3622199 },
-    [7549] = { icon = 3622199 },
-    [7531] = { icon = 4549251 },  -- Algari Mana Oil
-    [7532] = { icon = 4549251 },
-    [7533] = { icon = 4549251 },
-    [7534] = { icon = 4549251 },
-    [7535] = { icon = 4549251 },
-    [7536] = { icon = 4549251 },
-    [7537] = { icon = 4549251 },
-    [7529] = { icon = 4549251 },
-    [7530] = { icon = 4549251 },
-    [7543] = { icon = 3622195 },  -- Oil of Beledar's Grace
-    [7544] = { icon = 3622195 },
-    [7545] = { icon = 3622195 },
-    [7601] = { icon = 5975854 },  -- Stones
-    [7600] = { icon = 5975854 },
-    [7599] = { icon = 5975854 },
-    [7598] = { icon = 5975933 },
-    [7597] = { icon = 5975933 },
-    [7596] = { icon = 5975933 },
-    [7595] = { icon = 5975753 },
-    [7594] = { icon = 5975753 },
-    [7593] = { icon = 5975753 },
-    [7500] = { icon = 609896 },
-    [7501] = { icon = 609896 },
-    [7502] = { icon = 609896 },
-    [7498] = { icon = 609897 },
-    [7497] = { icon = 609897 },
-    [7496] = { icon = 609897 },
-    [7495] = { icon = 609892 },
-    [7494] = { icon = 609892 },
-    [7493] = { icon = 609892 },
-    -- DF Oils (6xxx enchant IDs)
-    [6381] = { icon = 4622275 },
-    [6380] = { icon = 4622275 },
-    [6379] = { icon = 4622275 },
-    [6698] = { icon = 4622279 },
-    [6697] = { icon = 4622279 },
-    [6696] = { icon = 4622279 },
-    [6384] = { icon = 4622274 },
-    [6383] = { icon = 4622274 },
-    [6382] = { icon = 4622274 },
+    -- TWW Bubbling Wax (7549-7551)
+    [7549] = { icon = 3622199, item = 222508 },  -- R1
+    [7550] = { icon = 3622199, item = 222509 },  -- R2
+    [7551] = { icon = 3622199, item = 222510 },  -- R3
+    -- TWW Algari Mana Oil (7529-7537 -> 222888-222896)
+    [7529] = { icon = 4549251, item = 222888 },
+    [7530] = { icon = 4549251, item = 222889 },
+    [7531] = { icon = 4549251, item = 222890 },
+    [7532] = { icon = 4549251, item = 222891 },
+    [7533] = { icon = 4549251, item = 222892 },
+    [7534] = { icon = 4549251, item = 222893 },
+    [7535] = { icon = 4549251, item = 222894 },
+    [7536] = { icon = 4549251, item = 222895 },
+    [7537] = { icon = 4549251, item = 222896 },
+    -- TWW Oil of Beledar's Grace (7543-7545)
+    [7543] = { icon = 3622195, item = 222502 },  -- R1
+    [7544] = { icon = 3622195, item = 222503 },  -- R2
+    [7545] = { icon = 3622195, item = 222504 },  -- R3
+    -- TWW Ironclaw Whetstone (7599-7601)
+    [7599] = { icon = 5975854, item = 219906 },  -- R1
+    [7600] = { icon = 5975854, item = 219907 },  -- R2
+    [7601] = { icon = 5975854, item = 219908 },  -- R3
+    -- TWW Ironclaw Weightstone (7596-7598)
+    [7596] = { icon = 5975933, item = 219909 },  -- R1
+    [7597] = { icon = 5975933, item = 219910 },  -- R2
+    [7598] = { icon = 5975933, item = 219911 },  -- R3
+    -- TWW Ironclaw Razorstone (7593-7595)
+    [7593] = { icon = 5975753, item = 219912 },  -- R1
+    [7594] = { icon = 5975753, item = 219913 },  -- R2
+    [7595] = { icon = 5975753, item = 219914 },  -- R3
+    -- TWW Oils (older IDs)
+    [7500] = { icon = 609896, item = 224108 },
+    [7501] = { icon = 609896, item = 224109 },
+    [7502] = { icon = 609896, item = 224110 },
+    [7496] = { icon = 609897, item = 224105 },
+    [7497] = { icon = 609897, item = 224106 },
+    [7498] = { icon = 609897, item = 224107 },
+    [7493] = { icon = 609892, item = 224111 },
+    [7494] = { icon = 609892, item = 224112 },
+    [7495] = { icon = 609892, item = 224113 },
+    -- DF Primal Whetstone (6379-6381)
+    [6379] = { icon = 4622275, item = 191933 },  -- R1
+    [6380] = { icon = 4622275, item = 191939 },  -- R2
+    [6381] = { icon = 4622275, item = 191940 },  -- R3
+    -- DF Primal Weightstone (6696-6698)
+    [6696] = { icon = 4622279, item = 191943 },  -- R1
+    [6697] = { icon = 4622279, item = 191944 },  -- R2
+    [6698] = { icon = 4622279, item = 191945 },  -- R3
+    -- DF Primal Razorstone (6382-6384)
+    [6382] = { icon = 4622274, item = 191948 },  -- R1
+    [6383] = { icon = 4622274, item = 191949 },  -- R2
+    [6384] = { icon = 4622274, item = 191950 },  -- R3
 }
 
 ---------------------------------------------------------------------------
@@ -149,22 +161,35 @@ local function GetButtonSize()
     return (settings and settings.consumableIconSize) or DEFAULT_BUTTON_SIZE
 end
 
--- Get/set last weapon enchant per character (saved in QUI profile)
-local function GetLastWeaponEnchant()
+-- Get/set last weapon enchant per slot (saved in QUI profile, like MRT)
+-- slot: 16 = main hand, 17 = off-hand
+local function GetLastWeaponEnchant(slot)
     local settings = GetSettings()
-    if settings and settings.lastWeaponEnchant then
-        return settings.lastWeaponEnchant
+    if not settings then return nil end
+
+    -- Support both old format (single) and new format (per-slot)
+    if slot == INVSLOT_MAINHAND then
+        return settings.lastWeaponEnchantMH or settings.lastWeaponEnchant
+    elseif slot == INVSLOT_OFFHAND then
+        return settings.lastWeaponEnchantOH
     end
     return nil
 end
 
-local function SaveLastWeaponEnchant(enchantID, icon)
+local function SaveLastWeaponEnchant(slot, enchantID, icon, itemID)
     local settings = GetSettings()
-    if settings then
-        settings.lastWeaponEnchant = {
-            enchantID = enchantID,
-            icon = icon,
-        }
+    if not settings then return end
+
+    local data = {
+        enchantID = enchantID,
+        icon = icon,
+        item = itemID,
+    }
+
+    if slot == INVSLOT_MAINHAND then
+        settings.lastWeaponEnchantMH = data
+    elseif slot == INVSLOT_OFFHAND then
+        settings.lastWeaponEnchantOH = data
     end
 end
 
@@ -191,8 +216,8 @@ end
 
 
 local function IsDualWielding()
-    local mainhand = GetInventoryItemID("player", 16)
-    local offhand = GetInventoryItemID("player", 17)
+    local mainhand = GetInventoryItemID("player", INVSLOT_MAINHAND)
+    local offhand = GetInventoryItemID("player", INVSLOT_OFFHAND)
     if not offhand then return false end
 
     -- Check if offhand is a weapon (not shield/offhand frill)
@@ -344,6 +369,18 @@ local function CreateConsumableButton(parent, index, buttonType, iconID, isClick
         button.click:SetAllPoints()
         button.click:RegisterForClicks("AnyUp", "AnyDown")
         button.click:Hide()
+
+        -- Set up secure attributes based on button type (like MRT)
+        -- Oil buttons need target-slot to specify which weapon slot
+        if buttonType == "oilMH" then
+            button.click:SetAttribute("type", "item")
+            button.click:SetAttribute("target-slot", INVSLOT_MAINHAND)
+        elseif buttonType == "oilOH" then
+            button.click:SetAttribute("type", "item")
+            button.click:SetAttribute("target-slot", INVSLOT_OFFHAND)
+        else
+            button.click:SetAttribute("type", "item")
+        end
 
         -- Hover effect
         button.click:SetScript("OnEnter", function(self)
@@ -508,25 +545,26 @@ local function UpdateConsumables()
 
     end
 
-    -- Weapon enchant check (Main Hand)
-    local hasMainHandEnchant, mainHandExpiration, _, mainHandEnchantID = GetWeaponEnchantInfo()
+    -- Weapon enchant check (Main Hand and Off Hand)
+    -- GetWeaponEnchantInfo returns: hasMainEnchant, mainExpiration(ms), mainCharges, mainEnchantID, hasOffEnchant, offExpiration(ms), offCharges, offEnchantID
+    local hasMainHandEnchant, mainHandExpiration, _, mainHandEnchantID, hasOffHandEnchant, offHandExpiration, _, offHandEnchantID = GetWeaponEnchantInfo()
     if settings.consumableOilMH ~= false then
         if hasMainHandEnchant then
             buttons.oilMH.status:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
             buttons.oilMH.icon:SetDesaturated(false)
             -- Update icon to actual enchant icon
             if mainHandEnchantID and WEAPON_ENCHANTS[mainHandEnchantID] then
-                local enchantIcon = WEAPON_ENCHANTS[mainHandEnchantID].icon
-                buttons.oilMH.icon:SetTexture(enchantIcon)
-                -- Remember for next session
-                SaveLastWeaponEnchant(mainHandEnchantID, enchantIcon)
+                local enchantData = WEAPON_ENCHANTS[mainHandEnchantID]
+                buttons.oilMH.icon:SetTexture(enchantData.icon)
+                -- Remember for next session (like MRT)
+                SaveLastWeaponEnchant(INVSLOT_MAINHAND, mainHandEnchantID, enchantData.icon, enchantData.item)
             end
             if mainHandExpiration and mainHandExpiration > 0 then
                 buttons.oilMH.timeText:SetText(FormatTimeRemaining(mainHandExpiration / 1000))
             end
         else
             -- No active enchant - use remembered icon if available
-            local lastEnchant = GetLastWeaponEnchant()
+            local lastEnchant = GetLastWeaponEnchant(INVSLOT_MAINHAND)
             if lastEnchant and lastEnchant.icon then
                 buttons.oilMH.icon:SetTexture(lastEnchant.icon)
             end
@@ -535,16 +573,24 @@ local function UpdateConsumables()
 
     -- Weapon enchant check (Off Hand) - only if dual wielding
     if settings.consumableOilOH ~= false and IsDualWielding() then
-        local _, _, _, _, hasOffHandEnchant, offHandExpiration, _, offHandEnchantID = GetWeaponEnchantInfo()
         if hasOffHandEnchant then
             buttons.oilOH.status:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
             buttons.oilOH.icon:SetDesaturated(false)
             -- Update icon to actual enchant icon
             if offHandEnchantID and WEAPON_ENCHANTS[offHandEnchantID] then
-                buttons.oilOH.icon:SetTexture(WEAPON_ENCHANTS[offHandEnchantID].icon)
+                local enchantData = WEAPON_ENCHANTS[offHandEnchantID]
+                buttons.oilOH.icon:SetTexture(enchantData.icon)
+                -- Remember for next session (like MRT)
+                SaveLastWeaponEnchant(INVSLOT_OFFHAND, offHandEnchantID, enchantData.icon, enchantData.item)
             end
             if offHandExpiration and offHandExpiration > 0 then
                 buttons.oilOH.timeText:SetText(FormatTimeRemaining(offHandExpiration / 1000))
+            end
+        else
+            -- No active enchant - use remembered icon if available
+            local lastEnchant = GetLastWeaponEnchant(INVSLOT_OFFHAND)
+            if lastEnchant and lastEnchant.icon then
+                buttons.oilOH.icon:SetTexture(lastEnchant.icon)
             end
         end
     end
@@ -612,26 +658,76 @@ local function UpdateConsumables()
         end
     end
 
-    -- Setup clickable oil button if no enchant but have oils in bags
+    -- Setup clickable oil button if no enchant but have oils in bags (like MRT)
     if not hasMainHandEnchant and settings.consumableOilMH ~= false and not InCombatLockdown() then
-        for _, itemID in ipairs(OIL_ITEMS) do
-            local count = C_Item.GetItemCount(itemID, false, false)
-            if count and count > 0 then
-                local itemName = C_Item.GetItemInfo(itemID)
-                if itemName and buttons.oilMH.click then
-                    buttons.oilMH.click:SetAttribute("type", "item")
-                    buttons.oilMH.click:SetAttribute("item", itemName)
-                    buttons.oilMH.click:Show()
-                    buttons.oilMH.countText:SetText(tostring(count))
-                    -- Set icon to actual oil item icon
-                    local texture = select(5, C_Item.GetItemInfoInstant(itemID))
-                    if texture then
-                        buttons.oilMH.icon:SetTexture(texture)
-                    end
-                    -- Highlight missing buff
-                    StartButtonGlow(buttons.oilMH)
+        -- Try saved item first (remembers what you used last)
+        local lastEnchant = GetLastWeaponEnchant(INVSLOT_MAINHAND)
+        local oilItemID = lastEnchant and lastEnchant.item
+        local oilCount = oilItemID and C_Item.GetItemCount(oilItemID, false, false) or 0
+
+        -- If saved item not in bags, fall back to scanning OIL_ITEMS
+        if not oilItemID or oilCount == 0 then
+            for _, itemID in ipairs(OIL_ITEMS) do
+                local count = C_Item.GetItemCount(itemID, false, false)
+                if count and count > 0 then
+                    oilItemID = itemID
+                    oilCount = count
+                    break
                 end
-                break
+            end
+        end
+
+        -- Setup the click button if we found an oil
+        if oilItemID and oilCount > 0 and buttons.oilMH.click then
+            local itemName = C_Item.GetItemInfo(oilItemID)
+            if itemName then
+                buttons.oilMH.click:SetAttribute("item", itemName)
+                buttons.oilMH.click:Show()
+                buttons.oilMH.countText:SetText(tostring(oilCount))
+                -- Set icon to actual oil item icon
+                local texture = select(5, C_Item.GetItemInfoInstant(oilItemID))
+                if texture then
+                    buttons.oilMH.icon:SetTexture(texture)
+                end
+                -- Highlight missing buff
+                StartButtonGlow(buttons.oilMH)
+            end
+        end
+    end
+
+    -- Setup clickable off-hand oil button if no enchant but have oils in bags (dual wield only, like MRT)
+    if not hasOffHandEnchant and settings.consumableOilOH ~= false and IsDualWielding() and not InCombatLockdown() then
+        -- Try saved item first (remembers what you used last)
+        local lastEnchant = GetLastWeaponEnchant(INVSLOT_OFFHAND)
+        local oilItemID = lastEnchant and lastEnchant.item
+        local oilCount = oilItemID and C_Item.GetItemCount(oilItemID, false, false) or 0
+
+        -- If saved item not in bags, fall back to scanning OIL_ITEMS
+        if not oilItemID or oilCount == 0 then
+            for _, itemID in ipairs(OIL_ITEMS) do
+                local count = C_Item.GetItemCount(itemID, false, false)
+                if count and count > 0 then
+                    oilItemID = itemID
+                    oilCount = count
+                    break
+                end
+            end
+        end
+
+        -- Setup the click button if we found an oil
+        if oilItemID and oilCount > 0 and buttons.oilOH.click then
+            local itemName = C_Item.GetItemInfo(oilItemID)
+            if itemName then
+                buttons.oilOH.click:SetAttribute("item", itemName)
+                buttons.oilOH.click:Show()
+                buttons.oilOH.countText:SetText(tostring(oilCount))
+                -- Set icon to actual oil item icon
+                local texture = select(5, C_Item.GetItemInfoInstant(oilItemID))
+                if texture then
+                    buttons.oilOH.icon:SetTexture(texture)
+                end
+                -- Highlight missing buff
+                StartButtonGlow(buttons.oilOH)
             end
         end
     end
@@ -699,6 +795,27 @@ local function UpdateConsumables()
     end
 end
 
+-- Track weapon enchant state for change detection
+local lastMainHandEnchant = nil
+local lastOffHandEnchant = nil
+local weaponEnchantTicker = nil
+
+-- Check if weapon enchant state changed and update if needed
+local function CheckWeaponEnchantChanges()
+    local hasMainHandEnchant, _, _, mainHandEnchantID, hasOffHandEnchant, _, _, offHandEnchantID = GetWeaponEnchantInfo()
+
+    -- Normalize to nil if no enchant
+    local currentMainHand = hasMainHandEnchant and mainHandEnchantID or nil
+    local currentOffHand = hasOffHandEnchant and offHandEnchantID or nil
+
+    -- Check if anything changed
+    if currentMainHand ~= lastMainHandEnchant or currentOffHand ~= lastOffHandEnchant then
+        lastMainHandEnchant = currentMainHand
+        lastOffHandEnchant = currentOffHand
+        UpdateConsumables()
+    end
+end
+
 -- Update consumables when player buffs change (must be after UpdateConsumables is defined)
 ConsumablesFrame:SetScript("OnEvent", function(self, event, unit)
     if event == "UNIT_AURA" and unit == "player" then
@@ -708,35 +825,137 @@ end)
 
 ConsumablesFrame:SetScript("OnShow", function(self)
     self:RegisterUnitEvent("UNIT_AURA", "player")
+
+    -- Initialize weapon enchant tracking state
+    local hasMainHandEnchant, _, _, mainHandEnchantID, hasOffHandEnchant, _, _, offHandEnchantID = GetWeaponEnchantInfo()
+    lastMainHandEnchant = hasMainHandEnchant and mainHandEnchantID or nil
+    lastOffHandEnchant = hasOffHandEnchant and offHandEnchantID or nil
+
+    -- Start polling for weapon enchant changes (every 0.5 seconds)
+    -- Weapon enchants don't fire UNIT_AURA, so we need to poll
+    if not weaponEnchantTicker then
+        weaponEnchantTicker = C_Timer.NewTicker(0.5, CheckWeaponEnchantChanges)
+    end
 end)
 
 ConsumablesFrame:SetScript("OnHide", function(self)
     self:UnregisterEvent("UNIT_AURA")
+
+    -- Stop weapon enchant polling
+    if weaponEnchantTicker then
+        weaponEnchantTicker:Cancel()
+        weaponEnchantTicker = nil
+    end
 end)
 
 ---------------------------------------------------------------------------
--- POSITIONING
+-- POSITIONING & MOVER
 ---------------------------------------------------------------------------
 
 local CLOSE_BUTTON_HEIGHT = 18
 
+-- Mover frame for free positioning mode
+local MoverFrame = CreateFrame("Frame", "QUI_ConsumablesMover", UIParent, "BackdropTemplate")
+MoverFrame:SetSize(200, 60)
+MoverFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+MoverFrame:SetFrameStrata("DIALOG")
+MoverFrame:SetMovable(true)
+MoverFrame:EnableMouse(true)
+MoverFrame:RegisterForDrag("LeftButton")
+MoverFrame:SetClampedToScreen(true)
+MoverFrame:Hide()
+
+MoverFrame:SetBackdrop({
+    bgFile = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Buttons\\WHITE8x8",
+    edgeSize = 1,
+})
+MoverFrame:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+MoverFrame:SetBackdropBorderColor(0.4, 0.8, 1.0, 1)
+
+MoverFrame.text = MoverFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+MoverFrame.text:SetPoint("CENTER")
+MoverFrame.text:SetText("Consumables Check\nDrag to position")
+MoverFrame.text:SetTextColor(0.4, 0.8, 1.0, 1)
+
+MoverFrame.closeBtn = CreateFrame("Button", nil, MoverFrame)
+MoverFrame.closeBtn:SetSize(16, 16)
+MoverFrame.closeBtn:SetPoint("TOPRIGHT", -2, -2)
+MoverFrame.closeBtn:SetNormalTexture("Interface\\Buttons\\UI-StopButton")
+MoverFrame.closeBtn:SetScript("OnClick", function()
+    MoverFrame:Hide()
+end)
+
+MoverFrame:SetScript("OnDragStart", function(self)
+    self:StartMoving()
+end)
+
+MoverFrame:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    -- Save position (relativeTo frame discarded - always restored relative to UIParent)
+    local settings = GetSettings()
+    if settings then
+        local point, _, relativePoint, x, y = self:GetPoint()
+        settings.consumableFreePosition = {
+            point = point,
+            relativePoint = relativePoint,
+            x = x,
+            y = y,
+        }
+    end
+end)
+
+-- Toggle mover visibility
+local function ToggleMover()
+    if MoverFrame:IsShown() then
+        MoverFrame:Hide()
+    else
+        -- Load saved position
+        local settings = GetSettings()
+        if settings and settings.consumableFreePosition then
+            local pos = settings.consumableFreePosition
+            MoverFrame:ClearAllPoints()
+            MoverFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
+        end
+        MoverFrame:Show()
+    end
+end
+
+-- Expose toggle function globally
+_G.QUI_ToggleConsumablesMover = ToggleMover
+
 local function PositionConsumablesFrame()
     ConsumablesFrame:ClearAllPoints()
 
-    -- Get offset from settings (default 5), plus close button height
     local settings = GetSettings()
-    local userOffset = (settings and settings.consumableIconOffset) or 5
-    local totalOffset = userOffset + CLOSE_BUTTON_HEIGHT + 2  -- +2 for padding
+    local anchorMode = settings and settings.consumableAnchorMode ~= false  -- Default true
 
-    -- Anchor to ReadyCheckFrame (it exists even if not shown yet)
-    if ReadyCheckFrame then
-        ConsumablesFrame:SetPoint("BOTTOM", ReadyCheckFrame, "TOP", 0, totalOffset)
-        ConsumablesFrame:SetParent(ReadyCheckFrame)
-        ConsumablesFrame:SetFrameStrata("DIALOG")
+    if anchorMode then
+        -- Anchor mode: position relative to ReadyCheckFrame
+        local userOffset = (settings and settings.consumableIconOffset) or 5
+        local totalOffset = userOffset + CLOSE_BUTTON_HEIGHT + 2  -- +2 for padding
+
+        if ReadyCheckFrame then
+            ConsumablesFrame:SetPoint("BOTTOM", ReadyCheckFrame, "TOP", 0, totalOffset)
+            ConsumablesFrame:SetParent(ReadyCheckFrame)
+            ConsumablesFrame:SetFrameStrata("DIALOG")
+        else
+            -- Fallback to center of screen
+            ConsumablesFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+            ConsumablesFrame:SetParent(UIParent)
+        end
     else
-        -- Fallback to center of screen
-        ConsumablesFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+        -- Free mode: use saved position
         ConsumablesFrame:SetParent(UIParent)
+        ConsumablesFrame:SetFrameStrata("DIALOG")
+
+        if settings and settings.consumableFreePosition then
+            local pos = settings.consumableFreePosition
+            ConsumablesFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
+        else
+            -- Default: center of screen
+            ConsumablesFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+        end
     end
 end
 
@@ -809,30 +1028,34 @@ end
 
 local eventFrame = CreateFrame("Frame")
 
--- Show consumables popup standalone (uses saved ReadyCheck position, not parented to ReadyCheckFrame)
+-- Show consumables popup standalone (for triggers outside ready check)
 local function ShowConsumablesStandalone()
     InitializeButtons()
     UpdateConsumables()
+
+    local settings = GetSettings()
+    local anchorMode = settings and settings.consumableAnchorMode ~= false  -- Default true
 
     ConsumablesFrame:ClearAllPoints()
     ConsumablesFrame:SetParent(UIParent)
     ConsumablesFrame:SetFrameStrata("DIALOG")
 
-    -- Get saved ReadyCheck position and offset
-    local settings = GetSettings()
-    local userOffset = (settings and settings.consumableIconOffset) or 5
-    local totalOffset = userOffset + CLOSE_BUTTON_HEIGHT + 2
-
-    local savedPos = settings and settings.readyCheckPosition
-    if savedPos then
-        -- Position above where ReadyCheckFrame would be
-        -- ReadyCheckFrame is ~110px tall, so add half its height (~55) to get to TOP
-        -- Then add totalOffset for the spacing above
-        local readyCheckHalfHeight = 55
-        ConsumablesFrame:SetPoint("BOTTOM", UIParent, savedPos.relativePoint, savedPos.x, savedPos.y + readyCheckHalfHeight + totalOffset)
+    if not anchorMode and settings and settings.consumableFreePosition then
+        -- Free mode: use saved mover position
+        local pos = settings.consumableFreePosition
+        ConsumablesFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
     else
-        -- Default: center of screen, slightly above middle
-        ConsumablesFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+        -- Anchor mode or no saved position: use ReadyCheck position
+        local userOffset = (settings and settings.consumableIconOffset) or 5
+        local totalOffset = userOffset + CLOSE_BUTTON_HEIGHT + 2
+
+        local savedPos = settings and settings.readyCheckPosition
+        if savedPos then
+            local readyCheckHalfHeight = 55
+            ConsumablesFrame:SetPoint("BOTTOM", UIParent, savedPos.relativePoint, savedPos.x, savedPos.y + readyCheckHalfHeight + totalOffset)
+        else
+            ConsumablesFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+        end
     end
 
     ConsumablesFrame:Show()
@@ -869,6 +1092,10 @@ local function OnReadyCheckFinished()
 end
 
 local function OnInstanceEnter()
+    -- Reset weapon enchant tracking on zone change/login/reload
+    lastMainHandEnchant = nil
+    lastOffHandEnchant = nil
+
     local settings = GetSettings()
     if not settings or settings.consumableCheckEnabled == false then return end
 
@@ -1028,5 +1255,170 @@ _G.QuaziiUI_RepositionConsumables = function()
             end
             -- If no saved position, preserve current position (user may have manually placed it)
         end
+    end
+end
+
+---------------------------------------------------------------------------
+-- EXPIRATION WARNING SYSTEM
+---------------------------------------------------------------------------
+
+local expirationTicker = nil
+local lastExpirationWarning = 0
+local WARNING_COOLDOWN = 60  -- Don't spam warnings more than once per minute
+
+-- Check if any tracked buffs are expiring soon
+local function CheckExpiringBuffs()
+    local settings = GetSettings()
+    if not settings or settings.consumableCheckEnabled == false then return nil end
+    if not settings.consumableExpirationWarning then return nil end
+
+    -- Only check in instanced content
+    if not IsInInstancedContent() then return nil end
+
+    -- Don't check in combat
+    if InCombatLockdown() then return nil end
+
+    local threshold = (settings.consumableExpirationThreshold or 300)  -- Default 5 minutes
+    local now = GetTime()
+    local expiringBuffs = {}
+
+    -- Scan player buffs
+    local buffs = ScanPlayerBuffs()
+
+    -- Check food expiration
+    if settings.consumableFood ~= false and buffs.hasFood and buffs.foodData then
+        local expires = buffs.foodData.expirationTime
+        if expires and expires > 0 then
+            local remaining = expires - now
+            if remaining > 0 and remaining <= threshold then
+                table.insert(expiringBuffs, { type = "food", remaining = remaining })
+            end
+        end
+    end
+
+    -- Check flask expiration
+    if settings.consumableFlask ~= false and buffs.hasFlask and buffs.flaskData then
+        local expires = buffs.flaskData.expirationTime
+        if expires and expires > 0 then
+            local remaining = expires - now
+            if remaining > 0 and remaining <= threshold then
+                table.insert(expiringBuffs, { type = "flask", remaining = remaining })
+            end
+        end
+    end
+
+    -- Check rune expiration
+    if settings.consumableRune ~= false and buffs.hasRune and buffs.runeData then
+        local expires = buffs.runeData.expirationTime
+        if expires and expires > 0 then
+            local remaining = expires - now
+            if remaining > 0 and remaining <= threshold then
+                table.insert(expiringBuffs, { type = "rune", remaining = remaining })
+            end
+        end
+    end
+
+    -- Check weapon enchant expiration (main hand)
+    if settings.consumableOilMH ~= false then
+        local hasMainHandEnchant, mainHandExpiration = GetWeaponEnchantInfo()
+        if hasMainHandEnchant and mainHandExpiration then
+            local remaining = mainHandExpiration / 1000  -- Convert from ms to seconds
+            if remaining > 0 and remaining <= threshold then
+                table.insert(expiringBuffs, { type = "oilMH", remaining = remaining })
+            end
+        end
+    end
+
+    -- Check weapon enchant expiration (off hand)
+    if settings.consumableOilOH ~= false and IsDualWielding() then
+        local _, _, _, _, hasOffHandEnchant, offHandExpiration = GetWeaponEnchantInfo()
+        if hasOffHandEnchant and offHandExpiration then
+            local remaining = offHandExpiration / 1000  -- Convert from ms to seconds
+            if remaining > 0 and remaining <= threshold then
+                table.insert(expiringBuffs, { type = "oilOH", remaining = remaining })
+            end
+        end
+    end
+
+    return #expiringBuffs > 0 and expiringBuffs or nil
+end
+
+-- Show expiration warning
+local function ShowExpirationWarning()
+    local now = GetTime()
+
+    -- Respect warning cooldown
+    if now - lastExpirationWarning < WARNING_COOLDOWN then return end
+
+    local expiringBuffs = CheckExpiringBuffs()
+    if not expiringBuffs then return end
+
+    -- Don't show if consumables frame is already visible
+    if ConsumablesFrame:IsShown() then return end
+
+    lastExpirationWarning = now
+    ShowConsumablesStandalone()
+end
+
+-- Start expiration monitoring when entering instanced content
+local function StartExpirationMonitoring()
+    local settings = GetSettings()
+    if not settings or not settings.consumableExpirationWarning then return end
+
+    -- Stop existing ticker
+    if expirationTicker then
+        expirationTicker:Cancel()
+        expirationTicker = nil
+    end
+
+    -- Only monitor in instanced content
+    if not IsInInstancedContent() then return end
+
+    -- Check every 30 seconds
+    expirationTicker = C_Timer.NewTicker(30, ShowExpirationWarning)
+
+    -- Also do an immediate check
+    C_Timer.After(2, ShowExpirationWarning)
+end
+
+-- Stop expiration monitoring
+local function StopExpirationMonitoring()
+    if expirationTicker then
+        expirationTicker:Cancel()
+        expirationTicker = nil
+    end
+end
+
+-- Hook into instance enter/leave
+local expirationFrame = CreateFrame("Frame")
+expirationFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+expirationFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+expirationFrame:SetScript("OnEvent", function(self, event)
+    -- Delay to let instance info load
+    C_Timer.After(2, function()
+        if IsInInstancedContent() then
+            StartExpirationMonitoring()
+        else
+            StopExpirationMonitoring()
+        end
+    end)
+end)
+
+-- Test function for expiration warning
+_G.QUI_TestExpirationWarning = function()
+    print("[QUI Debug] Expiration Warning Test:")
+    local settings = GetSettings()
+    print("  consumableExpirationWarning:", settings and settings.consumableExpirationWarning and "YES" or "NO")
+    print("  consumableExpirationThreshold:", settings and settings.consumableExpirationThreshold or 300)
+    print("  IsInInstancedContent:", IsInInstancedContent() and "YES" or "NO")
+
+    local expiringBuffs = CheckExpiringBuffs()
+    if expiringBuffs then
+        print("  Expiring buffs found:", #expiringBuffs)
+        for _, buff in ipairs(expiringBuffs) do
+            print("    -", buff.type, ":", FormatTimeRemaining(buff.remaining))
+        end
+    else
+        print("  No expiring buffs found")
     end
 end
