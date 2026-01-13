@@ -1321,6 +1321,95 @@ local function IsMouseOverBar(barKey)
     return false
 end
 
+---------------------------------------------------------------------------
+-- LINKED ACTION BARS (1-8) MOUSEOVER
+---------------------------------------------------------------------------
+
+-- Bars that participate in linked mouseover behavior
+local LINKED_BAR_KEYS = {"bar1", "bar2", "bar3", "bar4", "bar5", "bar6", "bar7", "bar8"}
+
+local function IsLinkedBar(barKey)
+    for _, key in ipairs(LINKED_BAR_KEYS) do
+        if key == barKey then return true end
+    end
+    return false
+end
+
+local function IsMouseOverAnyLinkedBar()
+    for _, barKey in ipairs(LINKED_BAR_KEYS) do
+        if IsMouseOverBar(barKey) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Show a linked bar without triggering recursion
+local function ShowLinkedBarDirect(barKey)
+    local barSettings = GetBarSettings(barKey)
+    local fadeSettings = GetFadeSettings()
+
+    if not barSettings then return end
+    if barSettings.alwaysShow then return end
+
+    local fadeEnabled = barSettings.fadeEnabled
+    if fadeEnabled == nil then
+        fadeEnabled = fadeSettings and fadeSettings.enabled
+    end
+    if not fadeEnabled then return end
+
+    local state = GetBarFadeState(barKey)
+
+    -- Cancel pending fade-out timers
+    if state.delayTimer then
+        state.delayTimer:Cancel()
+        state.delayTimer = nil
+    end
+    if state.leaveCheckTimer then
+        state.leaveCheckTimer:Cancel()
+        state.leaveCheckTimer = nil
+    end
+
+    StartBarFade(barKey, 1)
+end
+
+-- Start fade-out for a linked bar
+local function FadeLinkedBarDirect(barKey)
+    local barSettings = GetBarSettings(barKey)
+    local fadeSettings = GetFadeSettings()
+
+    if not barSettings then return end
+    if barSettings.alwaysShow then return end
+
+    local fadeEnabled = barSettings.fadeEnabled
+    if fadeEnabled == nil then
+        fadeEnabled = fadeSettings and fadeSettings.enabled
+    end
+    if not fadeEnabled then return end
+
+    local state = GetBarFadeState(barKey)
+    state.isMouseOver = false
+
+    local fadeOutAlpha = barSettings.fadeOutAlpha
+    if fadeOutAlpha == nil then
+        fadeOutAlpha = fadeSettings and fadeSettings.fadeOutAlpha or 0
+    end
+
+    local delay = fadeSettings and fadeSettings.fadeOutDelay or 0.5
+
+    if state.delayTimer then
+        state.delayTimer:Cancel()
+    end
+
+    state.delayTimer = C_Timer.NewTimer(delay, function()
+        state.delayTimer = nil
+        -- Re-check at fade time in case mouse moved back
+        if not IsMouseOverAnyLinkedBar() then
+            StartBarFade(barKey, fadeOutAlpha)
+        end
+    end)
+end
+
 -- Handle mouse entering the bar area (event-based, no polling)
 local function OnBarMouseEnter(barKey)
     local state = GetBarFadeState(barKey)
@@ -1338,6 +1427,15 @@ local function OnBarMouseEnter(barKey)
     if not fadeEnabled then return end
 
     state.isMouseOver = true
+
+    -- LINKED BARS: If enabled and this is a linked bar, show ALL linked bars
+    if fadeSettings and fadeSettings.linkBars1to8 and IsLinkedBar(barKey) then
+        for _, linkedKey in ipairs(LINKED_BAR_KEYS) do
+            if linkedKey ~= barKey then
+                ShowLinkedBarDirect(linkedKey)
+            end
+        end
+    end
 
     -- Cancel any pending fade-out
     if state.delayTimer then
@@ -1385,6 +1483,18 @@ local function OnBarMouseLeave(barKey)
 
         -- If mouse is still over the bar somewhere, don't fade
         if IsMouseOverBar(barKey) then return end
+
+        -- LINKED BARS: If enabled and this is a linked bar, check if over ANY linked bar
+        if fadeSettings and fadeSettings.linkBars1to8 and IsLinkedBar(barKey) then
+            if IsMouseOverAnyLinkedBar() then
+                return  -- Mouse moved to another linked bar, don't fade any
+            end
+            -- Mouse left all linked bars - fade them all
+            for _, linkedKey in ipairs(LINKED_BAR_KEYS) do
+                FadeLinkedBarDirect(linkedKey)
+            end
+            return  -- Skip normal single-bar fade logic
+        end
 
         state.isMouseOver = false
 

@@ -11572,6 +11572,20 @@ local function CreateActionBarsPage(parent)
         combatCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
+        local linkBarsCheck = GUI:CreateFormCheckbox(tabContent, "Link Action Bars 1-8 on Mouseover",
+            "linkBars1to8", fade, RefreshActionBars)
+        linkBarsCheck:SetPoint("TOPLEFT", PAD, y)
+        linkBarsCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local linkBarsDesc = GUI:CreateLabel(tabContent,
+            "When enabled, hovering any action bar (1-8) reveals all bars 1-8 together.",
+            11, C.textMuted)
+        linkBarsDesc:SetPoint("TOPLEFT", PAD, y)
+        linkBarsDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        linkBarsDesc:SetJustifyH("LEFT")
+        y = y - 24
+
         -- Always Show toggles (bars that ignore mouseover hide)
         local alwaysShowTip = GUI:CreateLabel(tabContent,
             "Bars checked below will always remain visible, ignoring mouseover hide.",
