@@ -87,7 +87,7 @@ local OIL_ITEMS = {
     191948, 191949, 191950,
 }
 
--- Weapon enchant mapping (enchantID -> icon + itemID, like MRT's wenchants)
+-- Weapon enchant mapping (enchantID -> icon + itemID)
 local WEAPON_ENCHANTS = {
     -- TWW Bubbling Wax (7549-7551)
     [7549] = { icon = 3622199, item = 222508 },  -- R1
@@ -161,7 +161,7 @@ local function GetButtonSize()
     return (settings and settings.consumableIconSize) or DEFAULT_BUTTON_SIZE
 end
 
--- Get/set last weapon enchant per slot (saved in QUI profile, like MRT)
+-- Get/set last weapon enchant per slot (saved in QUI profile)
 -- slot: 16 = main hand, 17 = off-hand
 local function GetLastWeaponEnchant(slot)
     local settings = GetSettings()
@@ -370,7 +370,7 @@ local function CreateConsumableButton(parent, index, buttonType, iconID, isClick
         button.click:RegisterForClicks("AnyUp", "AnyDown")
         button.click:Hide()
 
-        -- Set up secure attributes based on button type (like MRT)
+        -- Set up secure attributes based on button type
         -- Oil buttons need target-slot to specify which weapon slot
         if buttonType == "oilMH" then
             button.click:SetAttribute("type", "item")
@@ -556,7 +556,7 @@ local function UpdateConsumables()
             if mainHandEnchantID and WEAPON_ENCHANTS[mainHandEnchantID] then
                 local enchantData = WEAPON_ENCHANTS[mainHandEnchantID]
                 buttons.oilMH.icon:SetTexture(enchantData.icon)
-                -- Remember for next session (like MRT)
+                -- Remember for next session
                 SaveLastWeaponEnchant(INVSLOT_MAINHAND, mainHandEnchantID, enchantData.icon, enchantData.item)
             end
             if mainHandExpiration and mainHandExpiration > 0 then
@@ -580,7 +580,7 @@ local function UpdateConsumables()
             if offHandEnchantID and WEAPON_ENCHANTS[offHandEnchantID] then
                 local enchantData = WEAPON_ENCHANTS[offHandEnchantID]
                 buttons.oilOH.icon:SetTexture(enchantData.icon)
-                -- Remember for next session (like MRT)
+                -- Remember for next session
                 SaveLastWeaponEnchant(INVSLOT_OFFHAND, offHandEnchantID, enchantData.icon, enchantData.item)
             end
             if offHandExpiration and offHandExpiration > 0 then
@@ -658,7 +658,7 @@ local function UpdateConsumables()
         end
     end
 
-    -- Setup clickable oil button if no enchant but have oils in bags (like MRT)
+    -- Setup clickable oil button if no enchant but have oils in bags
     if not hasMainHandEnchant and settings.consumableOilMH ~= false and not InCombatLockdown() then
         -- Try saved item first (remembers what you used last)
         local lastEnchant = GetLastWeaponEnchant(INVSLOT_MAINHAND)
@@ -695,7 +695,7 @@ local function UpdateConsumables()
         end
     end
 
-    -- Setup clickable off-hand oil button if no enchant but have oils in bags (dual wield only, like MRT)
+    -- Setup clickable off-hand oil button if no enchant but have oils in bags (dual wield only)
     if not hasOffHandEnchant and settings.consumableOilOH ~= false and IsDualWielding() and not InCombatLockdown() then
         -- Try saved item first (remembers what you used last)
         local lastEnchant = GetLastWeaponEnchant(INVSLOT_OFFHAND)
