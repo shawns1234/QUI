@@ -8418,6 +8418,7 @@ local function CreateCustomTrackersPage(parent)
         -- Forward declarations for spec-specific UI elements
         local specInfoLabel = nil
         local copyFromDropdown = nil
+        local updatePositioningAnchor = nil  -- Forward declaration for anchor update
 
         -- Get tracker module reference
         local trackerModule = QUICore and QUICore.CustomTrackers
@@ -8486,6 +8487,10 @@ local function CreateCustomTrackersPage(parent)
                     copyFromDropdown:Hide()
                 end
             end
+            -- Update positioning section anchor to collapse/expand layout
+            if updatePositioningAnchor then
+                updatePositioningAnchor()
+            end
         end)
         specEnableCheck:SetPoint("TOPLEFT", PAD, y)
         specEnableCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
@@ -8510,18 +8515,17 @@ local function CreateCustomTrackersPage(parent)
             end
         end
 
-        -- Info label (shows currently editing spec)
+        -- Info label (shows currently editing spec) - anchored relative to checkbox
         specInfoLabel = GUI:CreateLabel(tabContent, "", 11, C.accent)
-        specInfoLabel:SetPoint("TOPLEFT", PAD, y)
+        specInfoLabel:SetPoint("TOPLEFT", specEnableCheck, "BOTTOMLEFT", 0, -4)
         specInfoLabel:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         specInfoLabel:SetJustifyH("LEFT")
         updateSpecInfoLabel()
-        y = y - 20
 
-        -- Copy From dropdown (only visible when spec-specific is enabled)
+        -- Copy From dropdown (only visible when spec-specific is enabled) - anchored relative to info label
         local copyContainer = CreateFrame("Frame", nil, tabContent)
         copyContainer:SetHeight(FORM_ROW)
-        copyContainer:SetPoint("TOPLEFT", PAD, y)
+        copyContainer:SetPoint("TOPLEFT", specInfoLabel, "BOTTOMLEFT", 0, -4)
         copyContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
 
         local copyLabel = copyContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -8570,22 +8574,37 @@ local function CreateCustomTrackersPage(parent)
             copyContainer:Hide()
         end
         copyFromDropdown = copyContainer  -- Use container for show/hide
-        y = y - FORM_ROW + 4
 
         -----------------------------------------------------------------------
-        -- POSITIONING SECTION
+        -- POSITIONING SECTION (dynamically anchored based on spec-specific toggle)
         -----------------------------------------------------------------------
         local posHeader = GUI:CreateSectionHeader(tabContent, "Positioning")
-        posHeader:SetPoint("TOPLEFT", PAD, y)
-        y = y - posHeader.gap
+
+        -- Helper to update positioning section anchor based on toggle state
+        -- (Assigns to forward-declared variable so checkbox callback can use it)
+        updatePositioningAnchor = function()
+            posHeader:ClearAllPoints()
+            if barConfig.specSpecificSpells then
+                -- Anchor below the dropdown container when spec-specific is ON
+                posHeader:SetPoint("TOPLEFT", copyContainer, "BOTTOMLEFT", 0, -15)
+            else
+                -- Anchor below the checkbox when spec-specific is OFF
+                posHeader:SetPoint("TOPLEFT", specEnableCheck, "BOTTOMLEFT", 0, -15)
+            end
+        end
+
+        -- Initial anchor setup
+        updatePositioningAnchor()
 
         local posHint = GUI:CreateLabel(tabContent, "Hint: You can place your custom bar ANYWHERE on screen. Simply toggle off Prevent Mouse Dragging, then left-click drag the bar. Locking to Player Frame is merely for convenience.", 11, C.textMuted)
-        posHint:SetPoint("TOPLEFT", PAD, y)
+        posHint:SetPoint("TOPLEFT", posHeader, "BOTTOMLEFT", 0, -8)
         posHint:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         posHint:SetJustifyH("LEFT")
         posHint:SetWordWrap(true)
         posHint:SetHeight(45)
-        y = y - 55
+
+        -- Continue using relative anchoring for lockContainer
+        -- (Everything below posHint uses relative anchoring from here)
 
         -- Ensure offset fields exist (migration)
         if not barConfig.offsetX then barConfig.offsetX = 0 end
@@ -8611,7 +8630,7 @@ local function CreateCustomTrackersPage(parent)
 
         local lockContainer = CreateFrame("Frame", nil, tabContent)
         lockContainer:SetHeight(FORM_ROW + 22 + rowGap)
-        lockContainer:SetPoint("TOPLEFT", PAD, y)
+        lockContainer:SetPoint("TOPLEFT", posHint, "BOTTOMLEFT", 0, -10)
         lockContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
 
         local lockLabel = lockContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -8778,12 +8797,10 @@ local function CreateCustomTrackersPage(parent)
             UpdateLockButtonStates()  -- Set initial button highlight state
         end)
 
-        y = y - (FORM_ROW + 22 + rowGap)
-
-        -- Lock to Target Frame section
+        -- Lock to Target Frame section (anchored to Lock to Player Frame)
         local targetLockContainer = CreateFrame("Frame", nil, tabContent)
         targetLockContainer:SetHeight(FORM_ROW + 22 + rowGap)
-        targetLockContainer:SetPoint("TOPLEFT", PAD, y)
+        targetLockContainer:SetPoint("TOPLEFT", lockContainer, "BOTTOMLEFT", 0, -4)
         targetLockContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
 
         local targetLockLabel = targetLockContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -8940,43 +8957,36 @@ local function CreateCustomTrackersPage(parent)
             UpdateTargetLockButtonStates()
         end)
 
-        y = y - (FORM_ROW + 22 + rowGap)
-
-        -- X Offset slider
+        -- X Offset slider (anchored to Target Lock section)
         xOffsetSlider = GUI:CreateFormSlider(tabContent, "X Offset", -2000, 2000, 1, "offsetX", barConfig, RefreshPosition)
-        xOffsetSlider:SetPoint("TOPLEFT", PAD, y)
+        xOffsetSlider:SetPoint("TOPLEFT", targetLockContainer, "BOTTOMLEFT", 0, -8)
         xOffsetSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
 
-        -- Y Offset slider
+        -- Y Offset slider (anchored to X Offset)
         yOffsetSlider = GUI:CreateFormSlider(tabContent, "Y Offset", -2000, 2000, 1, "offsetY", barConfig, RefreshPosition)
-        yOffsetSlider:SetPoint("TOPLEFT", PAD, y)
+        yOffsetSlider:SetPoint("TOPLEFT", xOffsetSlider, "BOTTOMLEFT", 0, -4)
         yOffsetSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
 
         -- Set initial slider enabled state based on lock
         UpdateLockState()
 
-        -- Prevent Mouse Dragging checkbox
+        -- Prevent Mouse Dragging checkbox (anchored to Y Offset)
         local lockCheck = GUI:CreateFormCheckbox(tabContent, "Prevent Mouse Dragging", "locked", barConfig)
-        lockCheck:SetPoint("TOPLEFT", PAD, y)
+        lockCheck:SetPoint("TOPLEFT", yOffsetSlider, "BOTTOMLEFT", 0, -4)
         lockCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
 
         -----------------------------------------------------------------------
         -- ADD ITEMS/SPELLS SECTION
         -----------------------------------------------------------------------
         local addHeader = GUI:CreateSectionHeader(tabContent, "Add Trinkets/Consumables/Spells")
-        addHeader:SetPoint("TOPLEFT", PAD, y)
-        y = y - addHeader.gap
+        addHeader:SetPoint("TOPLEFT", lockCheck, "BOTTOMLEFT", 0, -15)
 
         local hintText = GUI:CreateLabel(tabContent, "Drag items from your bags or character pane, spells from your spellbook into the box below.", 11, C.textMuted)
-        hintText:SetPoint("TOPLEFT", PAD, y)
+        hintText:SetPoint("TOPLEFT", addHeader, "BOTTOMLEFT", 0, -8)
         hintText:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         hintText:SetJustifyH("LEFT")
         hintText:SetWordWrap(true)
         hintText:SetHeight(30)
-        y = y - 40
 
         -- Function to refresh entry list (defined later, used in add section)
         local function RefreshEntryList()
@@ -9250,22 +9260,20 @@ local function CreateCustomTrackersPage(parent)
             entryListFrame:SetHeight(listHeight)
         end
 
-        -- Create add entry section (drop zone)
+        -- Create add entry section (drop zone) - anchored to hintText
         local addSection = CreateAddEntrySection(tabContent, barConfig.id, RefreshEntryList)
-        addSection:SetPoint("TOPLEFT", PAD, y)
+        addSection:SetPoint("TOPLEFT", hintText, "BOTTOMLEFT", 0, -10)
         addSection:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)  -- Full width
-        y = y - 98  -- 50% taller spacing
 
         -----------------------------------------------------------------------
         -- TRACKED ITEMS SECTION
         -----------------------------------------------------------------------
         local trackedHeader = GUI:CreateSectionHeader(tabContent, "Tracked Items And Spells")
-        trackedHeader:SetPoint("TOPLEFT", PAD, y)
-        y = y - trackedHeader.gap
+        trackedHeader:SetPoint("TOPLEFT", addSection, "BOTTOMLEFT", 0, -15)
 
         -- Entry list container
         entryListFrame = CreateFrame("Frame", nil, tabContent)
-        entryListFrame:SetPoint("TOPLEFT", PAD, y)
+        entryListFrame:SetPoint("TOPLEFT", trackedHeader, "BOTTOMLEFT", 0, -8)
         entryListFrame:SetSize(400, 20)
         RefreshEntryList()
 
