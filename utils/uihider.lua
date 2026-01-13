@@ -425,6 +425,11 @@ end
         local hideXP = settings.hideExperienceBar
         local hideRep = settings.hideReputationBar
 
+        -- Use Blizzard's BarsEnum if available, fallback to known values
+        local BarsEnum = StatusTrackingBarInfo and StatusTrackingBarInfo.BarsEnum
+        local BARS_ENUM_EXPERIENCE = BarsEnum and BarsEnum.Experience or 4
+        local BARS_ENUM_REPUTATION = BarsEnum and BarsEnum.Reputation or 1
+
         -- Helper function to hide individual bars based on type
         local function HideStatusBars()
             local s = GetSettings()
@@ -442,50 +447,22 @@ end
             -- Show the manager if it was hidden
             StatusTrackingBarManager:Show()
 
-            -- Iterate through bars and hide/show based on type
-            if StatusTrackingBarManager.bars then
-                for _, bar in ipairs(StatusTrackingBarManager.bars) do
-                    local barType = bar.barType or (bar.GetBarType and bar:GetBarType())
-                    -- barType values: 1 = Rep, 2 = Honor, 3 = Artifact, 4 = XP, 5 = Azerite
-                    -- Also check via template name fallback
-                    local isXPBar = (barType == 4) or (bar.statusBar and bar.statusBar.name and bar.statusBar.name:find("Exp"))
-                    local isRepBar = (barType == 1) or (bar.statusBar and bar.statusBar.name and bar.statusBar.name:find("Rep"))
+            -- Blizzard uses barContainers (visual slots) that display bars based on shownBarIndex
+            -- Each container can show one bar type at a time, determined by priority
+            if StatusTrackingBarManager.barContainers then
+                for _, container in ipairs(StatusTrackingBarManager.barContainers) do
+                    local shownBarIndex = container.shownBarIndex
 
-                    -- Alternative check via mixin or template
-                    if not isXPBar and not isRepBar then
-                        local name = bar:GetName() or ""
-                        isXPBar = name:find("Exp") ~= nil
-                        isRepBar = name:find("Reputation") ~= nil or name:find("Rep") ~= nil
-                    end
-
-                    if isXPBar and doHideXP then
-                        bar:SetAlpha(0)
-                        bar:EnableMouse(false)
-                    elseif isRepBar and doHideRep then
-                        bar:SetAlpha(0)
-                        bar:EnableMouse(false)
+                    if shownBarIndex == BARS_ENUM_EXPERIENCE and doHideXP then
+                        container:SetAlpha(0)
+                        container:EnableMouse(false)
+                    elseif shownBarIndex == BARS_ENUM_REPUTATION and doHideRep then
+                        container:SetAlpha(0)
+                        container:EnableMouse(false)
                     else
-                        bar:SetAlpha(1)
-                        bar:EnableMouse(true)
+                        container:SetAlpha(1)
+                        container:EnableMouse(true)
                     end
-                end
-            end
-
-            -- Also check children directly as fallback
-            local children = { StatusTrackingBarManager:GetChildren() }
-            for _, child in ipairs(children) do
-                local name = child:GetName() or ""
-                local childType = child.barType or (child.GetBarType and child:GetBarType())
-
-                local isXPBar = (childType == 4) or name:find("Exp") ~= nil
-                local isRepBar = (childType == 1) or name:find("Reputation") ~= nil
-
-                if isXPBar and doHideXP then
-                    child:SetAlpha(0)
-                    child:EnableMouse(false)
-                elseif isRepBar and doHideRep then
-                    child:SetAlpha(0)
-                    child:EnableMouse(false)
                 end
             end
         end
@@ -506,7 +483,9 @@ end
         elseif hideXP or hideRep then
             -- Show the manager but hide individual bars
             StatusTrackingBarManager:Show()
-            HideStatusBars()
+            if StatusTrackingBarManager.barContainers then
+                HideStatusBars()
+            end
 
             -- Hook UpdateBarsShown to re-hide bars after Blizzard updates
             if not StatusTrackingBarManager._QUI_BarsHooked then
