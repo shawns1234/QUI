@@ -2341,20 +2341,21 @@ local function UpdateAuras(frame)
                 yPos = yPos - idx * (iconSize + debuffSpacing)
             end
             
-            -- Map user anchor to frame anchor points
-            local iconPoint, framePoint
+            -- Map user anchor to frame anchor points (flip vertical only for outside positioning)
+            -- Border compensation: icons have 1px border extending beyond frame
+            local iconPoint, framePoint, borderOffsetX
             if debuffAnchor == "TOPLEFT" then
-                iconPoint, framePoint = "TOPLEFT", "TOPLEFT"
+                iconPoint, framePoint, borderOffsetX = "BOTTOMLEFT", "TOPLEFT", 1
             elseif debuffAnchor == "TOPRIGHT" then
-                iconPoint, framePoint = "TOPRIGHT", "TOPRIGHT"
+                iconPoint, framePoint, borderOffsetX = "BOTTOMRIGHT", "TOPRIGHT", -1
             elseif debuffAnchor == "BOTTOMLEFT" then
-                iconPoint, framePoint = "BOTTOMLEFT", "BOTTOMLEFT"
+                iconPoint, framePoint, borderOffsetX = "TOPLEFT", "BOTTOMLEFT", 1
             elseif debuffAnchor == "BOTTOMRIGHT" then
-                iconPoint, framePoint = "BOTTOMRIGHT", "BOTTOMRIGHT"
+                iconPoint, framePoint, borderOffsetX = "TOPRIGHT", "BOTTOMRIGHT", -1
             end
-            
+
             icon:ClearAllPoints()
-            icon:SetPoint(iconPoint, frame, framePoint, xPos, yPos)
+            icon:SetPoint(iconPoint, frame, framePoint, xPos + (borderOffsetX or 0), yPos)
             icon:Show()
             
             debuffIndex = debuffIndex + 1
@@ -2416,20 +2417,21 @@ local function UpdateAuras(frame)
                 yPos = yPos - idx * (buffIconSize + buffSpacing)
             end
 
-            -- Map user anchor to frame anchor points
-            local iconPoint, framePoint
+            -- Map user anchor to frame anchor points (flip vertical only for outside positioning)
+            -- Border compensation: icons have 1px border extending beyond frame
+            local iconPoint, framePoint, borderOffsetX
             if buffAnchor == "TOPLEFT" then
-                iconPoint, framePoint = "TOPLEFT", "TOPLEFT"
+                iconPoint, framePoint, borderOffsetX = "BOTTOMLEFT", "TOPLEFT", 1
             elseif buffAnchor == "TOPRIGHT" then
-                iconPoint, framePoint = "TOPRIGHT", "TOPRIGHT"
+                iconPoint, framePoint, borderOffsetX = "BOTTOMRIGHT", "TOPRIGHT", -1
             elseif buffAnchor == "BOTTOMLEFT" then
-                iconPoint, framePoint = "BOTTOMLEFT", "BOTTOMLEFT"
+                iconPoint, framePoint, borderOffsetX = "TOPLEFT", "BOTTOMLEFT", 1
             elseif buffAnchor == "BOTTOMRIGHT" then
-                iconPoint, framePoint = "BOTTOMRIGHT", "BOTTOMRIGHT"
+                iconPoint, framePoint, borderOffsetX = "TOPRIGHT", "BOTTOMRIGHT", -1
             end
 
             icon:ClearAllPoints()
-            icon:SetPoint(iconPoint, frame, framePoint, xPos, yPos)
+            icon:SetPoint(iconPoint, frame, framePoint, xPos + (borderOffsetX or 0), yPos)
             icon:Show()
 
             buffIndex = buffIndex + 1
@@ -2897,20 +2899,21 @@ function QUI_UF:ShowAuraPreview(unitKey, auraType)
             yPos = yPos - idx * (iconSize + spacing)
         end
 
-        -- Map user anchor to frame anchor points
-        local iconPoint, framePoint
+        -- Map user anchor to frame anchor points (flip vertical only for outside positioning)
+        -- Border compensation: icons have 1px border extending beyond frame
+        local iconPoint, framePoint, borderOffsetX
         if anchor == "TOPLEFT" then
-            iconPoint, framePoint = "TOPLEFT", "TOPLEFT"
+            iconPoint, framePoint, borderOffsetX = "BOTTOMLEFT", "TOPLEFT", 1
         elseif anchor == "TOPRIGHT" then
-            iconPoint, framePoint = "TOPRIGHT", "TOPRIGHT"
+            iconPoint, framePoint, borderOffsetX = "BOTTOMRIGHT", "TOPRIGHT", -1
         elseif anchor == "BOTTOMLEFT" then
-            iconPoint, framePoint = "BOTTOMLEFT", "BOTTOMLEFT"
+            iconPoint, framePoint, borderOffsetX = "TOPLEFT", "BOTTOMLEFT", 1
         elseif anchor == "BOTTOMRIGHT" then
-            iconPoint, framePoint = "BOTTOMRIGHT", "BOTTOMRIGHT"
+            iconPoint, framePoint, borderOffsetX = "TOPRIGHT", "BOTTOMRIGHT", -1
         end
 
         icon:ClearAllPoints()
-        icon:SetPoint(iconPoint, frame, framePoint, xPos, yPos)
+        icon:SetPoint(iconPoint, frame, framePoint, xPos + (borderOffsetX or 0), yPos)
 
         -- Setup looping cooldown animation
         icon.cooldown:SetCooldown(previewStartTime, previewDuration)
