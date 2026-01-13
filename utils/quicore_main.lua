@@ -416,8 +416,10 @@ local defaults = {
             enabled = true,
             showOnlyInGroup = true,
             providerMode = false,
+            hideLabelBar = false,  -- Hide the "Missing Buffs" label bar
             iconSize = 32,
             labelFontSize = 12,
+            labelTextColor = nil,  -- nil = white, otherwise {r, g, b, a}
             position = nil,
         },
 
