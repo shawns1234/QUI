@@ -2703,8 +2703,9 @@ local defaults = {
             height = 22,
             offsetY = 0,  -- Y offset from minimap bottom
             bgOpacity = 60,  -- 0-100
-            borderSize = 2,  -- Border thickness (1-10)
-            
+            borderSize = 2,  -- Border thickness (0-8, 0=hidden)
+            borderColor = {0, 0, 0, 1},  -- Black border (#90)
+
             -- Font Settings
             font = "Quazii",
             fontSize = 13,

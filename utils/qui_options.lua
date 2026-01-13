@@ -4169,9 +4169,14 @@ local function CreateMinimapPage(parent)
             bgOpacitySlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
 
-            local borderSizeSlider = GUI:CreateFormSlider(tabContent, "Border Size", 1, 8, 1, "borderSize", dt, RefreshMinimap)
+            local borderSizeSlider = GUI:CreateFormSlider(tabContent, "Border Size (0=hidden)", 0, 8, 1, "borderSize", dt, RefreshMinimap)
             borderSizeSlider:SetPoint("TOPLEFT", PAD, y)
             borderSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            local borderColorPicker = GUI:CreateFormColorPicker(tabContent, "Border Color", "borderColor", dt, RefreshMinimap)
+            borderColorPicker:SetPoint("TOPLEFT", PAD, y)
+            borderColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
 
             local offsetYSlider = GUI:CreateFormSlider(tabContent, "Vertical Offset", -40, 40, 1, "offsetY", dt, RefreshMinimap)
@@ -4182,17 +4187,13 @@ local function CreateMinimapPage(parent)
             y = y - 10
 
             -- Build datatext options from registry (no section header - flows from Vertical Offset)
-            local dtOptions = {{value = "", text = "(Empty)"}}
-            if QUI.QUICore and QUI.QUICore.Datatexts and QUI.QUICore.Datatexts.registry then
-                for id, def in pairs(QUI.QUICore.Datatexts.registry) do
-                    table.insert(dtOptions, {value = id, text = def.displayName or id})
+            -- NOTE: Use QUICore.Datatexts:GetAll() for consistent behavior with extra panels (#89)
+            local dtOptions = {{value = nil, text = "(empty)"}}
+            if QUICore and QUICore.Datatexts then
+                local allDatatexts = QUICore.Datatexts:GetAll()
+                for _, datatextDef in ipairs(allDatatexts) do
+                    table.insert(dtOptions, {value = datatextDef.id, text = datatextDef.displayName})
                 end
-                -- Sort alphabetically by display name
-                table.sort(dtOptions, function(a, b)
-                    if a.value == "" then return true end
-                    if b.value == "" then return false end
-                    return a.text < b.text
-                end)
             end
 
             -- Ensure slots table and per-slot configs exist
@@ -4629,8 +4630,8 @@ local function CreateMinimapPage(parent)
                     opacitySlider:SetPoint("TOPLEFT", editPad, editY)
                     opacitySlider:SetWidth(200)  -- Fixed width that works at all panel sizes
                     
-                    -- Border size slider
-                    local borderSlider = GUI:CreateSlider(editFrame, "Border Size", 0, 8, 1, "borderSize", panelConfig, function()
+                    -- Border size slider (0=hidden) (#90)
+                    local borderSlider = GUI:CreateSlider(editFrame, "Border (0=hidden)", 0, 8, 1, "borderSize", panelConfig, function()
                         if QUICore and QUICore.Datapanels then
                             QUICore.Datapanels:UpdatePanel(panelConfig.id)
                         end
@@ -4638,7 +4639,16 @@ local function CreateMinimapPage(parent)
                     borderSlider:SetPoint("LEFT", opacitySlider, "RIGHT", 10, 0)
                     borderSlider:SetWidth(200)  -- Fixed width that works at all panel sizes
                     editY = editY - 65
-                    
+
+                    -- Border color picker (#90)
+                    local borderColorPicker = GUI:CreateColorPicker(editFrame, "Border Color", "borderColor", panelConfig, function()
+                        if QUICore and QUICore.Datapanels then
+                            QUICore.Datapanels:UpdatePanel(panelConfig.id)
+                        end
+                    end)
+                    borderColorPicker:SetPoint("TOPLEFT", editPad, editY)
+                    editY = editY - 25
+
                     -- Lock toggle
                     local lockCheck = GUI:CreateCheckbox(editFrame, "Lock Position (prevents dragging)", "locked", panelConfig, function()
                         if QUICore and QUICore.Datapanels then

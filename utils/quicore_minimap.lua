@@ -344,6 +344,7 @@ local function UpdateDatatextPanel()
     local minimapScale = minimapSettings.scale or 1.0
     local minimapBorderSize = minimapSettings.borderSize or 3
     local dtBorderSize = dtSettings.borderSize or 2
+    local dtBorderColor = dtSettings.borderColor or {0, 0, 0, 1}  -- (#90)
     local dtHeight = dtSettings.height or 22
     local yOffset = dtSettings.offsetY or 0
     local bgAlpha = (dtSettings.bgOpacity or 60) / 100
@@ -367,28 +368,35 @@ local function UpdateDatatextPanel()
     datatextFrame.borderLeft:SetPoint("TOPRIGHT", datatextFrame, "TOPLEFT", 0, dtBorderSize)
     datatextFrame.borderLeft:SetPoint("BOTTOMRIGHT", datatextFrame, "BOTTOMLEFT", 0, -dtBorderSize)
     datatextFrame.borderLeft:SetWidth(dtBorderSize)
-    datatextFrame.borderLeft:SetColorTexture(0, 0, 0, 1)
+    datatextFrame.borderLeft:SetColorTexture(unpack(dtBorderColor))
 
     -- Right border (extends outward)
     datatextFrame.borderRight:ClearAllPoints()
     datatextFrame.borderRight:SetPoint("TOPLEFT", datatextFrame, "TOPRIGHT", 0, dtBorderSize)
     datatextFrame.borderRight:SetPoint("BOTTOMLEFT", datatextFrame, "BOTTOMRIGHT", 0, -dtBorderSize)
     datatextFrame.borderRight:SetWidth(dtBorderSize)
-    datatextFrame.borderRight:SetColorTexture(0, 0, 0, 1)
+    datatextFrame.borderRight:SetColorTexture(unpack(dtBorderColor))
 
     -- Top border (extends outward)
     datatextFrame.borderTop:ClearAllPoints()
     datatextFrame.borderTop:SetPoint("BOTTOMLEFT", datatextFrame, "TOPLEFT", 0, 0)
     datatextFrame.borderTop:SetPoint("BOTTOMRIGHT", datatextFrame, "TOPRIGHT", 0, 0)
     datatextFrame.borderTop:SetHeight(dtBorderSize)
-    datatextFrame.borderTop:SetColorTexture(0, 0, 0, 1)
+    datatextFrame.borderTop:SetColorTexture(unpack(dtBorderColor))
 
     -- Bottom border (extends outward)
     datatextFrame.borderBottom:ClearAllPoints()
     datatextFrame.borderBottom:SetPoint("TOPLEFT", datatextFrame, "BOTTOMLEFT", 0, 0)
     datatextFrame.borderBottom:SetPoint("TOPRIGHT", datatextFrame, "BOTTOMRIGHT", 0, 0)
     datatextFrame.borderBottom:SetHeight(dtBorderSize)
-    datatextFrame.borderBottom:SetColorTexture(0, 0, 0, 1)
+    datatextFrame.borderBottom:SetColorTexture(unpack(dtBorderColor))
+
+    -- Hide borders when borderSize is 0 (matches extra panels behavior) (#90)
+    local showBorder = dtBorderSize > 0
+    datatextFrame.borderLeft:SetShown(showBorder)
+    datatextFrame.borderRight:SetShown(showBorder)
+    datatextFrame.borderTop:SetShown(showBorder)
+    datatextFrame.borderBottom:SetShown(showBorder)
 
     -- Background (content area with opacity)
     datatextFrame.bg:SetColorTexture(0, 0, 0, bgAlpha)
