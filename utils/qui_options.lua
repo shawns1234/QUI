@@ -1203,7 +1203,7 @@ local function CreateGeneralQoLPage(parent)
 
         -- Ensure raidBuffs settings exist
         if not db.raidBuffs then
-            db.raidBuffs = { enabled = true, showOnlyInGroup = true, providerMode = false, hideLabelBar = false, iconSize = 32, labelFontSize = 12, labelTextColor = nil, position = nil }
+            db.raidBuffs = { enabled = true, showOnlyInGroup = true, showOnlyInInstance = false, providerMode = false, hideLabelBar = false, iconSize = 32, labelFontSize = 12, labelTextColor = nil, position = nil }
         end
         local rbDB = db.raidBuffs
 
@@ -1223,6 +1223,17 @@ local function CreateGeneralQoLPage(parent)
         rbGroupOnlyCheck:SetPoint("TOPLEFT", PADDING, y)
         rbGroupOnlyCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
         y = y - FORM_ROW
+
+        local rbInstanceOnlyCheck = GUI:CreateFormCheckbox(tabContent, "Show Only In Instance", "showOnlyInInstance", rbDB, RefreshRaidBuffs)
+        rbInstanceOnlyCheck:SetPoint("TOPLEFT", PADDING, y)
+        rbInstanceOnlyCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local instanceOnlyDesc = GUI:CreateLabel(tabContent, "Hide when forming groups in cities, show only when zoned into dungeon/raid.", 11, C.textMuted)
+        instanceOnlyDesc:SetPoint("TOPLEFT", PADDING, y + 4)
+        instanceOnlyDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        instanceOnlyDesc:SetJustifyH("LEFT")
+        y = y - 20
 
         local rbProviderCheck = GUI:CreateFormCheckbox(tabContent, "Also Show Buffs You Can Provide", "providerMode", rbDB, RefreshRaidBuffs)
         rbProviderCheck:SetPoint("TOPLEFT", PADDING, y)

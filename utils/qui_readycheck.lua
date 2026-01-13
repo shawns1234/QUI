@@ -975,12 +975,6 @@ local function IsInRaidInstance()
     return instanceType == "raid"
 end
 
--- Check if player is in any instanced content (dungeon or raid)
-local function IsInInstancedContent()
-    local inInstance, instanceType = IsInInstance()
-    return inInstance and (instanceType == "party" or instanceType == "raid")
-end
-
 -- Check if any enabled buffs are missing (returns true if something is missing)
 local function HasMissingBuffs()
     local settings = GetSettings()
@@ -1130,7 +1124,7 @@ local function OnResurrect()
     if InCombatLockdown() then return end
 
     -- Only show if in instanced content
-    if not IsInInstancedContent() then return end
+    if not ns.Utils.IsInInstancedContent() then return end
 
     -- Only show if buffs are missing
     if HasMissingBuffs() then
@@ -1273,7 +1267,7 @@ local function CheckExpiringBuffs()
     if not settings.consumableExpirationWarning then return nil end
 
     -- Only check in instanced content
-    if not IsInInstancedContent() then return nil end
+    if not ns.Utils.IsInInstancedContent() then return nil end
 
     -- Don't check in combat
     if InCombatLockdown() then return nil end
@@ -1372,7 +1366,7 @@ local function StartExpirationMonitoring()
     end
 
     -- Only monitor in instanced content
-    if not IsInInstancedContent() then return end
+    if not ns.Utils.IsInInstancedContent() then return end
 
     -- Check every 30 seconds
     expirationTicker = C_Timer.NewTicker(30, ShowExpirationWarning)
@@ -1396,7 +1390,7 @@ expirationFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 expirationFrame:SetScript("OnEvent", function(self, event)
     -- Delay to let instance info load
     C_Timer.After(2, function()
-        if IsInInstancedContent() then
+        if ns.Utils.IsInInstancedContent() then
             StartExpirationMonitoring()
         else
             StopExpirationMonitoring()
@@ -1410,7 +1404,7 @@ _G.QUI_TestExpirationWarning = function()
     local settings = GetSettings()
     print("  consumableExpirationWarning:", settings and settings.consumableExpirationWarning and "YES" or "NO")
     print("  consumableExpirationThreshold:", settings and settings.consumableExpirationThreshold or 300)
-    print("  IsInInstancedContent:", IsInInstancedContent() and "YES" or "NO")
+    print("  IsInInstancedContent:", ns.Utils.IsInInstancedContent() and "YES" or "NO")
 
     local expiringBuffs = CheckExpiringBuffs()
     if expiringBuffs then
