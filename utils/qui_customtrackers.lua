@@ -1164,6 +1164,75 @@ local function FormatDuration(seconds)
     return ""
 end
 
+---------------------------------------------------------------------------
+-- ACTIVE SET MANAGEMENT (Performance optimization)
+---------------------------------------------------------------------------
+-- Instead of checking IsSpellUsable() on every update (50+ API calls/tick),
+-- we pre-filter icons on spec/talent change and only update the active set.
+-- This reduces update loop from O(all configured) to O(known spells only).
+
+-- Rebuild the active icon set for a bar
+-- Called on: spec change, talent change, bar creation, hideNonUsable toggle
+local function RebuildActiveSet(bar)
+    if not bar then return end
+
+    bar.activeIcons = bar.activeIcons or {}
+    wipe(bar.activeIcons)
+
+    local config = bar.config
+    local hideNonUsable = config.hideNonUsable
+
+    -- Iterate the FULL configured list (bar.icons), not activeIcons
+    -- This ensures we pick up newly-talented spells when switching talent loadouts
+    for _, icon in ipairs(bar.icons or {}) do
+        local entry = icon.entry
+        if entry and entry.id then
+            local isUsable = true
+            if entry.type == "spell" then
+                isUsable = IsSpellUsable(entry.id)
+            elseif entry.type == "item" then
+                -- Items: equipment check is stable, consumables always in active set
+                if IsEquipmentItem(entry.id) then
+                    isUsable = C_Item.IsEquippedItem(entry.id)
+                else
+                    isUsable = true  -- Consumables always in active set (count checked in DoUpdate)
+                end
+            end
+
+            -- Only add usable spells to activeIcons (CPU optimization)
+            -- This ensures we never process unknown spells in DoUpdate, regardless of hideNonUsable toggle
+            if isUsable then
+                table.insert(bar.activeIcons, icon)
+                icon._usable = true
+                icon.isVisible = true  -- Mark as visible for layout
+                icon.tex:SetDesaturated(false)  -- Ensure known spells are full color
+                icon:Show()
+            else
+                -- Unknown spell: hide if hideNonUsable is on, otherwise show desaturated (but not tracked)
+                if hideNonUsable then
+                    icon:Hide()
+                    icon.isVisible = false  -- Mark as NOT visible for layout (allows collapse)
+                else
+                    icon:Show()
+                    icon.isVisible = true  -- Still visible (just desaturated)
+                    icon.tex:SetDesaturated(true)  -- Grey out unknown spells
+                    icon.cooldown:Clear()  -- No cooldown tracking for unknown spells
+                end
+                icon._usable = false
+            end
+        end
+    end
+
+    -- Re-layout with the new active set
+    LayoutVisibleIcons(bar)
+
+    -- DEBUG: Remove this line after verifying the optimization works
+    print("|cFF00FF00[QUI Debug]|r RebuildActiveSet: " .. #bar.activeIcons .. " of " .. #(bar.icons or {}) .. " icons active")
+end
+
+-- Module-level reference for event handlers
+CustomTrackers.RebuildActiveSet = RebuildActiveSet
+
 function CustomTrackers:StartCooldownPolling(bar)
     if not bar then return end
 
@@ -1183,7 +1252,9 @@ function CustomTrackers:StartCooldownPolling(bar)
         local showActiveState = config.showActiveState ~= false  -- Default true
         local visibilityChanged = false
 
-        for _, icon in ipairs(bar.icons or {}) do
+        -- PERFORMANCE: Iterate activeIcons (pre-filtered on spec/talent change)
+        -- instead of all icons. This avoids 50+ IsSpellUsable() calls per update.
+        for _, icon in ipairs(bar.activeIcons or bar.icons or {}) do
             local entry = icon.entry
             if entry and entry.id then
                 local startTime, duration, enabled, isOnGCD
@@ -1242,13 +1313,10 @@ function CustomTrackers:StartCooldownPolling(bar)
                     end
                 end
 
-                -- Determine usability state
-                local isUsable = true
-                if entry.type == "item" then
-                    isUsable = IsItemUsable(entry.id, count)
-                elseif entry.type == "spell" then
-                    isUsable = IsSpellUsable(entry.id)
-                end
+                -- PERFORMANCE: Use cached usability from RebuildActiveSet()
+                -- This eliminates 50+ IsSpellUsable() API calls per update tick.
+                -- Usability is recalculated only on spec/talent change events.
+                local isUsable = icon._usable ~= false
 
                 -- Base visibility (Hide Non-Usable)
                 local baseVisible = isUsable or (not hideNonUsable)
@@ -1548,6 +1616,11 @@ function CustomTrackers:CreateBar(barID, config)
     -- Create icons for entries
     self:UpdateBarIcons(bar)
 
+    -- Build initial active icon set (performance optimization)
+    -- This pre-filters icons to only known spells, avoiding expensive
+    -- IsSpellUsable() checks in the update loop.
+    RebuildActiveSet(bar)
+
     -- Start cooldown polling
     self:StartCooldownPolling(bar)
 
@@ -1602,6 +1675,9 @@ function CustomTrackers:UpdateBar(barID)
 
             -- Update icons
             self:UpdateBarIcons(bar)
+
+            -- Rebuild active icon set (handles hideNonUsable toggle, etc.)
+            RebuildActiveSet(bar)
 
             -- Show/hide
             if barConfig.enabled then
@@ -1823,6 +1899,9 @@ end
 ---------------------------------------------------------------------------
 -- INITIALIZATION
 ---------------------------------------------------------------------------
+-- Debounce flag for talent changes (prevents stacking timers on rapid talent swaps)
+local pendingTalentRebuild = false
+
 local initFrame = CreateFrame("Frame")
 initFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 initFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
@@ -1840,17 +1919,43 @@ initFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 initFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 -- Spec change detection for spec-specific spells
 initFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+-- Talent change detection for active icon rebuild (talent loadout swaps)
+initFrame:RegisterEvent("PLAYER_TALENT_UPDATE")
 initFrame:SetScript("OnEvent", function(self, event, ...)
     -- Spec change: refresh all bars to load spec-appropriate spells
     -- PLAYER_SPECIALIZATION_CHANGED only fires for player, no unit check needed
     if event == "PLAYER_SPECIALIZATION_CHANGED" then
         -- Small delay to ensure spec info is fully updated
         C_Timer.After(0.1, function()
+            -- Rebuild active icon sets for all bars (performance optimization)
+            for _, bar in pairs(CustomTrackers.activeBars) do
+                if bar then
+                    RebuildActiveSet(bar)
+                end
+            end
             CustomTrackers:RefreshAll()
         end)
         return
     end
-    
+
+    -- Talent change: rebuild active icon sets (handles talent loadout swaps)
+    -- When you switch talents within the same spec, newly-talented spells
+    -- need to be added to activeIcons and un-talented ones removed.
+    if event == "PLAYER_TALENT_UPDATE" then
+        -- Debounce: prevent stacking timers if event fires rapidly
+        if pendingTalentRebuild then return end
+        pendingTalentRebuild = true
+        C_Timer.After(0.1, function()
+            pendingTalentRebuild = false
+            for _, bar in pairs(CustomTrackers.activeBars) do
+                if bar then
+                    RebuildActiveSet(bar)
+                end
+            end
+        end)
+        return
+    end
+
     -- Event-driven cooldown updates (reduces ticker frequency)
     if event == "SPELL_UPDATE_COOLDOWN" or event == "ACTIONBAR_UPDATE_COOLDOWN" then
         -- Update all active bars immediately on cooldown change

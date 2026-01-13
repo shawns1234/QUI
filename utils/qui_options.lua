@@ -9595,7 +9595,7 @@ local function CreateCustomTrackersPage(parent)
             y = y - 16
 
             -- Step 3
-            local step3 = GUI:CreateLabel(tabContent, "3. Custom buffs now display accurately in combat", 11, C.text)
+            local step3 = GUI:CreateLabel(tabContent, "3. The icons on your Custom Bars will now show accurate custom buff timers in combat", 11, C.text)
             step3:SetPoint("TOPLEFT", PAD, y)
             step3:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             step3:SetJustifyH("LEFT")
