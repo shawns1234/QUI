@@ -2714,6 +2714,24 @@ local defaults = {
 
             -- Player Spec datatext settings
             specDisplayMode = "full",  -- "icon" = icon only, "loadout" = icon + loadout, "full" = icon + spec/loadout
+
+            -- System datatext settings (combined FPS + Latency)
+            system = {
+                latencyType = "home",      -- "home" or "world" latency on main display
+                showLatency = true,        -- Show Home/World latency in tooltip
+                showProtocols = true,      -- Show IPv4/IPv6 protocols in tooltip
+                showBandwidth = true,      -- Show bandwidth/download % when downloading
+                showAddonMemory = true,    -- Show addon memory usage in tooltip
+                addonCount = 10,           -- Number of addons to show (sorted by memory)
+                showFpsStats = true,       -- Show FPS avg/low/high when Shift held
+            },
+
+            -- Volume datatext settings
+            volume = {
+                volumeStep = 5,            -- Volume change per scroll (1-20)
+                controlType = "master",    -- Which volume to control: "master", "music", "sfx", "ambience", "dialog"
+                showIcon = false,          -- Show speaker icon instead of "Vol:" label
+            },
         },
         
         -- Additional Datapanels (user-created, independent of minimap)

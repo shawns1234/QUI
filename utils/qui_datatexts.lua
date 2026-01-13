@@ -8,6 +8,8 @@ local LSM = LibStub("LibSharedMedia-3.0")
 -- Cache frequently used globals
 local format = string.format
 local floor = math.floor
+local max = math.max
+local min = math.min
 local wipe = wipe
 
 -- Constants
@@ -383,6 +385,170 @@ Datatexts:Register("latency", {
         if frame.ticker then
             frame.ticker:Cancel()
         end
+    end,
+})
+
+-- Volume datatext
+Datatexts:Register("volume", {
+    displayName = "Volume",
+    category = "System",
+    description = "Volume control with scroll wheel adjustment",
+
+    OnEnable = function(slotFrame, settings)
+        local frame = CreateFrame("Button", nil, slotFrame)
+        frame:SetAllPoints()
+        frame:EnableMouse(true)
+        frame:EnableMouseWheel(true)
+
+        local text = slotFrame.text
+        if not text then
+            text = slotFrame:CreateFontString(nil, "OVERLAY")
+            text:SetPoint("CENTER")
+            slotFrame.text = text
+        end
+
+        -- Default volume settings (reused to avoid table creation)
+        local defaultVolumeSettings = {
+            volumeStep = 5,
+            controlType = "master",
+        }
+
+        -- Get volume datatext settings from db
+        local function GetVolumeSettings()
+            local addon = ns and ns.Addon
+            local db = addon and addon.db and addon.db.profile
+            local dt = db and db.datatext
+            return dt and dt.volume or defaultVolumeSettings
+        end
+
+        -- CVar names for different volume types
+        local volumeCVars = {
+            master = "Sound_MasterVolume",
+            music = "Sound_MusicVolume",
+            sfx = "Sound_SFXVolume",
+            ambience = "Sound_AmbienceVolume",
+            dialog = "Sound_DialogVolume",
+        }
+
+        -- Get current volume (0-100)
+        local function GetVolume(volumeType)
+            local cvar = volumeCVars[volumeType] or volumeCVars.master
+            local value = tonumber(C_CVar.GetCVar(cvar)) or 1
+            return floor(value * 100 + 0.5)
+        end
+
+        -- Set volume (0-100)
+        local function SetVolume(volumeType, percent)
+            local cvar = volumeCVars[volumeType] or volumeCVars.master
+            percent = max(0, min(100, percent))
+            C_CVar.SetCVar(cvar, percent / 100)
+        end
+
+        -- Check if sound is muted
+        local function IsMuted()
+            return C_CVar.GetCVar("Sound_EnableAllSound") == "0"
+        end
+
+        -- Toggle mute
+        local function ToggleMute()
+            local muted = IsMuted()
+            C_CVar.SetCVar("Sound_EnableAllSound", muted and "1" or "0")
+        end
+
+        local function Update()
+            local volSettings = GetVolumeSettings()
+            local vol = GetVolume(volSettings.controlType)
+            local muted = IsMuted()
+
+            -- Get color
+            local r, g, b
+            if muted then
+                r, g, b = 255, 51, 51  -- Red when muted
+            elseif vol < 25 then
+                r, g, b = 255, 200, 51  -- Yellow when low
+            else
+                r, g, b = GetValueColor()
+            end
+
+            -- Format display
+            local label = GetLabel("Vol: ", "V: ", slotFrame.shortLabel, slotFrame.noLabel)
+
+            if muted then
+                text:SetFormattedText("%s|cff%02x%02x%02xMuted|r", label, r, g, b)
+            else
+                text:SetFormattedText("%s|cff%02x%02x%02x%d%%|r", label, r, g, b, vol)
+            end
+        end
+
+        -- Tooltip on hover
+        frame:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:ClearLines()
+            GameTooltip:AddLine("Volume", 1, 1, 1)
+            GameTooltip:AddLine(" ")
+
+            -- Show all volume levels
+            local muted = IsMuted()
+            if muted then
+                GameTooltip:AddLine("Sound is MUTED", 1, 0.2, 0.2)
+                GameTooltip:AddLine(" ")
+            end
+
+            GameTooltip:AddDoubleLine("Master Volume:", GetVolume("master") .. "%", 0.7, 0.7, 0.7, 1, 1, 1)
+            GameTooltip:AddDoubleLine("Music Volume:", GetVolume("music") .. "%", 0.7, 0.7, 0.7, 1, 1, 1)
+            GameTooltip:AddDoubleLine("SFX Volume:", GetVolume("sfx") .. "%", 0.7, 0.7, 0.7, 1, 1, 1)
+            GameTooltip:AddDoubleLine("Ambience Volume:", GetVolume("ambience") .. "%", 0.7, 0.7, 0.7, 1, 1, 1)
+            GameTooltip:AddDoubleLine("Dialog Volume:", GetVolume("dialog") .. "%", 0.7, 0.7, 0.7, 1, 1, 1)
+
+            -- Footer hints
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Scroll to adjust volume", 0.5, 0.5, 0.5)
+            GameTooltip:AddLine("Left-Click to toggle mute", 0.5, 0.5, 0.5)
+
+            GameTooltip:Show()
+        end)
+
+        frame:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        -- Scroll wheel to adjust volume
+        frame:SetScript("OnMouseWheel", function(self, delta)
+            local volSettings = GetVolumeSettings()
+            local step = volSettings.volumeStep or 5
+            local currentVol = GetVolume(volSettings.controlType)
+            local newVol = currentVol + (delta * step)
+            SetVolume(volSettings.controlType, newVol)
+            Update()
+            -- Update tooltip if shown
+            if GameTooltip:IsShown() then
+                frame:GetScript("OnEnter")(frame)
+            end
+        end)
+
+        -- Click handler for mute toggle
+        frame:RegisterForClicks("LeftButtonUp")
+        frame:SetScript("OnClick", function(self, button)
+            if button == "LeftButton" then
+                ToggleMute()
+                Update()
+                -- Update tooltip if shown
+                if GameTooltip:IsShown() then
+                    frame:GetScript("OnEnter")(frame)
+                end
+            end
+        end)
+
+        frame.Update = Update
+        -- No ticker needed - volume only changes on user interaction
+        -- Update is called on scroll/click, and tooltip shows fresh values on hover
+
+        Update()
+        return frame
+    end,
+
+    OnDisable = function(frame)
+        -- No ticker to cancel
     end,
 })
 
@@ -979,6 +1145,7 @@ local function BuildFriendsCache()
                                     afk = accountInfo.isAFK or gameInfo.isGameAFK,
                                     dnd = accountInfo.isDND or gameInfo.isGameBusy,
                                     richPresence = gameInfo.richPresence,
+                                    note = accountInfo.note,
                                 }
                             }
                         end
@@ -1001,6 +1168,7 @@ local function BuildFriendsCache()
                                 afk = accountInfo.isAFK,
                                 dnd = accountInfo.isDND,
                                 richPresence = gameAccountInfo.richPresence or "Battle.net",
+                                note = accountInfo.note,
                             }
                         }
                     end
@@ -1082,23 +1250,38 @@ Datatexts:Register("friends", {
             Update()
         end)
         
-        -- Tooltip
-        slotFrame:EnableMouse(true)
-        slotFrame:SetScript("OnEnter", function(self)
+        -- Tooltip helper function (supports Shift-notes view)
+        local function BuildFriendsTooltip(self)
             -- Rebuild cache if stale (> 1 second old)
             if GetTime() - friendsCache.lastUpdate > 1 then
                 BuildFriendsCache()
             end
 
+            local showNotes = IsShiftKeyDown()
+
             GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
             GameTooltip:ClearLines()
-            GameTooltip:AddLine("Friends", 1, 1, 1)
+            GameTooltip:AddLine(showNotes and "Friends (Notes)" or "Friends", 1, 1, 1)
 
             -- Get configured accent color for section headers
             local vr, vg, vb = GetValueColor()
             local ar, ag, ab = vr/255, vg/255, vb/255
 
             local hasAnyFriends = false
+
+            -- Helper to get right-side text based on view mode
+            local function GetRightText(info, isWowFriend)
+                if showNotes then
+                    local note = isWowFriend and info.notes or info.note
+                    if note and note ~= "" then
+                        return note, 0.9, 0.9, 0.6
+                    else
+                        return "No note", 0.5, 0.5, 0.5
+                    end
+                else
+                    return info.zone or "Unknown", 0.7, 0.7, 0.7
+                end
+            end
 
             -- WoW Friends section
             if #friendsCache.wowFriends > 0 then
@@ -1113,11 +1296,12 @@ Datatexts:Register("friends", {
                     local lr, lg, lb = GetLevelColor(info.level)
                     local levelStr = info.level and info.level > 0 and format("|cff%02x%02x%02x%d|r ", lr*255, lg*255, lb*255, info.level) or ""
 
+                    local rightText, rr, rg, rb = GetRightText(info, true)
                     GameTooltip:AddDoubleLine(
                         levelStr .. info.name .. inGroupMark .. statusText,
-                        info.zone or "Unknown",
+                        rightText,
                         classColor.r, classColor.g, classColor.b,
-                        0.7, 0.7, 0.7
+                        rr, rg, rb
                     )
                 end
             end
@@ -1143,11 +1327,12 @@ Datatexts:Register("friends", {
                         leftText = info.accountName .. statusText
                     end
 
+                    local rightText, rr, rg, rb = GetRightText(info, false)
                     GameTooltip:AddDoubleLine(
                         leftText,
-                        info.zone or "Unknown",
+                        rightText,
                         classColor.r, classColor.g, classColor.b,
-                        0.7, 0.7, 0.7
+                        rr, rg, rb
                     )
                 end
             end
@@ -1170,11 +1355,12 @@ Datatexts:Register("friends", {
                         leftText = format("%s - %s%s", info.accountName, versionName, statusText)
                     end
 
+                    local rightText, rr, rg, rb = GetRightText(info, false)
                     GameTooltip:AddDoubleLine(
                         leftText,
-                        info.zone or "Unknown",
+                        rightText,
                         classColor.r, classColor.g, classColor.b,
-                        0.7, 0.7, 0.7
+                        rr, rg, rb
                     )
                 end
             end
@@ -1187,13 +1373,24 @@ Datatexts:Register("friends", {
 
                 for _, info in ipairs(friendsCache.bnetOther) do
                     local statusText = info.afk and " |cffFFFF00(AFK)|r" or info.dnd and " |cffFF0000(DND)|r" or ""
-                    local gameName = info.richPresence or info.client or "Online"
+
+                    local rightText, rr, rg, rb
+                    if showNotes then
+                        if info.note and info.note ~= "" then
+                            rightText, rr, rg, rb = info.note, 0.9, 0.9, 0.6
+                        else
+                            rightText, rr, rg, rb = "No note", 0.5, 0.5, 0.5
+                        end
+                    else
+                        local gameName = info.richPresence or info.client or "Online"
+                        rightText, rr, rg, rb = gameName, 0.5, 0.5, 0.5
+                    end
 
                     GameTooltip:AddDoubleLine(
                         info.accountName .. statusText,
-                        gameName,
+                        rightText,
                         0.8, 0.8, 0.8,
-                        0.5, 0.5, 0.5
+                        rr, rg, rb
                     )
                 end
             end
@@ -1204,12 +1401,39 @@ Datatexts:Register("friends", {
             end
 
             GameTooltip:AddLine(" ")
-            local ar, ag, ab = GetValueColor(); ar, ag, ab = ar/255, ag/255, ab/255
-            GameTooltip:AddLine("|cffFFFFFFLeft Click:|r Open Friends", ar, ag, ab)
-            GameTooltip:AddLine("|cffFFFFFFRight Click:|r Whisper/Invite Menu", ar, ag, ab)
+            local ar2, ag2, ab2 = GetValueColor(); ar2, ag2, ab2 = ar2/255, ag2/255, ab2/255
+            GameTooltip:AddLine("|cffFFFFFFLeft Click:|r Open Friends", ar2, ag2, ab2)
+            GameTooltip:AddLine("|cffFFFFFFRight Click:|r Whisper/Invite Menu", ar2, ag2, ab2)
+            if showNotes then
+                GameTooltip:AddLine("|cffFFFFFFRelease Shift:|r Show Zones", ar2, ag2, ab2)
+            else
+                GameTooltip:AddLine("|cffFFFFFFHold Shift:|r Show Notes", ar2, ag2, ab2)
+            end
             GameTooltip:Show()
+        end
+
+        -- Tooltip
+        slotFrame:EnableMouse(true)
+        slotFrame:SetScript("OnEnter", function(self)
+            BuildFriendsTooltip(self)
         end)
         slotFrame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+        -- Register for modifier key changes to update tooltip dynamically
+        frame:RegisterEvent("MODIFIER_STATE_CHANGED")
+        frame.friendsDatatextEnabled = true  -- Flag for cleanup
+        if not frame.friendsModifierHooked then
+            frame:HookScript("OnEvent", function(self, event, key)
+                if not self.friendsDatatextEnabled then return end  -- Guard against stale hooks
+                if event == "MODIFIER_STATE_CHANGED" and (key == "LSHIFT" or key == "RSHIFT") then
+                    -- Only refresh if tooltip is owned by this datatext (avoids clobbering other tooltips)
+                    if GameTooltip:IsShown() and GameTooltip:GetOwner() == slotFrame then
+                        BuildFriendsTooltip(slotFrame)
+                    end
+                end
+            end)
+            frame.friendsModifierHooked = true
+        end
 
         -- Click
         slotFrame:RegisterForClicks("AnyUp")
@@ -1339,6 +1563,7 @@ Datatexts:Register("friends", {
     
     OnDisable = function(frame)
         frame:UnregisterAllEvents()
+        frame.friendsDatatextEnabled = false  -- Disable modifier hook
     end,
 })
 
@@ -1485,15 +1710,16 @@ Datatexts:Register("guild", {
             Update()
         end)
         
-        -- Tooltip
-        slotFrame:EnableMouse(true)
-        slotFrame:SetScript("OnEnter", function(self)
+        -- Tooltip helper function (supports Shift-notes view)
+        local function BuildGuildTooltip(self)
             if not IsInGuild() then return end
 
             -- Rebuild cache if stale
             if GetTime() - guildCache.lastUpdate > 1 then
                 BuildGuildCache()
             end
+
+            local showNotes = IsShiftKeyDown()
 
             GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
             GameTooltip:ClearLines()
@@ -1503,7 +1729,7 @@ Datatexts:Register("guild", {
             local vr, vg, vb = GetValueColor()
             local ar, ag, ab = vr/255, vg/255, vb/255
 
-            GameTooltip:AddLine(guildName or "Guild", 1, 1, 1)
+            GameTooltip:AddLine((guildName or "Guild") .. (showNotes and " (Notes)" or ""), 1, 1, 1)
 
             local motd = GetGuildRosterMOTD()
             if motd and motd ~= "" then
@@ -1513,7 +1739,7 @@ Datatexts:Register("guild", {
             end
 
             GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("Online Members", ar, ag, ab)
+            GameTooltip:AddLine(showNotes and "Online Members (Notes)" or "Online Members", ar, ag, ab)
 
             local memberCount = 0
 
@@ -1545,13 +1771,38 @@ Datatexts:Register("guild", {
                 -- StripMyRealm: removes only YOUR realm suffix, keeps cross-realm names intact
                 local displayName = StripMyRealm(info.name)
 
-                -- Format: "Level Name[-Realm] - Rank" on left, "Zone" on right
+                -- Right side: zone/rank (normal) or notes (Shift held)
+                local rightText, rr, rg, rb
+                if showNotes then
+                    -- Show personal note and officer note
+                    local noteText = ""
+                    if info.note and info.note ~= "" then
+                        noteText = info.note
+                    end
+                    if info.officerNote and info.officerNote ~= "" then
+                        if noteText ~= "" then
+                            noteText = noteText .. " |cffFF8800[O: " .. info.officerNote .. "]|r"
+                        else
+                            noteText = "|cffFF8800[O: " .. info.officerNote .. "]|r"
+                        end
+                    end
+                    if noteText == "" then
+                        rightText, rr, rg, rb = "No note", 0.5, 0.5, 0.5
+                    else
+                        rightText, rr, rg, rb = noteText, 0.9, 0.9, 0.6
+                    end
+                else
+                    rightText = info.zone or "Unknown"
+                    rr, rg, rb = 0.7, 0.7, 0.7
+                end
+
+                -- Format: "Level Name[-Realm] - Rank" on left
                 -- Gray dash separator, white rank text
                 GameTooltip:AddDoubleLine(
                     levelStr .. displayName .. inGroupMark .. statusText .. timerunning .. mobileIcon .. " |cff999999-|cffffffff " .. info.rank .. "|r",
-                    info.zone or "Unknown",
+                    rightText,
                     classColor.r, classColor.g, classColor.b,
-                    0.7, 0.7, 0.7
+                    rr, rg, rb
                 )
             end
 
@@ -1560,13 +1811,40 @@ Datatexts:Register("guild", {
             end
 
             GameTooltip:AddLine(" ")
-            local ar, ag, ab = GetValueColor(); ar, ag, ab = ar/255, ag/255, ab/255
-            GameTooltip:AddLine("|cffFFFFFFLeft Click:|r Open Guild", ar, ag, ab)
-            GameTooltip:AddLine("|cffFFFFFFRight Click:|r Whisper/Invite Menu", ar, ag, ab)
+            local ar2, ag2, ab2 = GetValueColor(); ar2, ag2, ab2 = ar2/255, ag2/255, ab2/255
+            GameTooltip:AddLine("|cffFFFFFFLeft Click:|r Open Guild", ar2, ag2, ab2)
+            GameTooltip:AddLine("|cffFFFFFFRight Click:|r Whisper/Invite Menu", ar2, ag2, ab2)
+            if showNotes then
+                GameTooltip:AddLine("|cffFFFFFFRelease Shift:|r Show Zones", ar2, ag2, ab2)
+            else
+                GameTooltip:AddLine("|cffFFFFFFHold Shift:|r Show Notes", ar2, ag2, ab2)
+            end
             GameTooltip:Show()
+        end
+
+        -- Tooltip
+        slotFrame:EnableMouse(true)
+        slotFrame:SetScript("OnEnter", function(self)
+            BuildGuildTooltip(self)
         end)
         slotFrame:SetScript("OnLeave", function() GameTooltip:Hide() end)
-        
+
+        -- Register for modifier key changes to update tooltip dynamically
+        frame:RegisterEvent("MODIFIER_STATE_CHANGED")
+        frame.guildDatatextEnabled = true  -- Flag for cleanup
+        if not frame.guildModifierHooked then
+            frame:HookScript("OnEvent", function(self, event, key)
+                if not self.guildDatatextEnabled then return end  -- Guard against stale hooks
+                if event == "MODIFIER_STATE_CHANGED" and (key == "LSHIFT" or key == "RSHIFT") then
+                    -- Only refresh if tooltip is owned by this datatext (avoids clobbering other tooltips)
+                    if GameTooltip:IsShown() and GameTooltip:GetOwner() == slotFrame then
+                        BuildGuildTooltip(slotFrame)
+                    end
+                end
+            end)
+            frame.guildModifierHooked = true
+        end
+
         -- Click
         slotFrame:RegisterForClicks("AnyUp")
         slotFrame:SetScript("OnClick", function(self, button)
@@ -1649,6 +1927,7 @@ Datatexts:Register("guild", {
 
     OnDisable = function(frame)
         frame:UnregisterAllEvents()
+        frame.guildDatatextEnabled = false  -- Disable modifier hook
     end,
 })
 
