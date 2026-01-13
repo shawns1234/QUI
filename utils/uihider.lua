@@ -35,7 +35,7 @@ local function GetSettings()
             hideTalkingHead = true,
             hideExperienceBar = false,
             hideReputationBar = false,
-            hideErrorMessages = true,
+            hideErrorMessages = false,
             hideWorldMapBlackout = false,
         }
     end
