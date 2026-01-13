@@ -1835,6 +1835,18 @@ local defaults = {
                     xOffset = 0,
                     yOffset = 6,
                 },
+                -- Castbar (opt-in for vehicle/RP casts)
+                castbar = {
+                    enabled = false,  -- Disabled by default (opt-in feature)
+                    showIcon = true,
+                    width = 140,
+                    height = 15,
+                    offsetX = 0,
+                    offsetY = -20,
+                    widthAdjustment = 0,
+                    fontSize = 10,
+                    color = {0.404, 1, 0.984, 1},
+                },
             },
             -- Focus frame
             focus = {

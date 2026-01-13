@@ -10949,8 +10949,8 @@ local function CreateUnitFramesPage(parent)
             end
         end
 
-        -- CASTBAR section (for player, target, targettarget, focus, boss)
-        if unitKey == "player" or unitKey == "target" or unitKey == "targettarget" or unitKey == "focus" or unitKey == "boss" then
+        -- CASTBAR section (for player, target, targettarget, focus, pet, boss)
+        if unitKey == "player" or unitKey == "target" or unitKey == "targettarget" or unitKey == "focus" or unitKey == "pet" or unitKey == "boss" then
             -- Use dedicated castbar options module (it creates its own header)
             if ns.QUI_CastbarOptions and ns.QUI_CastbarOptions.BuildCastbarOptions then
                 y = ns.QUI_CastbarOptions.BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, RefreshUnit, GetTextureList, NINE_POINT_ANCHOR_OPTIONS, GetUFDB, GetDB)

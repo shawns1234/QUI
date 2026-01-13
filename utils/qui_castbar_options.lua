@@ -35,8 +35,8 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
     local unitDB = ufdb[unitKey]
     local db = GetDB()
     
-    -- CASTBAR section (for player, target, targettarget, focus, boss)
-    if unitKey == "player" or unitKey == "target" or unitKey == "targettarget" or unitKey == "focus" or unitKey == "boss" then
+    -- CASTBAR section (for player, target, targettarget, focus, pet, boss)
+    if unitKey == "player" or unitKey == "target" or unitKey == "targettarget" or unitKey == "focus" or unitKey == "pet" or unitKey == "boss" then
         local castbarHeader = GUI:CreateSectionHeader(tabContent, "Castbar")
         castbarHeader:SetPoint("TOPLEFT", PAD, y)
         y = y - castbarHeader.gap
@@ -89,6 +89,7 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
             target = "Target Frame",
             targettarget = "ToT Frame",
             focus = "Focus Frame",
+            pet = "Pet Frame",
             boss = "Boss Frame",
         }
         local frameDisplayName = unitDisplayNames[unitKey] or "Unit Frame"

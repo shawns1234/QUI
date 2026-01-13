@@ -309,6 +309,7 @@ local function SkinIcon(icon, size, aspectRatioCrop, zoom, borderSize, borderCol
     ApplyTexCoord(icon)
 
     -- Hook for mouseover detection (handles dynamically created icons)
+    icon:EnableMouse(true)  -- Ensure icon receives mouse events
     HookFrameForMouseover(icon)
 
     return true  -- Successfully skinned
@@ -1289,6 +1290,7 @@ local CDMVisibility = {
     mouseOver = false,
     mouseoverDetector = nil,
     hoverCount = 0,
+    leaveTimer = nil,
 }
 
 -- Get CDM frames (viewers + power bars)
@@ -1421,12 +1423,18 @@ end
 HookFrameForMouseover = function(frame)
     if not frame or frame._quiMouseoverHooked then return end
 
-    local vis = GetCDMVisibilitySettings()
-    if not vis or vis.showAlways or not vis.showOnMouseover then return end
-
     frame._quiMouseoverHooked = true
 
     frame:HookScript("OnEnter", function()
+        local vis = GetCDMVisibilitySettings()
+        if not vis or vis.showAlways or not vis.showOnMouseover then return end
+
+        -- Cancel any pending leave timer
+        if CDMVisibility.leaveTimer then
+            CDMVisibility.leaveTimer:Cancel()
+            CDMVisibility.leaveTimer = nil
+        end
+
         CDMVisibility.hoverCount = CDMVisibility.hoverCount + 1
         if CDMVisibility.hoverCount == 1 then
             CDMVisibility.mouseOver = true
@@ -1435,10 +1443,26 @@ HookFrameForMouseover = function(frame)
     end)
 
     frame:HookScript("OnLeave", function()
+        local vis = GetCDMVisibilitySettings()
+        if not vis or vis.showAlways or not vis.showOnMouseover then return end
+
         CDMVisibility.hoverCount = math.max(0, CDMVisibility.hoverCount - 1)
+
         if CDMVisibility.hoverCount == 0 then
-            CDMVisibility.mouseOver = false
-            UpdateCDMVisibility()
+            -- Cancel any existing timer
+            if CDMVisibility.leaveTimer then
+                CDMVisibility.leaveTimer:Cancel()
+            end
+
+            -- Delay fade to allow OnEnter on next icon to fire first
+            CDMVisibility.leaveTimer = C_Timer.After(0.5, function()
+                CDMVisibility.leaveTimer = nil
+                -- Re-check hoverCount - may have been incremented by OnEnter
+                if CDMVisibility.hoverCount == 0 then
+                    CDMVisibility.mouseOver = false
+                    UpdateCDMVisibility()
+                end
+            end)
         end
     end)
 end
@@ -1453,6 +1477,13 @@ local function SetupCDMMouseoverDetector()
         CDMVisibility.mouseoverDetector:Hide()
         CDMVisibility.mouseoverDetector = nil
     end
+
+    -- Cancel any pending leave timer
+    if CDMVisibility.leaveTimer then
+        CDMVisibility.leaveTimer:Cancel()
+        CDMVisibility.leaveTimer = nil
+    end
+
     CDMVisibility.mouseOver = false
     CDMVisibility.hoverCount = 0  -- Reset counter
 

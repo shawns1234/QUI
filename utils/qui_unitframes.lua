@@ -3416,12 +3416,16 @@ function QUI_UF:RefreshFrame(unitKey)
         UpdateFrame(frame)
     end
     
-    -- Refresh castbar if exists (delegate to castbar module)
+    -- Refresh castbar if exists, OR create if newly enabled
     local castbar = self.castbars[unitKey]
-    if castbar and QUI_Castbar and QUI_Castbar.RefreshCastbar then
-        local castSettings = settings.castbar
-        if castSettings then
+    local castSettings = settings.castbar
+    if castSettings and castSettings.enabled then
+        if castbar and QUI_Castbar and QUI_Castbar.RefreshCastbar then
+            -- Castbar exists - refresh it
             QUI_Castbar:RefreshCastbar(castbar, unitKey, castSettings, frame)
+        elseif not castbar and QUI_Castbar and QUI_Castbar.CreateCastbar then
+            -- Castbar doesn't exist but is now enabled - create it
+            self.castbars[unitKey] = QUI_Castbar:CreateCastbar(frame, unitKey, unitKey)
         end
     end
 end
@@ -4205,6 +4209,10 @@ function QUI_UF:Initialize()
     -- Create pet frame
     if db.pet and db.pet.enabled then
         self.frames.pet = CreateUnitFrame("pet", "pet")
+        -- Create pet castbar (opt-in for vehicle/RP casts)
+        if db.pet.castbar and db.pet.castbar.enabled then
+            self.castbars.pet = CreateCastbar(self.frames.pet, "pet", "pet")
+        end
         -- Setup aura tracking for pet
         SetupAuraTracking(self.frames.pet)
     end
