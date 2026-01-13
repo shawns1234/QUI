@@ -33,6 +33,13 @@ local function GetColors()
     return sr, sg, sb, sa, bgr, bgg, bgb, bga
 end
 
+-- Safely set text color from a color table with bounds validation
+local function SafeSetTextColor(fontString, colorTable)
+    if not fontString or not colorTable then return end
+    if type(colorTable) ~= "table" or #colorTable < 3 then return end
+    fontString:SetTextColor(colorTable[1] or 1, colorTable[2] or 1, colorTable[3] or 1, colorTable[4] or 1)
+end
+
 -- Get LibCustomGlow for quest icon glows
 local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
 
@@ -430,14 +437,21 @@ local function ApplyQUIBackdrop(trackerFrame, sr, sg, sb, sa, bgr, bgg, bgb, bga
         trackerFrame.quiBackdrop:EnableMouse(false)
     end
 
+    local settings = GetSettings()
+    local hideBorder = settings and settings.hideObjectiveTrackerBorder
+
     trackerFrame.quiBackdrop:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
         edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = 1,
+        edgeSize = hideBorder and 0 or 1,
         insets = { left = 1, right = 1, top = 1, bottom = 1 }
     })
     trackerFrame.quiBackdrop:SetBackdropColor(bgr, bgg, bgb, opacity)
-    trackerFrame.quiBackdrop:SetBackdropBorderColor(sr, sg, sb, sa)
+    if hideBorder then
+        trackerFrame.quiBackdrop:SetBackdropBorderColor(0, 0, 0, 0)
+    else
+        trackerFrame.quiBackdrop:SetBackdropBorderColor(sr, sg, sb, sa)
+    end
 
     -- Set initial anchors
     UpdateBackdropAnchors()
@@ -449,39 +463,43 @@ local function GetFontPath()
     return QUI and QUI.GetGlobalFont and QUI:GetGlobalFont() or STANDARD_TEXT_FONT
 end
 
--- Apply font to a single line (objective text)
-local function StyleLine(line, fontPath, textFontSize)
+-- Apply font and color to a single line (objective text)
+local function StyleLine(line, fontPath, textFontSize, textColor)
     if not line then return end
     if line.Text then
         line.Text:SetFont(fontPath, textFontSize, FONT_FLAGS)
+        SafeSetTextColor(line.Text, textColor)
     end
     if line.Dash then
         line.Dash:SetFont(fontPath, textFontSize, FONT_FLAGS)
+        SafeSetTextColor(line.Dash, textColor)
     end
 end
 
--- Apply font to a block (quest name header + all objective lines)
-local function StyleBlock(block, fontPath, titleFontSize, textFontSize)
+-- Apply font and color to a block (quest name header + all objective lines)
+local function StyleBlock(block, fontPath, titleFontSize, textFontSize, titleColor, textColor)
     if not block then return end
 
     -- Style block header (quest/achievement title)
     if titleFontSize > 0 and block.HeaderText then
         block.HeaderText:SetFont(fontPath, titleFontSize, FONT_FLAGS)
+        SafeSetTextColor(block.HeaderText, titleColor)
     end
 
     -- Style all lines in the block (objectives)
     if textFontSize > 0 and block.usedLines then
         for _, line in pairs(block.usedLines) do
-            StyleLine(line, fontPath, textFontSize)
+            StyleLine(line, fontPath, textFontSize, textColor)
         end
     end
 end
 
--- Apply font sizes to all tracker elements
+-- Apply font sizes and colors to all tracker elements
 -- moduleFontSize: module headers (QUESTS, ACHIEVEMENTS, etc.)
 -- titleFontSize: quest/achievement titles
 -- textFontSize: objective text lines (- Kill 5 boars: 3/5)
-local function ApplyFontSizes(moduleFontSize, titleFontSize, textFontSize)
+-- moduleColor, titleColor, textColor: optional color tables {r, g, b, a}
+local function ApplyFontStyles(moduleFontSize, titleFontSize, textFontSize, moduleColor, titleColor, textColor)
     local fontPath = GetFontPath()
 
     for _, trackerName in ipairs(trackerModules) do
@@ -490,13 +508,14 @@ local function ApplyFontSizes(moduleFontSize, titleFontSize, textFontSize)
             -- Style module header text (e.g., "QUESTS", "ACHIEVEMENTS")
             if moduleFontSize > 0 and tracker.Header and tracker.Header.Text then
                 tracker.Header.Text:SetFont(fontPath, moduleFontSize, FONT_FLAGS)
+                SafeSetTextColor(tracker.Header.Text, moduleColor)
             end
 
             -- Style all blocks in this module
             if tracker.usedBlocks then
                 for template, blocks in pairs(tracker.usedBlocks) do
                     for blockID, block in pairs(blocks) do
-                        StyleBlock(block, fontPath, titleFontSize, textFontSize)
+                        StyleBlock(block, fontPath, titleFontSize, textFontSize, titleColor, textColor)
                     end
                 end
             end
@@ -508,6 +527,7 @@ local function ApplyFontSizes(moduleFontSize, titleFontSize, textFontSize)
     if TrackerFrame and TrackerFrame.Header and TrackerFrame.Header.Text then
         if moduleFontSize > 0 then
             TrackerFrame.Header.Text:SetFont(fontPath, moduleFontSize, FONT_FLAGS)
+            SafeSetTextColor(TrackerFrame.Header.Text, moduleColor)
         end
     end
 end
@@ -529,8 +549,9 @@ local function HookLineCreation()
             if line then
                 local currentSettings = GetSettings()
                 local currentTextSize = currentSettings and currentSettings.objectiveTrackerTextFontSize or 0
+                local currentTextColor = currentSettings and currentSettings.objectiveTrackerTextColor
                 if currentTextSize > 0 then
-                    StyleLine(line, GetFontPath(), currentTextSize)
+                    StyleLine(line, GetFontPath(), currentTextSize, currentTextColor)
                 end
             end
         end)
@@ -542,8 +563,10 @@ local function HookLineCreation()
         hooksecurefunc(ObjectiveTrackerBlockMixin, "SetHeader", function(self, text)
             local currentSettings = GetSettings()
             local currentTitleSize = currentSettings and currentSettings.objectiveTrackerTitleFontSize or 0
+            local currentTitleColor = currentSettings and currentSettings.objectiveTrackerTitleColor
             if currentTitleSize > 0 and self.HeaderText then
                 self.HeaderText:SetFont(GetFontPath(), currentTitleSize, FONT_FLAGS)
+                SafeSetTextColor(self.HeaderText, currentTitleColor)
             end
         end)
         ObjectiveTrackerBlockMixin.quiSetHeaderHooked = true
@@ -571,11 +594,14 @@ local function SkinObjectiveTracker()
     -- Apply QUI backdrop with our colors/opacity
     ApplyQUIBackdrop(TrackerFrame, sr, sg, sb, sa, bgr, bgg, bgb, bga)
 
-    -- Apply font size settings (three separate options)
+    -- Apply font size and color settings
     local moduleFontSize = settings.objectiveTrackerModuleFontSize or 12
     local titleFontSize = settings.objectiveTrackerTitleFontSize or 10
     local textFontSize = settings.objectiveTrackerTextFontSize or 10
-    ApplyFontSizes(moduleFontSize, titleFontSize, textFontSize)
+    local moduleColor = settings.objectiveTrackerModuleColor
+    local titleColor = settings.objectiveTrackerTitleColor
+    local textColor = settings.objectiveTrackerTextColor
+    ApplyFontStyles(moduleFontSize, titleFontSize, textFontSize, moduleColor, titleColor, textColor)
 
     -- Hook line creation to style new lines dynamically
     HookLineCreation()
@@ -676,19 +702,45 @@ local function RefreshObjectiveTracker()
     -- Update max width setting
     ApplyMaxWidth(settings)
 
-    -- Update backdrop border color (opacity is controlled by edit mode)
+    -- Update backdrop colors (SetBackdrop resets colors, so must re-apply both)
     if TrackerFrame.quiBackdrop then
-        TrackerFrame.quiBackdrop:SetBackdropBorderColor(sr, sg, sb, sa)
+        local hideBorder = settings.hideObjectiveTrackerBorder
+
+        -- Get opacity from edit mode manager
+        local manager = _G.ObjectiveTrackerManager
+        local opacity
+        if manager and manager.backgroundAlpha ~= nil then
+            opacity = manager.backgroundAlpha
+        else
+            opacity = bga or 0.95
+        end
+
+        -- Apply backdrop (edgeSize 0 hides border, 1 shows it)
+        TrackerFrame.quiBackdrop:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = "Interface\\Buttons\\WHITE8x8",
+            edgeSize = hideBorder and 0 or 1,
+            insets = { left = 1, right = 1, top = 1, bottom = 1 }
+        })
+        TrackerFrame.quiBackdrop:SetBackdropColor(bgr, bgg, bgb, opacity)
+        if hideBorder then
+            TrackerFrame.quiBackdrop:SetBackdropBorderColor(0, 0, 0, 0)
+        else
+            TrackerFrame.quiBackdrop:SetBackdropBorderColor(sr, sg, sb, sa)
+        end
     end
 
     -- Update anchors
     UpdateBackdropAnchors()
 
-    -- Update font sizes (three separate options)
+    -- Update font sizes and colors
     local moduleFontSize = settings.objectiveTrackerModuleFontSize or 12
     local titleFontSize = settings.objectiveTrackerTitleFontSize or 10
     local textFontSize = settings.objectiveTrackerTextFontSize or 10
-    ApplyFontSizes(moduleFontSize, titleFontSize, textFontSize)
+    local moduleColor = settings.objectiveTrackerModuleColor
+    local titleColor = settings.objectiveTrackerTitleColor
+    local textColor = settings.objectiveTrackerTextColor
+    ApplyFontStyles(moduleFontSize, titleFontSize, textFontSize, moduleColor, titleColor, textColor)
 
     -- Ensure hooks are in place
     HookLineCreation()
