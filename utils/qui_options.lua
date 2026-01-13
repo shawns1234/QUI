@@ -9502,14 +9502,14 @@ local function CreateCustomTrackersPage(parent)
             step2:SetPoint("TOPLEFT", PAD, y)
             step2:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             step2:SetJustifyH("LEFT")
-            y = y - 16
+            y = y - 20
 
             -- Step 3
             local step3 = GUI:CreateLabel(tabContent, "3. The icons on your Custom Bars will now show accurate custom buff timers in combat", 11, C.text)
             step3:SetPoint("TOPLEFT", PAD, y)
             step3:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             step3:SetJustifyH("LEFT")
-            y = y - 22
+            y = y - 26
 
             -- Scan Mode Toggle
             local scanModeContainer = CreateFrame("Frame", nil, tabContent)
@@ -10560,6 +10560,7 @@ local function CreateUnitFramesPage(parent)
                 enabled = true,
                 color = { 0.2, 0.8, 0.8 },
                 opacity = 0.7,
+                texture = "QUI Stripes",
             }
         end
 
@@ -10577,6 +10578,17 @@ local function CreateUnitFramesPage(parent)
         absorbColor:SetPoint("TOPLEFT", PAD, y)
         absorbColor:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
+
+        local absorbTexture = GUI:CreateFormDropdown(tabContent, "Absorb Texture", GetTextureList(), "texture", unitDB.absorbs, RefreshUnit)
+        absorbTexture:SetPoint("TOPLEFT", PAD, y)
+        absorbTexture:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local absorbTextureDesc = GUI:CreateLabel(tabContent, "Supports SharedMedia textures. Install the SharedMedia addon to add your own.", 11, C.textMuted)
+        absorbTextureDesc:SetPoint("TOPLEFT", PAD, y + 4)
+        absorbTextureDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        absorbTextureDesc:SetJustifyH("LEFT")
+        y = y - 20
 
         -- NAME TEXT section
         local nameHeader = GUI:CreateSectionHeader(tabContent, "Name Text")

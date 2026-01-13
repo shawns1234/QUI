@@ -238,6 +238,14 @@ local function GetTexturePath(textureName)
     return LSM:Fetch("statusbar", name) or "Interface\\Buttons\\WHITE8x8"
 end
 
+local function GetAbsorbTexturePath(textureName)
+    local name = textureName
+    if not name or name == "" then
+        name = "QUI Stripes"
+    end
+    return LSM:Fetch("statusbar", name) or "Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe"
+end
+
 ---------------------------------------------------------------------------
 -- HELPER: Get class color for a unit
 ---------------------------------------------------------------------------
@@ -658,9 +666,10 @@ local function UpdateAbsorbs(frame)
     do
         -- Create overflow bar once if needed (for overlay mode when absorb too big)
         -- Use stripe texture directly on StatusBar (no overlay) to avoid 1px sliver at 0 width
+        local absorbTexturePath = GetAbsorbTexturePath(absorbSettings.texture)
         if not frame.absorbOverflowBar then
             frame.absorbOverflowBar = CreateFrame("StatusBar", nil, frame.healthBar)
-            frame.absorbOverflowBar:SetStatusBarTexture("Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe")
+            frame.absorbOverflowBar:SetStatusBarTexture(absorbTexturePath)
             local overflowBarTex = frame.absorbOverflowBar:GetStatusBarTexture()
             if overflowBarTex then
                 overflowBarTex:SetHorizTile(false)
@@ -669,6 +678,9 @@ local function UpdateAbsorbs(frame)
             end
             frame.absorbOverflowBar:SetFrameLevel(frame.healthBar:GetFrameLevel() + 2)
             frame.absorbOverflowBar:EnableMouse(false)
+        else
+            -- Update texture if settings changed
+            frame.absorbOverflowBar:SetStatusBarTexture(absorbTexturePath)
         end
 
         -- Create visibility helper textures once if needed (for secret boolean → alpha conversion)
@@ -736,6 +748,7 @@ local function UpdateAbsorbs(frame)
         frame.absorbBar:SetReverseFill(false)  -- Grows LEFT to RIGHT (rightward into empty space)
         frame.absorbBar:SetMinMaxValues(0, maxHealth or 1)
         frame.absorbBar:SetValue(clampedAbsorbs)  -- Clamped value (secret-safe via StatusBar)
+        frame.absorbBar:SetStatusBarTexture(absorbTexturePath)  -- Apply texture from settings
         frame.absorbBar:SetStatusBarColor(c[1], c[2], c[3], a)  -- Apply color directly to StatusBar
         frame.absorbBar:SetAlpha(frame.attachedVisHelper:GetAlpha())  -- Secret alpha passed directly
         frame.absorbBar:Show()
@@ -1280,15 +1293,15 @@ local function CreateBossFrame(unit, frameKey, bossIndex)
 
     -- Absorb bar (StatusBar handles secret values via SetValue)
     -- Use stripe texture directly on StatusBar (no overlay) to avoid 1px sliver at 0 width
+    local absorbSettings = settings.absorbs or {}
     local absorbBar = CreateFrame("StatusBar", nil, healthBar)
-    absorbBar:SetStatusBarTexture("Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe")
+    absorbBar:SetStatusBarTexture(GetAbsorbTexturePath(absorbSettings.texture))
     local absorbBarTex = absorbBar:GetStatusBarTexture()
     if absorbBarTex then
         absorbBarTex:SetHorizTile(false)
         absorbBarTex:SetVertTile(false)
         absorbBarTex:SetTexCoord(0, 1, 0, 1)
     end
-    local absorbSettings = settings.absorbs or {}
     local ac = absorbSettings.color or { 1, 1, 1 }
     local aa = absorbSettings.opacity or 0.7
     absorbBar:SetStatusBarColor(ac[1], ac[2], ac[3], aa)
@@ -1586,15 +1599,15 @@ local function CreateUnitFrame(unit, unitKey)
 
     -- Absorb bar (StatusBar handles secret values via SetValue)
     -- Use stripe texture directly on StatusBar (no overlay) to avoid 1px sliver at 0 width
+    local absorbSettings = settings.absorbs or {}
     local absorbBar = CreateFrame("StatusBar", nil, healthBar)
-    absorbBar:SetStatusBarTexture("Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe")
+    absorbBar:SetStatusBarTexture(GetAbsorbTexturePath(absorbSettings.texture))
     local absorbBarTex = absorbBar:GetStatusBarTexture()
     if absorbBarTex then
         absorbBarTex:SetHorizTile(false)
         absorbBarTex:SetVertTile(false)
         absorbBarTex:SetTexCoord(0, 1, 0, 1)
     end
-    local absorbSettings = settings.absorbs or {}
     local ac = absorbSettings.color or { 1, 1, 1 }
     local aa = absorbSettings.opacity or 0.7
     absorbBar:SetStatusBarColor(ac[1], ac[2], ac[3], aa)

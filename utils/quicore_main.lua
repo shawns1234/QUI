@@ -1392,6 +1392,7 @@ local defaults = {
                     enabled = false,
                     color = { 1, 1, 1, 1 },
                     opacity = 0.3,
+                    texture = "QUI Stripes",
                 },
                 -- Castbar
                 castbar = {
@@ -1577,6 +1578,7 @@ local defaults = {
                     enabled = true,
                     color = { 1, 1, 1, 1 },
                     opacity = 0.3,
+                    texture = "QUI Stripes",
                 },
                 -- Castbar
                 castbar = {
@@ -1713,6 +1715,7 @@ local defaults = {
                     enabled = true,
                     color = { 1, 1, 1, 1 },
                     opacity = 0.7,
+                    texture = "QUI Stripes",
                 },
                 -- Castbar
                 castbar = {
@@ -1807,6 +1810,7 @@ local defaults = {
                     enabled = true,
                     color = { 1, 1, 1 },
                     opacity = 0.7,
+                    texture = "QUI Stripes",
                 },
                 -- Auras (buffs/debuffs)
                 auras = {
@@ -1909,6 +1913,7 @@ local defaults = {
                     enabled = true,
                     color = { 1, 1, 1, 1 },
                     opacity = 0.7,
+                    texture = "QUI Stripes",
                 },
                 -- Castbar
                 castbar = {
@@ -2003,6 +2008,7 @@ local defaults = {
                     enabled = true,
                     color = { 1, 1, 1 },
                     opacity = 0.7,
+                    texture = "QUI Stripes",
                 },
                 -- Castbar
                 castbar = {

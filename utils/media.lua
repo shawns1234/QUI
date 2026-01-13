@@ -106,6 +106,10 @@ local BORDER = MediaType.BORDER
     LSM:Register(STATUSBAR, "Quazii v6 Inverse", quaziiV6InverseTexturePath)
     LSM:Register(BORDER, "Quazii v6 Inverse", quaziiV6InverseTexturePath)
 
+    -- Register QUI Stripes texture (for absorb shield overlays)
+    local absorbStripeTexturePath = "Interface\\AddOns\\QuaziiUI\\assets\\absorb_stripe"
+    LSM:Register(STATUSBAR, "QUI Stripes", absorbStripeTexturePath)
+
 -- Function to check if our media is registered
 function QuaziiUI:CheckMediaRegistration()
     local quaziiFontRegistered = LSM:IsValid(FONT, "Quazii")
