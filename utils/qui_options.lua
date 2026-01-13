@@ -3655,6 +3655,38 @@ local function CreateAutohidesPage(parent)
             objTrackerWidthSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
 
+            if general.hideObjectiveTrackerBorder == nil then general.hideObjectiveTrackerBorder = false end
+            local hideBorderCheck = GUI:CreateFormCheckbox(tabContent, "Hide Border", "hideObjectiveTrackerBorder", general, function()
+                if _G.QuaziiUI_RefreshObjectiveTracker then _G.QuaziiUI_RefreshObjectiveTracker() end
+            end)
+            hideBorderCheck:SetPoint("TOPLEFT", PAD, y)
+            hideBorderCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            if general.objectiveTrackerModuleColor == nil then general.objectiveTrackerModuleColor = { 1.0, 0.82, 0.0, 1.0 } end
+            local moduleColorPicker = GUI:CreateFormColorPicker(tabContent, "Module Header Color (QUESTS, etc.)", "objectiveTrackerModuleColor", general, function()
+                if _G.QuaziiUI_RefreshObjectiveTracker then _G.QuaziiUI_RefreshObjectiveTracker() end
+            end)
+            moduleColorPicker:SetPoint("TOPLEFT", PAD, y)
+            moduleColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            if general.objectiveTrackerTitleColor == nil then general.objectiveTrackerTitleColor = { 1.0, 1.0, 1.0, 1.0 } end
+            local titleColorPicker = GUI:CreateFormColorPicker(tabContent, "Quest/Achievement Title Color", "objectiveTrackerTitleColor", general, function()
+                if _G.QuaziiUI_RefreshObjectiveTracker then _G.QuaziiUI_RefreshObjectiveTracker() end
+            end)
+            titleColorPicker:SetPoint("TOPLEFT", PAD, y)
+            titleColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            if general.objectiveTrackerTextColor == nil then general.objectiveTrackerTextColor = { 0.8, 0.8, 0.8, 1.0 } end
+            local textColorPicker = GUI:CreateFormColorPicker(tabContent, "Objective Text Color", "objectiveTrackerTextColor", general, function()
+                if _G.QuaziiUI_RefreshObjectiveTracker then _G.QuaziiUI_RefreshObjectiveTracker() end
+            end)
+            textColorPicker:SetPoint("TOPLEFT", PAD, y)
+            textColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
             -- Note: Background opacity is controlled via Edit Mode's built-in opacity slider
 
             y = y - 10  -- Extra padding before next section
