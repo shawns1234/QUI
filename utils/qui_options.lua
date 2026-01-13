@@ -8401,24 +8401,15 @@ local function CreateCustomTrackersPage(parent)
         y = y - 36
 
         -----------------------------------------------------------------------
-        -- SPEC-SPECIFIC SPELLS SECTION
+        -- ADD ITEMS/SPELLS SECTION (moved up for better UX flow)
         -----------------------------------------------------------------------
-        local specHeader = GUI:CreateSectionHeader(tabContent, "Spec-Specific Spells")
-        specHeader:SetPoint("TOPLEFT", PAD, y)
-        y = y - specHeader.gap
+        local addHeader = GUI:CreateSectionHeader(tabContent, "Add Trinkets/Consumables/Spells")
+        addHeader:SetPoint("TOPLEFT", PAD, y)
+        y = y - addHeader.gap
 
-        local specHint = GUI:CreateLabel(tabContent, "When enabled, the spell list for this bar is saved separately for each spec. The bar's layout settings remain shared.", 11, C.textMuted)
-        specHint:SetPoint("TOPLEFT", PAD, y)
-        specHint:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-        specHint:SetJustifyH("LEFT")
-        specHint:SetWordWrap(true)
-        specHint:SetHeight(30)
-        y = y - 38
-
-        -- Forward declarations for spec-specific UI elements
+        -- Forward declarations for spec-specific helpers (needed by RefreshEntryList)
         local specInfoLabel = nil
         local copyFromDropdown = nil
-        local updatePositioningAnchor = nil  -- Forward declaration for anchor update
 
         -- Get tracker module reference
         local trackerModule = QUICore and QUICore.CustomTrackers
@@ -8468,518 +8459,6 @@ local function CreateCustomTrackersPage(parent)
             updateSpecInfoLabel()
             -- Note: Entry list refresh is handled by entryListFrame recreation
         end
-
-        -- Enable Spec-Specific Spells checkbox
-        local specEnableCheck = GUI:CreateFormCheckbox(tabContent, "Enable Spec-Specific Spells", "specSpecificSpells", barConfig, function()
-            if barConfig.specSpecificSpells then
-                -- Just enabled: copy current profile entries to this spec
-                local specKey = getCurrentSpecKey()
-                if specKey and trackerModule then
-                    trackerModule:CopyEntriesToSpec(barConfig, specKey)
-                end
-            end
-            refreshForSpec()
-            -- Show/hide copy-from dropdown based on toggle
-            if copyFromDropdown then
-                if barConfig.specSpecificSpells then
-                    copyFromDropdown:Show()
-                else
-                    copyFromDropdown:Hide()
-                end
-            end
-            -- Update positioning section anchor to collapse/expand layout
-            if updatePositioningAnchor then
-                updatePositioningAnchor()
-            end
-        end)
-        specEnableCheck:SetPoint("TOPLEFT", PAD, y)
-        specEnableCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        -- Build specs list (used by copy-from dropdown below)
-        local allSpecs = {}
-        if trackerModule and trackerModule.GetAllClassSpecs then
-            allSpecs = trackerModule.GetAllClassSpecs()
-        else
-            -- Fallback: use WoW API directly
-            local _, className = UnitClass("player")
-            local numSpecs = GetNumSpecializations()
-            for i = 1, numSpecs do
-                local specID, specName = GetSpecializationInfo(i)
-                if specID and specName then
-                    table.insert(allSpecs, {
-                        key = className .. "-" .. specID,
-                        name = className:sub(1, 1):upper() .. className:sub(2):lower() .. " - " .. specName,
-                    })
-                end
-            end
-        end
-
-        -- Info label (shows currently editing spec) - anchored relative to checkbox
-        specInfoLabel = GUI:CreateLabel(tabContent, "", 11, C.accent)
-        specInfoLabel:SetPoint("TOPLEFT", specEnableCheck, "BOTTOMLEFT", 0, -4)
-        specInfoLabel:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-        specInfoLabel:SetJustifyH("LEFT")
-        updateSpecInfoLabel()
-
-        -- Copy From dropdown (only visible when spec-specific is enabled) - anchored relative to info label
-        local copyContainer = CreateFrame("Frame", nil, tabContent)
-        copyContainer:SetHeight(FORM_ROW)
-        copyContainer:SetPoint("TOPLEFT", specInfoLabel, "BOTTOMLEFT", 0, -4)
-        copyContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-
-        local copyLabel = copyContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        copyLabel:SetPoint("LEFT", 0, 0)
-        copyLabel:SetText("Copy spells from")
-        copyLabel:SetTextColor(C.textMuted[1], C.textMuted[2], C.textMuted[3], 1)
-
-        -- Build copy options with spell counts
-        local copyOptions = {}
-        local targetSpec = getCurrentSpecKey()
-        for _, spec in ipairs(allSpecs) do
-            if spec.key ~= targetSpec then
-                local entryCount = 0
-                if trackerModule then
-                    local specEntries = trackerModule:GetSpecEntries(barConfig, spec.key)
-                    entryCount = specEntries and #specEntries or 0
-                end
-                local suffix = entryCount > 0 and (" (" .. entryCount .. " spells)") or " (empty)"
-                table.insert(copyOptions, { value = spec.key, text = spec.name .. suffix })
-            end
-        end
-
-        local copyDropdownWidget = GUI:CreateFormDropdown(copyContainer, "", copyOptions, nil, nil, function(selectedValue)
-            if selectedValue and trackerModule then
-                -- Copy entries from selected spec to current editing spec
-                local sourceEntries = trackerModule:GetSpecEntries(barConfig, selectedValue)
-                if sourceEntries and #sourceEntries > 0 then
-                    local destSpec = getCurrentSpecKey()
-                    local copiedEntries = {}
-                    for _, entry in ipairs(sourceEntries) do
-                        table.insert(copiedEntries, {
-                            type = entry.type,
-                            id = entry.id,
-                            customName = entry.customName,
-                        })
-                    end
-                    trackerModule:SetSpecEntries(barConfig, destSpec, copiedEntries)
-                    refreshForSpec()
-                end
-            end
-        end)
-        copyDropdownWidget:SetPoint("LEFT", copyLabel, "RIGHT", 10, 0)
-        copyDropdownWidget:SetPoint("RIGHT", copyContainer, "RIGHT", 0, 0)
-        -- Hide if spec-specific not enabled
-        if not barConfig.specSpecificSpells then
-            copyContainer:Hide()
-        end
-        copyFromDropdown = copyContainer  -- Use container for show/hide
-
-        -----------------------------------------------------------------------
-        -- POSITIONING SECTION (dynamically anchored based on spec-specific toggle)
-        -----------------------------------------------------------------------
-        local posHeader = GUI:CreateSectionHeader(tabContent, "Positioning")
-
-        -- Helper to update positioning section anchor based on toggle state
-        -- (Assigns to forward-declared variable so checkbox callback can use it)
-        updatePositioningAnchor = function()
-            posHeader:ClearAllPoints()
-            if barConfig.specSpecificSpells then
-                -- Anchor below the dropdown container when spec-specific is ON
-                posHeader:SetPoint("TOPLEFT", copyContainer, "BOTTOMLEFT", 0, -15)
-            else
-                -- Anchor below the checkbox when spec-specific is OFF
-                posHeader:SetPoint("TOPLEFT", specEnableCheck, "BOTTOMLEFT", 0, -15)
-            end
-        end
-
-        -- Initial anchor setup
-        updatePositioningAnchor()
-
-        local posHint = GUI:CreateLabel(tabContent, "Hint: You can place your custom bar ANYWHERE on screen. Simply toggle off Prevent Mouse Dragging, then left-click drag the bar. Locking to Player Frame is merely for convenience.", 11, C.textMuted)
-        posHint:SetPoint("TOPLEFT", posHeader, "BOTTOMLEFT", 0, -8)
-        posHint:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-        posHint:SetJustifyH("LEFT")
-        posHint:SetWordWrap(true)
-        posHint:SetHeight(45)
-
-        -- Continue using relative anchoring for lockContainer
-        -- (Everything below posHint uses relative anchoring from here)
-
-        -- Ensure offset fields exist (migration)
-        if not barConfig.offsetX then barConfig.offsetX = 0 end
-        if not barConfig.offsetY then barConfig.offsetY = -300 end
-
-        -- Store slider references for external updates (when bar is dragged)
-        local xOffsetSlider, yOffsetSlider
-
-        -- Register callback to update sliders when bar is dragged
-        local trackerModule = QUICore and QUICore.CustomTrackers
-        if trackerModule then
-            trackerModule.onPositionChanged = function(draggedBarID, newX, newY)
-                if draggedBarID == barConfig.id and xOffsetSlider and yOffsetSlider then
-                    if xOffsetSlider.SetValue then xOffsetSlider.SetValue(newX, true) end
-                    if yOffsetSlider.SetValue then yOffsetSlider.SetValue(newY, true) end
-                end
-            end
-        end
-
-        -- Lock to Player Frame section
-        local btnGap = 4
-        local rowGap = 4
-
-        local lockContainer = CreateFrame("Frame", nil, tabContent)
-        lockContainer:SetHeight(FORM_ROW + 22 + rowGap)
-        lockContainer:SetPoint("TOPLEFT", posHint, "BOTTOMLEFT", 0, -10)
-        lockContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-
-        local lockLabel = lockContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        lockLabel:SetPoint("LEFT", 0, 0)
-        lockLabel:SetText("Lock to Player Frame")
-        lockLabel:SetTextColor(C.text[1], C.text[2], C.text[3], 1)
-
-        -- Store button references for state updates
-        local lockButtons = {}
-
-        -- Function to update slider enabled state based on lock
-        -- Note: Sliders remain enabled even when locked so users can fine-tune position
-        local function UpdateLockState()
-            -- No-op: sliders always enabled for fine-tuning locked positions
-        end
-
-        -- Function to update button border colors and text based on lock state
-        local function UpdateLockButtonStates()
-            local currentPos = barConfig.lockedToPlayer and barConfig.lockPosition or nil
-            for pos, btn in pairs(lockButtons) do
-                if pos == currentPos then
-                    btn:SetBackdropBorderColor(C.accent[1], C.accent[2], C.accent[3], 1)
-                    btn.textObj:SetText("Unlock " .. btn.label)
-                else
-                    btn:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
-                    btn.textObj:SetText(btn.label)
-                end
-            end
-        end
-
-        -- Forward declaration for mutual exclusion (defined in target lock section)
-        local UpdateTargetLockButtonStates
-
-        -- Toggle lock: click same button to unlock
-        local function LockToPlayer(corner)
-            -- Toggle: if already locked to this corner, unlock
-            if barConfig.lockedToPlayer and barConfig.lockPosition == corner then
-                -- Unlock: convert to absolute position
-                local bar = QUICore and QUICore.CustomTrackers and QUICore.CustomTrackers.activeBars and QUICore.CustomTrackers.activeBars[barConfig.id]
-                if bar then
-                    local scX, scY = UIParent:GetCenter()
-                    local bX, bY = bar:GetCenter()
-                    if bX and bY and scX and scY then
-                        barConfig.offsetX = math.floor(bX - scX + 0.5)
-                        barConfig.offsetY = math.floor(bY - scY + 0.5)
-                    end
-                end
-                barConfig.lockedToPlayer = false
-                barConfig.lockPosition = nil
-                if xOffsetSlider and xOffsetSlider.SetValue then
-                    xOffsetSlider.SetValue(barConfig.offsetX, true)
-                end
-                if yOffsetSlider and yOffsetSlider.SetValue then
-                    yOffsetSlider.SetValue(barConfig.offsetY, true)
-                end
-            else
-                -- Lock to this corner
-                local playerFrame = _G["QUI_Player"]
-                if not playerFrame then
-                    print("|cffff6666[QUI]|r Player frame not found")
-                    return
-                end
-                -- Clear target lock if any (mutual exclusion)
-                if barConfig.lockedToTarget then
-                    barConfig.lockedToTarget = false
-                    barConfig.targetLockPosition = nil
-                    UpdateTargetLockButtonStates()
-                end
-                barConfig.lockedToPlayer = true
-                barConfig.lockPosition = corner
-                -- Reset offsets to 0 for new lock position (user can fine-tune from there)
-                barConfig.offsetX = 0
-                barConfig.offsetY = 0
-                if xOffsetSlider and xOffsetSlider.SetValue then
-                    xOffsetSlider.SetValue(0, true)
-                end
-                if yOffsetSlider and yOffsetSlider.SetValue then
-                    yOffsetSlider.SetValue(0, true)
-                end
-            end
-            RefreshPosition()
-            UpdateLockState()
-            UpdateLockButtonStates()
-        end
-
-        -- Helper to create lock button with BackdropTemplate for border color support
-        local function CreateLockButton(parent, label, corner)
-            local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
-            btn:SetSize(75, 22)
-            btn:SetBackdrop({
-                bgFile = "Interface\\Buttons\\WHITE8x8",
-                edgeFile = "Interface\\Buttons\\WHITE8x8",
-                edgeSize = 1,
-            })
-            btn:SetBackdropColor(0.15, 0.15, 0.15, 1)
-            btn:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
-
-            local text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            text:SetPoint("CENTER")
-            text:SetText(label)
-            text:SetTextColor(C.text[1], C.text[2], C.text[3], 1)
-
-            btn.label = label      -- Store original label for text updates
-            btn.textObj = text     -- Store text reference for updates
-
-            btn:SetScript("OnClick", function() LockToPlayer(corner) end)
-
-            -- Hover effects
-            btn:SetScript("OnEnter", function(self)
-                self:SetBackdropBorderColor(C.accent[1], C.accent[2], C.accent[3], 1)
-            end)
-            btn:SetScript("OnLeave", function(self)
-                if not (barConfig.lockedToPlayer and barConfig.lockPosition == corner) then
-                    self:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
-                end
-            end)
-
-            lockButtons[corner] = btn
-            return btn
-        end
-
-        -- 6 lock buttons in 2 rows
-        local lockTLBtn = CreateLockButton(lockContainer, "Top Left", "topleft")
-        local lockTCBtn = CreateLockButton(lockContainer, "Top Center", "topcenter")
-        local lockTRBtn = CreateLockButton(lockContainer, "Top Right", "topright")
-        local lockBLBtn = CreateLockButton(lockContainer, "Btm Left", "bottomleft")
-        local lockBCBtn = CreateLockButton(lockContainer, "Btm Center", "bottomcenter")
-        local lockBRBtn = CreateLockButton(lockContainer, "Btm Right", "bottomright")
-
-        -- Row positioning (same as snap buttons)
-        local lockRow1Y = (22 + rowGap) / 2
-        lockTLBtn:SetPoint("LEFT", lockContainer, "LEFT", 180, lockRow1Y)
-        lockTCBtn:SetPoint("LEFT", lockTLBtn, "RIGHT", btnGap, 0)
-        lockTRBtn:SetPoint("LEFT", lockTCBtn, "RIGHT", btnGap, 0)
-
-        local lockRow2Y = -lockRow1Y
-        lockBLBtn:SetPoint("LEFT", lockContainer, "LEFT", 180, lockRow2Y)
-        lockBCBtn:SetPoint("LEFT", lockBLBtn, "RIGHT", btnGap, 0)
-        lockBRBtn:SetPoint("LEFT", lockBCBtn, "RIGHT", btnGap, 0)
-
-        -- Equal width sizing for lock buttons
-        local function UpdateLockButtonWidths()
-            local containerWidth = lockContainer:GetWidth()
-            if containerWidth and containerWidth > 0 then
-                local availableWidth = containerWidth - 180  -- minus label only (no unlock btn)
-                local totalGaps = 2 * btnGap
-                local lockBtnWidth = (availableWidth - totalGaps) / 3
-                if lockBtnWidth > 20 then
-                    lockTLBtn:SetWidth(lockBtnWidth)
-                    lockTCBtn:SetWidth(lockBtnWidth)
-                    lockTRBtn:SetWidth(lockBtnWidth)
-                    lockBLBtn:SetWidth(lockBtnWidth)
-                    lockBCBtn:SetWidth(lockBtnWidth)
-                    lockBRBtn:SetWidth(lockBtnWidth)
-                end
-            end
-        end
-
-        lockContainer:HookScript("OnSizeChanged", function()
-            UpdateLockButtonWidths()
-        end)
-        C_Timer.After(0, function()
-            UpdateLockButtonWidths()
-            UpdateLockButtonStates()  -- Set initial button highlight state
-        end)
-
-        -- Lock to Target Frame section (anchored to Lock to Player Frame)
-        local targetLockContainer = CreateFrame("Frame", nil, tabContent)
-        targetLockContainer:SetHeight(FORM_ROW + 22 + rowGap)
-        targetLockContainer:SetPoint("TOPLEFT", lockContainer, "BOTTOMLEFT", 0, -4)
-        targetLockContainer:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-
-        local targetLockLabel = targetLockContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        targetLockLabel:SetPoint("LEFT", 0, 0)
-        targetLockLabel:SetText("Lock to Target Frame")
-        targetLockLabel:SetTextColor(C.text[1], C.text[2], C.text[3], 1)
-
-        -- Store button references for state updates
-        local targetLockButtons = {}
-
-        -- Function to update button border colors and text based on lock state
-        -- (assigns to forward-declared variable for mutual exclusion with player lock)
-        UpdateTargetLockButtonStates = function()
-            local currentPos = barConfig.lockedToTarget and barConfig.targetLockPosition or nil
-            for pos, btn in pairs(targetLockButtons) do
-                if pos == currentPos then
-                    btn:SetBackdropBorderColor(C.accent[1], C.accent[2], C.accent[3], 1)
-                    btn.textObj:SetText("Unlock " .. btn.label)
-                else
-                    btn:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
-                    btn.textObj:SetText(btn.label)
-                end
-            end
-        end
-
-        -- Toggle lock: click same button to unlock
-        local function LockToTarget(corner)
-            -- Toggle: if already locked to this corner, unlock
-            if barConfig.lockedToTarget and barConfig.targetLockPosition == corner then
-                -- Unlock: convert to absolute position
-                local bar = QUICore and QUICore.CustomTrackers and QUICore.CustomTrackers.activeBars and QUICore.CustomTrackers.activeBars[barConfig.id]
-                if bar then
-                    local scX, scY = UIParent:GetCenter()
-                    local bX, bY = bar:GetCenter()
-                    if bX and bY and scX and scY then
-                        barConfig.offsetX = math.floor(bX - scX + 0.5)
-                        barConfig.offsetY = math.floor(bY - scY + 0.5)
-                    end
-                end
-                barConfig.lockedToTarget = false
-                barConfig.targetLockPosition = nil
-                if xOffsetSlider and xOffsetSlider.SetValue then
-                    xOffsetSlider.SetValue(barConfig.offsetX, true)
-                end
-                if yOffsetSlider and yOffsetSlider.SetValue then
-                    yOffsetSlider.SetValue(barConfig.offsetY, true)
-                end
-            else
-                -- Lock to this corner
-                local targetFrame = _G["QUI_Target"]
-                if not targetFrame then
-                    print("|cffff6666[QUI]|r Target frame not found")
-                    return
-                end
-                -- Clear player lock if any (mutual exclusion)
-                if barConfig.lockedToPlayer then
-                    barConfig.lockedToPlayer = false
-                    barConfig.lockPosition = nil
-                    UpdateLockButtonStates()
-                end
-                barConfig.lockedToTarget = true
-                barConfig.targetLockPosition = corner
-                -- Reset offsets to 0 for new lock position
-                barConfig.offsetX = 0
-                barConfig.offsetY = 0
-                if xOffsetSlider and xOffsetSlider.SetValue then
-                    xOffsetSlider.SetValue(0, true)
-                end
-                if yOffsetSlider and yOffsetSlider.SetValue then
-                    yOffsetSlider.SetValue(0, true)
-                end
-            end
-            RefreshPosition()
-            UpdateTargetLockButtonStates()
-        end
-
-        -- Helper to create target lock button
-        local function CreateTargetLockButton(parent, label, corner)
-            local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
-            btn:SetSize(75, 22)
-            btn:SetBackdrop({
-                bgFile = "Interface\\Buttons\\WHITE8x8",
-                edgeFile = "Interface\\Buttons\\WHITE8x8",
-                edgeSize = 1,
-            })
-            btn:SetBackdropColor(0.15, 0.15, 0.15, 1)
-            btn:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
-
-            local text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            text:SetPoint("CENTER")
-            text:SetText(label)
-            text:SetTextColor(C.text[1], C.text[2], C.text[3], 1)
-
-            btn.label = label
-            btn.textObj = text
-
-            btn:SetScript("OnClick", function() LockToTarget(corner) end)
-
-            btn:SetScript("OnEnter", function(self)
-                self:SetBackdropBorderColor(C.accent[1], C.accent[2], C.accent[3], 1)
-            end)
-            btn:SetScript("OnLeave", function(self)
-                if not (barConfig.lockedToTarget and barConfig.targetLockPosition == corner) then
-                    self:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
-                end
-            end)
-
-            targetLockButtons[corner] = btn
-            return btn
-        end
-
-        -- 6 target lock buttons in 2 rows
-        local targetLockTLBtn = CreateTargetLockButton(targetLockContainer, "Top Left", "topleft")
-        local targetLockTCBtn = CreateTargetLockButton(targetLockContainer, "Top Center", "topcenter")
-        local targetLockTRBtn = CreateTargetLockButton(targetLockContainer, "Top Right", "topright")
-        local targetLockBLBtn = CreateTargetLockButton(targetLockContainer, "Btm Left", "bottomleft")
-        local targetLockBCBtn = CreateTargetLockButton(targetLockContainer, "Btm Center", "bottomcenter")
-        local targetLockBRBtn = CreateTargetLockButton(targetLockContainer, "Btm Right", "bottomright")
-
-        -- Row positioning
-        local targetLockRow1Y = (22 + rowGap) / 2
-        targetLockTLBtn:SetPoint("LEFT", targetLockContainer, "LEFT", 180, targetLockRow1Y)
-        targetLockTCBtn:SetPoint("LEFT", targetLockTLBtn, "RIGHT", btnGap, 0)
-        targetLockTRBtn:SetPoint("LEFT", targetLockTCBtn, "RIGHT", btnGap, 0)
-
-        local targetLockRow2Y = -targetLockRow1Y
-        targetLockBLBtn:SetPoint("LEFT", targetLockContainer, "LEFT", 180, targetLockRow2Y)
-        targetLockBCBtn:SetPoint("LEFT", targetLockBLBtn, "RIGHT", btnGap, 0)
-        targetLockBRBtn:SetPoint("LEFT", targetLockBCBtn, "RIGHT", btnGap, 0)
-
-        -- Equal width sizing for target lock buttons
-        local function UpdateTargetLockButtonWidths()
-            local containerWidth = targetLockContainer:GetWidth()
-            if containerWidth and containerWidth > 0 then
-                local availableWidth = containerWidth - 180
-                local totalGaps = 2 * btnGap
-                local btnWidth = (availableWidth - totalGaps) / 3
-                if btnWidth > 20 then
-                    targetLockTLBtn:SetWidth(btnWidth)
-                    targetLockTCBtn:SetWidth(btnWidth)
-                    targetLockTRBtn:SetWidth(btnWidth)
-                    targetLockBLBtn:SetWidth(btnWidth)
-                    targetLockBCBtn:SetWidth(btnWidth)
-                    targetLockBRBtn:SetWidth(btnWidth)
-                end
-            end
-        end
-
-        targetLockContainer:HookScript("OnSizeChanged", function()
-            UpdateTargetLockButtonWidths()
-        end)
-        C_Timer.After(0, function()
-            UpdateTargetLockButtonWidths()
-            UpdateTargetLockButtonStates()
-        end)
-
-        -- X Offset slider (anchored to Target Lock section)
-        xOffsetSlider = GUI:CreateFormSlider(tabContent, "X Offset", -2000, 2000, 1, "offsetX", barConfig, RefreshPosition)
-        xOffsetSlider:SetPoint("TOPLEFT", targetLockContainer, "BOTTOMLEFT", 0, -8)
-        xOffsetSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-
-        -- Y Offset slider (anchored to X Offset)
-        yOffsetSlider = GUI:CreateFormSlider(tabContent, "Y Offset", -2000, 2000, 1, "offsetY", barConfig, RefreshPosition)
-        yOffsetSlider:SetPoint("TOPLEFT", xOffsetSlider, "BOTTOMLEFT", 0, -4)
-        yOffsetSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-
-        -- Set initial slider enabled state based on lock
-        UpdateLockState()
-
-        -- Prevent Mouse Dragging checkbox (anchored to Y Offset)
-        local lockCheck = GUI:CreateFormCheckbox(tabContent, "Prevent Mouse Dragging", "locked", barConfig)
-        lockCheck:SetPoint("TOPLEFT", yOffsetSlider, "BOTTOMLEFT", 0, -4)
-        lockCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-
-        -----------------------------------------------------------------------
-        -- ADD ITEMS/SPELLS SECTION
-        -----------------------------------------------------------------------
-        local addHeader = GUI:CreateSectionHeader(tabContent, "Add Trinkets/Consumables/Spells")
-        addHeader:SetPoint("TOPLEFT", lockCheck, "BOTTOMLEFT", 0, -15)
 
         local hintText = GUI:CreateLabel(tabContent, "Drag items from your bags or character pane, spells from your spellbook into the box below.", 11, C.textMuted)
         hintText:SetPoint("TOPLEFT", addHeader, "BOTTOMLEFT", 0, -8)
@@ -9288,6 +8767,347 @@ local function CreateCustomTrackersPage(parent)
         y = 0  -- Reset y for positioning within lowerContainer
 
         -----------------------------------------------------------------------
+        -- AUTOHIDE NON-USABLES SECTION (moved up per user request - highly useful feature)
+        -----------------------------------------------------------------------
+        local autohideHeader = GUI:CreateSectionHeader(lowerContainer, "Autohide Non-Usables")
+        autohideHeader:SetPoint("TOPLEFT", 0, y)
+        y = y - autohideHeader.gap + 12  -- Tighter spacing for description text
+
+        local autohideDesc = GUI:CreateLabel(lowerContainer, "By default, when a consumable has 0 stacks in your bags, a trinket is unequipped from your character, or you have unlearned a spell, those tracked elements are merely desaturated. Toggling this on will hide them entirely.", 11, C.textMuted)
+        autohideDesc:SetPoint("TOPLEFT", 0, y)
+        autohideDesc:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        autohideDesc:SetJustifyH("LEFT")
+        autohideDesc:SetWordWrap(true)
+        autohideDesc:SetHeight(45)
+        y = y - 55
+
+        local hideNonUsableCheck = GUI:CreateFormCheckbox(lowerContainer, "Hide Non-Usable", "hideNonUsable", barConfig, RefreshThisBar)
+        hideNonUsableCheck:SetPoint("TOPLEFT", 0, y)
+        hideNonUsableCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        -----------------------------------------------------------------------
+        -- POSITIONING SECTION (moved to lowerContainer for better flow)
+        -----------------------------------------------------------------------
+        local posHeader = GUI:CreateSectionHeader(lowerContainer, "Positioning")
+        posHeader:SetPoint("TOPLEFT", 0, y)
+        y = y - posHeader.gap
+
+        local posHint = GUI:CreateLabel(lowerContainer, "Hint: You can place your custom bar ANYWHERE on screen. Simply toggle off Prevent Mouse Dragging, then left-click drag the bar. Locking to Player Frame is merely for convenience.", 11, C.textMuted)
+        posHint:SetPoint("TOPLEFT", 0, y)
+        posHint:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        posHint:SetJustifyH("LEFT")
+        posHint:SetWordWrap(true)
+        posHint:SetHeight(45)
+        y = y - 55
+
+        -- Ensure offset fields exist (migration)
+        if not barConfig.offsetX then barConfig.offsetX = 0 end
+        if not barConfig.offsetY then barConfig.offsetY = -300 end
+
+        -- Store slider references for external updates (when bar is dragged)
+        local xOffsetSlider, yOffsetSlider
+
+        -- Register callback to update sliders when bar is dragged
+        if trackerModule then
+            trackerModule.onPositionChanged = function(draggedBarID, newX, newY)
+                if draggedBarID == barConfig.id and xOffsetSlider and yOffsetSlider then
+                    if xOffsetSlider.SetValue then xOffsetSlider.SetValue(newX, true) end
+                    if yOffsetSlider.SetValue then yOffsetSlider.SetValue(newY, true) end
+                end
+            end
+        end
+
+        -- Lock to Player Frame section
+        local btnGap = 4
+        local rowGap = 4
+
+        local lockContainer = CreateFrame("Frame", nil, lowerContainer)
+        lockContainer:SetHeight(FORM_ROW + 22 + rowGap)
+        lockContainer:SetPoint("TOPLEFT", 0, y)
+        lockContainer:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+
+        local lockLabel = lockContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        lockLabel:SetPoint("LEFT", 0, 0)
+        lockLabel:SetText("Lock to Player Frame")
+        lockLabel:SetTextColor(C.text[1], C.text[2], C.text[3], 1)
+
+        -- Store button references for state updates
+        local lockButtons = {}
+
+        -- Function to update slider enabled state based on lock
+        local function UpdateLockState()
+            -- No-op: sliders always enabled for fine-tuning locked positions
+        end
+
+        -- Function to update button border colors and text based on lock state
+        local function UpdateLockButtonStates()
+            local currentPos = barConfig.lockedToPlayer and barConfig.lockPosition or nil
+            for pos, btn in pairs(lockButtons) do
+                if pos == currentPos then
+                    btn:SetBackdropBorderColor(C.accent[1], C.accent[2], C.accent[3], 1)
+                    btn.textObj:SetText("Unlock " .. btn.label)
+                else
+                    btn:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
+                    btn.textObj:SetText(btn.label)
+                end
+            end
+        end
+
+        -- Forward declaration for mutual exclusion (defined in target lock section)
+        local UpdateTargetLockButtonStates
+
+        -- Toggle lock: click same button to unlock
+        local function LockToPlayer(corner)
+            if barConfig.lockedToPlayer and barConfig.lockPosition == corner then
+                local bar = QUICore and QUICore.CustomTrackers and QUICore.CustomTrackers.activeBars and QUICore.CustomTrackers.activeBars[barConfig.id]
+                if bar then
+                    local scX, scY = UIParent:GetCenter()
+                    local bX, bY = bar:GetCenter()
+                    if bX and bY and scX and scY then
+                        barConfig.offsetX = math.floor(bX - scX + 0.5)
+                        barConfig.offsetY = math.floor(bY - scY + 0.5)
+                    end
+                end
+                barConfig.lockedToPlayer = false
+                barConfig.lockPosition = nil
+                if xOffsetSlider and xOffsetSlider.SetValue then xOffsetSlider.SetValue(barConfig.offsetX, true) end
+                if yOffsetSlider and yOffsetSlider.SetValue then yOffsetSlider.SetValue(barConfig.offsetY, true) end
+            else
+                local playerFrame = _G["QUI_Player"]
+                if not playerFrame then
+                    print("|cffff6666[QUI]|r Player frame not found")
+                    return
+                end
+                if barConfig.lockedToTarget then
+                    barConfig.lockedToTarget = false
+                    barConfig.targetLockPosition = nil
+                    UpdateTargetLockButtonStates()
+                end
+                barConfig.lockedToPlayer = true
+                barConfig.lockPosition = corner
+                barConfig.offsetX = 0
+                barConfig.offsetY = 0
+                if xOffsetSlider and xOffsetSlider.SetValue then xOffsetSlider.SetValue(0, true) end
+                if yOffsetSlider and yOffsetSlider.SetValue then yOffsetSlider.SetValue(0, true) end
+            end
+            RefreshPosition()
+            UpdateLockState()
+            UpdateLockButtonStates()
+        end
+
+        -- Helper to create lock button
+        local function CreateLockButton(parent, label, corner)
+            local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+            btn:SetSize(75, 22)
+            btn:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8x8",
+                edgeFile = "Interface\\Buttons\\WHITE8x8",
+                edgeSize = 1,
+            })
+            btn:SetBackdropColor(0.15, 0.15, 0.15, 1)
+            btn:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
+            local text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            text:SetPoint("CENTER")
+            text:SetText(label)
+            text:SetTextColor(C.text[1], C.text[2], C.text[3], 1)
+            btn.label = label
+            btn.textObj = text
+            btn:SetScript("OnClick", function() LockToPlayer(corner) end)
+            btn:SetScript("OnEnter", function(self) self:SetBackdropBorderColor(C.accent[1], C.accent[2], C.accent[3], 1) end)
+            btn:SetScript("OnLeave", function(self)
+                if not (barConfig.lockedToPlayer and barConfig.lockPosition == corner) then
+                    self:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
+                end
+            end)
+            lockButtons[corner] = btn
+            return btn
+        end
+
+        local lockTLBtn = CreateLockButton(lockContainer, "Top Left", "topleft")
+        local lockTCBtn = CreateLockButton(lockContainer, "Top Center", "topcenter")
+        local lockTRBtn = CreateLockButton(lockContainer, "Top Right", "topright")
+        local lockBLBtn = CreateLockButton(lockContainer, "Btm Left", "bottomleft")
+        local lockBCBtn = CreateLockButton(lockContainer, "Btm Center", "bottomcenter")
+        local lockBRBtn = CreateLockButton(lockContainer, "Btm Right", "bottomright")
+
+        local lockRow1Y = (22 + rowGap) / 2
+        lockTLBtn:SetPoint("LEFT", lockContainer, "LEFT", 180, lockRow1Y)
+        lockTCBtn:SetPoint("LEFT", lockTLBtn, "RIGHT", btnGap, 0)
+        lockTRBtn:SetPoint("LEFT", lockTCBtn, "RIGHT", btnGap, 0)
+        local lockRow2Y = -lockRow1Y
+        lockBLBtn:SetPoint("LEFT", lockContainer, "LEFT", 180, lockRow2Y)
+        lockBCBtn:SetPoint("LEFT", lockBLBtn, "RIGHT", btnGap, 0)
+        lockBRBtn:SetPoint("LEFT", lockBCBtn, "RIGHT", btnGap, 0)
+
+        local function UpdateLockButtonWidths()
+            local containerWidth = lockContainer:GetWidth()
+            if containerWidth and containerWidth > 0 then
+                local availableWidth = containerWidth - 180
+                local totalGaps = 2 * btnGap
+                local lockBtnWidth = (availableWidth - totalGaps) / 3
+                if lockBtnWidth > 20 then
+                    lockTLBtn:SetWidth(lockBtnWidth)
+                    lockTCBtn:SetWidth(lockBtnWidth)
+                    lockTRBtn:SetWidth(lockBtnWidth)
+                    lockBLBtn:SetWidth(lockBtnWidth)
+                    lockBCBtn:SetWidth(lockBtnWidth)
+                    lockBRBtn:SetWidth(lockBtnWidth)
+                end
+            end
+        end
+        lockContainer:HookScript("OnSizeChanged", function() UpdateLockButtonWidths() end)
+        C_Timer.After(0, function() UpdateLockButtonWidths() UpdateLockButtonStates() end)
+
+        y = y - (FORM_ROW + 22 + rowGap + 4)
+
+        -- Lock to Target Frame section
+        local targetLockContainer = CreateFrame("Frame", nil, lowerContainer)
+        targetLockContainer:SetHeight(FORM_ROW + 22 + rowGap)
+        targetLockContainer:SetPoint("TOPLEFT", 0, y)
+        targetLockContainer:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+
+        local targetLockLabel = targetLockContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        targetLockLabel:SetPoint("LEFT", 0, 0)
+        targetLockLabel:SetText("Lock to Target Frame")
+        targetLockLabel:SetTextColor(C.text[1], C.text[2], C.text[3], 1)
+
+        local targetLockButtons = {}
+
+        UpdateTargetLockButtonStates = function()
+            local currentPos = barConfig.lockedToTarget and barConfig.targetLockPosition or nil
+            for pos, btn in pairs(targetLockButtons) do
+                if pos == currentPos then
+                    btn:SetBackdropBorderColor(C.accent[1], C.accent[2], C.accent[3], 1)
+                    btn.textObj:SetText("Unlock " .. btn.label)
+                else
+                    btn:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
+                    btn.textObj:SetText(btn.label)
+                end
+            end
+        end
+
+        local function LockToTarget(corner)
+            if barConfig.lockedToTarget and barConfig.targetLockPosition == corner then
+                local bar = QUICore and QUICore.CustomTrackers and QUICore.CustomTrackers.activeBars and QUICore.CustomTrackers.activeBars[barConfig.id]
+                if bar then
+                    local scX, scY = UIParent:GetCenter()
+                    local bX, bY = bar:GetCenter()
+                    if bX and bY and scX and scY then
+                        barConfig.offsetX = math.floor(bX - scX + 0.5)
+                        barConfig.offsetY = math.floor(bY - scY + 0.5)
+                    end
+                end
+                barConfig.lockedToTarget = false
+                barConfig.targetLockPosition = nil
+                if xOffsetSlider and xOffsetSlider.SetValue then xOffsetSlider.SetValue(barConfig.offsetX, true) end
+                if yOffsetSlider and yOffsetSlider.SetValue then yOffsetSlider.SetValue(barConfig.offsetY, true) end
+            else
+                local targetFrame = _G["QUI_Target"]
+                if not targetFrame then
+                    print("|cffff6666[QUI]|r Target frame not found")
+                    return
+                end
+                if barConfig.lockedToPlayer then
+                    barConfig.lockedToPlayer = false
+                    barConfig.lockPosition = nil
+                    UpdateLockButtonStates()
+                end
+                barConfig.lockedToTarget = true
+                barConfig.targetLockPosition = corner
+                barConfig.offsetX = 0
+                barConfig.offsetY = 0
+                if xOffsetSlider and xOffsetSlider.SetValue then xOffsetSlider.SetValue(0, true) end
+                if yOffsetSlider and yOffsetSlider.SetValue then yOffsetSlider.SetValue(0, true) end
+            end
+            RefreshPosition()
+            UpdateTargetLockButtonStates()
+        end
+
+        local function CreateTargetLockButton(parent, label, corner)
+            local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+            btn:SetSize(75, 22)
+            btn:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8x8",
+                edgeFile = "Interface\\Buttons\\WHITE8x8",
+                edgeSize = 1,
+            })
+            btn:SetBackdropColor(0.15, 0.15, 0.15, 1)
+            btn:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
+            local text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            text:SetPoint("CENTER")
+            text:SetText(label)
+            text:SetTextColor(C.text[1], C.text[2], C.text[3], 1)
+            btn.label = label
+            btn.textObj = text
+            btn:SetScript("OnClick", function() LockToTarget(corner) end)
+            btn:SetScript("OnEnter", function(self) self:SetBackdropBorderColor(C.accent[1], C.accent[2], C.accent[3], 1) end)
+            btn:SetScript("OnLeave", function(self)
+                if not (barConfig.lockedToTarget and barConfig.targetLockPosition == corner) then
+                    self:SetBackdropBorderColor(C.border[1], C.border[2], C.border[3], 1)
+                end
+            end)
+            targetLockButtons[corner] = btn
+            return btn
+        end
+
+        local targetLockTLBtn = CreateTargetLockButton(targetLockContainer, "Top Left", "topleft")
+        local targetLockTCBtn = CreateTargetLockButton(targetLockContainer, "Top Center", "topcenter")
+        local targetLockTRBtn = CreateTargetLockButton(targetLockContainer, "Top Right", "topright")
+        local targetLockBLBtn = CreateTargetLockButton(targetLockContainer, "Btm Left", "bottomleft")
+        local targetLockBCBtn = CreateTargetLockButton(targetLockContainer, "Btm Center", "bottomcenter")
+        local targetLockBRBtn = CreateTargetLockButton(targetLockContainer, "Btm Right", "bottomright")
+
+        local targetLockRow1Y = (22 + rowGap) / 2
+        targetLockTLBtn:SetPoint("LEFT", targetLockContainer, "LEFT", 180, targetLockRow1Y)
+        targetLockTCBtn:SetPoint("LEFT", targetLockTLBtn, "RIGHT", btnGap, 0)
+        targetLockTRBtn:SetPoint("LEFT", targetLockTCBtn, "RIGHT", btnGap, 0)
+        local targetLockRow2Y = -targetLockRow1Y
+        targetLockBLBtn:SetPoint("LEFT", targetLockContainer, "LEFT", 180, targetLockRow2Y)
+        targetLockBCBtn:SetPoint("LEFT", targetLockBLBtn, "RIGHT", btnGap, 0)
+        targetLockBRBtn:SetPoint("LEFT", targetLockBCBtn, "RIGHT", btnGap, 0)
+
+        local function UpdateTargetLockButtonWidths()
+            local containerWidth = targetLockContainer:GetWidth()
+            if containerWidth and containerWidth > 0 then
+                local availableWidth = containerWidth - 180
+                local totalGaps = 2 * btnGap
+                local btnWidth = (availableWidth - totalGaps) / 3
+                if btnWidth > 20 then
+                    targetLockTLBtn:SetWidth(btnWidth)
+                    targetLockTCBtn:SetWidth(btnWidth)
+                    targetLockTRBtn:SetWidth(btnWidth)
+                    targetLockBLBtn:SetWidth(btnWidth)
+                    targetLockBCBtn:SetWidth(btnWidth)
+                    targetLockBRBtn:SetWidth(btnWidth)
+                end
+            end
+        end
+        targetLockContainer:HookScript("OnSizeChanged", function() UpdateTargetLockButtonWidths() end)
+        C_Timer.After(0, function() UpdateTargetLockButtonWidths() UpdateTargetLockButtonStates() end)
+
+        y = y - (FORM_ROW + 22 + rowGap + 8)
+
+        -- X/Y Offset sliders
+        xOffsetSlider = GUI:CreateFormSlider(lowerContainer, "X Offset", -2000, 2000, 1, "offsetX", barConfig, RefreshPosition)
+        xOffsetSlider:SetPoint("TOPLEFT", 0, y)
+        xOffsetSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        yOffsetSlider = GUI:CreateFormSlider(lowerContainer, "Y Offset", -2000, 2000, 1, "offsetY", barConfig, RefreshPosition)
+        yOffsetSlider:SetPoint("TOPLEFT", 0, y)
+        yOffsetSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        UpdateLockState()
+
+        -- Prevent Mouse Dragging checkbox
+        local lockCheck = GUI:CreateFormCheckbox(lowerContainer, "Prevent Mouse Dragging", "locked", barConfig)
+        lockCheck:SetPoint("TOPLEFT", 0, y)
+        lockCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        -----------------------------------------------------------------------
         -- LAYOUT SECTION
         -----------------------------------------------------------------------
         local layoutHeader = GUI:CreateSectionHeader(lowerContainer, "Layout")
@@ -9344,79 +9164,6 @@ local function CreateCustomTrackersPage(parent)
         spacingSlider:SetPoint("TOPLEFT", 0, y)
         spacingSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
-
-        -----------------------------------------------------------------------
-        -- AUTOHIDE NON-USABLES SECTION
-        -----------------------------------------------------------------------
-        local autohideHeader = GUI:CreateSectionHeader(lowerContainer, "Autohide Non-Usables")
-        autohideHeader:SetPoint("TOPLEFT", 0, y)
-        y = y - autohideHeader.gap + 12  -- Tighter spacing for description text
-
-        local autohideDesc = GUI:CreateLabel(lowerContainer, "By default, when a consumable has 0 stacks in your bags, a trinket is unequipped from your character, or you have unlearned a spell, those tracked elements are merely desaturated. Toggling this on will hide them entirely.", 11, C.textMuted)
-        autohideDesc:SetPoint("TOPLEFT", 0, y)
-        autohideDesc:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        autohideDesc:SetJustifyH("LEFT")
-        autohideDesc:SetWordWrap(true)
-        autohideDesc:SetHeight(45)
-        y = y - 55
-
-        local hideNonUsableCheck = GUI:CreateFormCheckbox(lowerContainer, "Hide Non-Usable", "hideNonUsable", barConfig, RefreshThisBar)
-        hideNonUsableCheck:SetPoint("TOPLEFT", 0, y)
-        hideNonUsableCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        -----------------------------------------------------------------------
-        -- COOLDOWN VISIBILITY SECTION
-        -----------------------------------------------------------------------
-        local cooldownOnlyHeader = GUI:CreateSectionHeader(lowerContainer, "Cooldown Visibility")
-        cooldownOnlyHeader:SetPoint("TOPLEFT", 0, y)
-        y = y - cooldownOnlyHeader.gap + 12
-
-        local cooldownOnlyDesc = GUI:CreateLabel(lowerContainer, "When enabled, icons are invisible when ready to be used. It then appears desaturated when on cooldown. Position is preserved. Recommend using on a NEW separate custom bar to prevent gaps.", 11, C.textMuted)
-        cooldownOnlyDesc:SetPoint("TOPLEFT", 0, y)
-        cooldownOnlyDesc:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        cooldownOnlyDesc:SetJustifyH("LEFT")
-        cooldownOnlyDesc:SetWordWrap(true)
-        cooldownOnlyDesc:SetHeight(50)
-        y = y - 60
-        -- These two options are mutually exclusive:
-        -- NOTE: QUI GUI widgets expose SetValue/GetValue as plain functions (NOT methods),
-        -- so call them with dot syntax (check.SetValue(...)), not colon (check:SetValue(...)).
-        local showOnlyOnCooldownCheck = GUI:CreateFormCheckbox(lowerContainer, "Show Only On Cooldown", "showOnlyOnCooldown", barConfig, nil)
-        showOnlyOnCooldownCheck:SetPoint("TOPLEFT", 0, y)
-        showOnlyOnCooldownCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        local showOnlyWhenActiveCheck = GUI:CreateFormCheckbox(lowerContainer, "Show Only When Active", "showOnlyWhenActive", barConfig, nil)
-        showOnlyWhenActiveCheck:SetPoint("TOPLEFT", 0, y)
-        showOnlyWhenActiveCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        -- REPLACE the track OnClick handlers for mutual exclusion
-        if showOnlyOnCooldownCheck.track then
-            showOnlyOnCooldownCheck.track:SetScript("OnClick", function()
-                -- Toggle this one
-                local newVal = not showOnlyOnCooldownCheck.GetValue()
-                showOnlyOnCooldownCheck.SetValue(newVal, true)  -- Update visual + DB, skip callback
-                -- If turning ON, turn off the other one
-                if newVal then
-                    showOnlyWhenActiveCheck.SetValue(false, true)
-                end
-                RefreshThisBar()
-            end)
-        end
-        if showOnlyWhenActiveCheck.track then
-            showOnlyWhenActiveCheck.track:SetScript("OnClick", function()
-                -- Toggle this one
-                local newVal = not showOnlyWhenActiveCheck.GetValue()
-                showOnlyWhenActiveCheck.SetValue(newVal, true)  -- Update visual + DB, skip callback
-                -- If turning ON, turn off the other one
-                if newVal then
-                    showOnlyOnCooldownCheck.SetValue(false, true)
-                end
-                RefreshThisBar()
-            end)
-        end
 
         -----------------------------------------------------------------------
         -- ICON STYLE SECTION
@@ -9548,13 +9295,168 @@ local function CreateCustomTrackersPage(parent)
         glowScaleSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
-        -- Set lowerContainer height based on content
-        lowerContainer:SetHeight(math.abs(y) + 20)
+        -----------------------------------------------------------------------
+        -- COOLDOWN VISIBILITY SECTION (moved after Buff Active per plan)
+        -----------------------------------------------------------------------
+        local cooldownOnlyHeader = GUI:CreateSectionHeader(lowerContainer, "Cooldown Visibility")
+        cooldownOnlyHeader:SetPoint("TOPLEFT", 0, y)
+        y = y - cooldownOnlyHeader.gap + 12
 
-        -- tabContent height = upper sections + lowerContainer
-        -- Upper sections are: General, Positioning, Add Items, Tracked Items headers + widgets
-        -- We anchor lowerContainer to entryListFrame, so just set tabContent tall enough
-        tabContent:SetHeight(800)
+        local cooldownOnlyDesc = GUI:CreateLabel(lowerContainer, "When enabled, icons are invisible when ready to be used. It then appears desaturated when on cooldown. Position is preserved. Recommend using on a NEW separate custom bar to prevent gaps.", 11, C.textMuted)
+        cooldownOnlyDesc:SetPoint("TOPLEFT", 0, y)
+        cooldownOnlyDesc:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        cooldownOnlyDesc:SetJustifyH("LEFT")
+        cooldownOnlyDesc:SetWordWrap(true)
+        cooldownOnlyDesc:SetHeight(50)
+        y = y - 60
+
+        local showOnlyOnCooldownCheck = GUI:CreateFormCheckbox(lowerContainer, "Show Only On Cooldown", "showOnlyOnCooldown", barConfig, nil)
+        showOnlyOnCooldownCheck:SetPoint("TOPLEFT", 0, y)
+        showOnlyOnCooldownCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local showOnlyWhenActiveCheck = GUI:CreateFormCheckbox(lowerContainer, "Show Only When Active", "showOnlyWhenActive", barConfig, nil)
+        showOnlyWhenActiveCheck:SetPoint("TOPLEFT", 0, y)
+        showOnlyWhenActiveCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        -- Mutual exclusion handlers for cooldown visibility checkboxes
+        if showOnlyOnCooldownCheck.track then
+            showOnlyOnCooldownCheck.track:SetScript("OnClick", function()
+                local newVal = not showOnlyOnCooldownCheck.GetValue()
+                showOnlyOnCooldownCheck.SetValue(newVal, true)
+                if newVal then showOnlyWhenActiveCheck.SetValue(false, true) end
+                RefreshThisBar()
+            end)
+        end
+        if showOnlyWhenActiveCheck.track then
+            showOnlyWhenActiveCheck.track:SetScript("OnClick", function()
+                local newVal = not showOnlyWhenActiveCheck.GetValue()
+                showOnlyWhenActiveCheck.SetValue(newVal, true)
+                if newVal then showOnlyOnCooldownCheck.SetValue(false, true) end
+                RefreshThisBar()
+            end)
+        end
+
+        -----------------------------------------------------------------------
+        -- SPEC-SPECIFIC SPELLS SECTION (moved to end - advanced feature)
+        -----------------------------------------------------------------------
+        local specHeader = GUI:CreateSectionHeader(lowerContainer, "Spec-Specific Spells")
+        specHeader:SetPoint("TOPLEFT", 0, y)
+        y = y - specHeader.gap
+
+        local specHint = GUI:CreateLabel(lowerContainer, "When enabled, the spell list for this bar is saved separately for each spec. The bar's layout settings remain shared.", 11, C.textMuted)
+        specHint:SetPoint("TOPLEFT", 0, y)
+        specHint:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        specHint:SetJustifyH("LEFT")
+        specHint:SetWordWrap(true)
+        specHint:SetHeight(30)
+        y = y - 38
+
+        -- Build specs list for copy dropdown
+        local allSpecs = {}
+        if trackerModule and trackerModule.GetAllClassSpecs then
+            allSpecs = trackerModule.GetAllClassSpecs()
+        else
+            local _, className = UnitClass("player")
+            local numSpecs = GetNumSpecializations()
+            for i = 1, numSpecs do
+                local specID, specName = GetSpecializationInfo(i)
+                if specID and specName then
+                    table.insert(allSpecs, {
+                        key = className .. "-" .. specID,
+                        name = className:sub(1, 1):upper() .. className:sub(2):lower() .. " - " .. specName,
+                    })
+                end
+            end
+        end
+
+        -- Enable Spec-Specific Spells checkbox
+        local specEnableCheck = GUI:CreateFormCheckbox(lowerContainer, "Enable Spec-Specific Spells", "specSpecificSpells", barConfig, function()
+            if barConfig.specSpecificSpells then
+                local specKey = getCurrentSpecKey()
+                if specKey and trackerModule then
+                    trackerModule:CopyEntriesToSpec(barConfig, specKey)
+                end
+            end
+            refreshForSpec()
+            if copyFromDropdown then
+                if barConfig.specSpecificSpells then
+                    copyFromDropdown:Show()
+                else
+                    copyFromDropdown:Hide()
+                end
+            end
+        end)
+        specEnableCheck:SetPoint("TOPLEFT", 0, y)
+        specEnableCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        -- Info label (shows currently editing spec)
+        specInfoLabel = GUI:CreateLabel(lowerContainer, "", 11, C.accent)
+        specInfoLabel:SetPoint("TOPLEFT", 0, y)
+        specInfoLabel:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        specInfoLabel:SetJustifyH("LEFT")
+        updateSpecInfoLabel()
+        y = y - 18
+
+        -- Copy From dropdown container
+        local copyContainer = CreateFrame("Frame", nil, lowerContainer)
+        copyContainer:SetHeight(FORM_ROW)
+        copyContainer:SetPoint("TOPLEFT", 0, y)
+        copyContainer:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+
+        local copyLabel = copyContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        copyLabel:SetPoint("LEFT", 0, 0)
+        copyLabel:SetText("Copy spells from")
+        copyLabel:SetTextColor(C.textMuted[1], C.textMuted[2], C.textMuted[3], 1)
+
+        local copyOptions = {}
+        local targetSpec = getCurrentSpecKey()
+        for _, spec in ipairs(allSpecs) do
+            if spec.key ~= targetSpec then
+                local entryCount = 0
+                if trackerModule then
+                    local specEntries = trackerModule:GetSpecEntries(barConfig, spec.key)
+                    entryCount = specEntries and #specEntries or 0
+                end
+                local suffix = entryCount > 0 and (" (" .. entryCount .. " spells)") or " (empty)"
+                table.insert(copyOptions, { value = spec.key, text = spec.name .. suffix })
+            end
+        end
+
+        local copyDropdownWidget = GUI:CreateFormDropdown(copyContainer, "", copyOptions, nil, nil, function(selectedValue)
+            if selectedValue and trackerModule then
+                local sourceEntries = trackerModule:GetSpecEntries(barConfig, selectedValue)
+                if sourceEntries and #sourceEntries > 0 then
+                    local destSpec = getCurrentSpecKey()
+                    local copiedEntries = {}
+                    for _, entry in ipairs(sourceEntries) do
+                        table.insert(copiedEntries, {
+                            type = entry.type,
+                            id = entry.id,
+                            customName = entry.customName,
+                        })
+                    end
+                    trackerModule:SetSpecEntries(barConfig, destSpec, copiedEntries)
+                    refreshForSpec()
+                end
+            end
+        end)
+        copyDropdownWidget:SetPoint("LEFT", copyLabel, "RIGHT", 10, 0)
+        copyDropdownWidget:SetPoint("RIGHT", copyContainer, "RIGHT", 0, 0)
+
+        if not barConfig.specSpecificSpells then
+            copyContainer:Hide()
+        end
+        copyFromDropdown = copyContainer
+        y = y - FORM_ROW
+
+        -- Set lowerContainer height based on content (increased for new sections)
+        lowerContainer:SetHeight(math.abs(y) + 40)
+
+        -- tabContent height needs to accommodate more content now
+        tabContent:SetHeight(1200)
     end
 
     ---------------------------------------------------------------------------
@@ -13619,7 +13521,7 @@ local function CreateHUDLayeringPage(parent)
                 primaryPowerBar = 7, secondaryPowerBar = 6,
                 playerFrame = 4, targetFrame = 4, totFrame = 3, petFrame = 3, focusFrame = 4, bossFrames = 4,
                 playerCastbar = 5, targetCastbar = 5,
-                playerIndicators = 6,  -- Player frame indicator icons (rested, combat, stance)
+                playerIndicators = 5,  -- Player frame indicator icons (rested, combat, stance)
                 customBars = 5,
             }
         end

@@ -2834,6 +2834,7 @@ local defaults = {
             secondaryPowerBar = 6,
             -- Unit frames (lower defaults, background elements)
             playerFrame = 4,
+            playerIndicators = 5,  -- Above player frame for visibility
             targetFrame = 4,
             totFrame = 3,
             petFrame = 3,

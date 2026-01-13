@@ -3391,7 +3391,7 @@ function QUI_UF:RefreshFrame(unitKey)
 
         -- Apply HUD layer priority to indicator frame (independent from player frame)
         if frame.indicatorFrame then
-            local indicatorPriority = hudLayering and hudLayering.playerIndicators or 6
+            local indicatorPriority = hudLayering and hudLayering.playerIndicators or 5
             if QUICore and QUICore.GetHUDFrameLevel then
                 local indicatorLevel = QUICore:GetHUDFrameLevel(indicatorPriority)
                 frame.indicatorFrame:SetFrameLevel(indicatorLevel)

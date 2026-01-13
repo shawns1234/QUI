@@ -1227,7 +1227,7 @@ local function RebuildActiveSet(bar)
     LayoutVisibleIcons(bar)
 
     -- DEBUG: Remove this line after verifying the optimization works
-    print("|cFF00FF00[QUI Debug]|r RebuildActiveSet: " .. #bar.activeIcons .. " of " .. #(bar.icons or {}) .. " icons active")
+    -- print("|cFF00FF00[QUI Debug]|r RebuildActiveSet: " .. #bar.activeIcons .. " of " .. #(bar.icons or {}) .. " icons active")
 end
 
 -- Module-level reference for event handlers
