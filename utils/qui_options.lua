@@ -1107,7 +1107,7 @@ local function CreateGeneralQoLPage(parent)
 
         -- Ensure raidBuffs settings exist
         if not db.raidBuffs then
-            db.raidBuffs = { enabled = true, showOnlyInGroup = true, providerMode = false, iconSize = 32, labelFontSize = 12, position = nil }
+            db.raidBuffs = { enabled = true, showOnlyInGroup = true, providerMode = false, hideLabelBar = false, iconSize = 32, labelFontSize = 12, labelTextColor = nil, position = nil }
         end
         local rbDB = db.raidBuffs
 
@@ -1139,6 +1139,11 @@ local function CreateGeneralQoLPage(parent)
         providerDesc:SetJustifyH("LEFT")
         y = y - 20
 
+        local rbHideLabelCheck = GUI:CreateFormCheckbox(tabContent, "Hide Label Bar", "hideLabelBar", rbDB, RefreshRaidBuffs)
+        rbHideLabelCheck:SetPoint("TOPLEFT", PADDING, y)
+        rbHideLabelCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
         local rbIconSizeSlider = GUI:CreateFormSlider(tabContent, "Icon Size", 20, 64, 2, "iconSize", rbDB, RefreshRaidBuffs)
         rbIconSizeSlider:SetPoint("TOPLEFT", PADDING, y)
         rbIconSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
@@ -1148,6 +1153,23 @@ local function CreateGeneralQoLPage(parent)
         rbFontSizeSlider:SetPoint("TOPLEFT", PADDING, y)
         rbFontSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
         y = y - FORM_ROW
+
+        local rbTextColorPicker = GUI:CreateFormColorPicker(tabContent, "Label Text Color", "labelTextColor", rbDB, RefreshRaidBuffs)
+        rbTextColorPicker:SetPoint("TOPLEFT", PADDING, y)
+        rbTextColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        -- Disable color picker when label bar is hidden (color is irrelevant)
+        local function UpdateColorPickerState()
+            local isHidden = rbDB.hideLabelBar
+            if rbTextColorPicker.SetEnabled then
+                rbTextColorPicker:SetEnabled(not isHidden)
+            end
+            -- Visual feedback: dim the control when disabled
+            rbTextColorPicker:SetAlpha(isHidden and 0.5 or 1.0)
+        end
+        rbHideLabelCheck.track:HookScript("OnClick", UpdateColorPickerState)
+        UpdateColorPickerState()  -- Set initial state
 
         -- Preview toggle button
         local previewBtn = GUI:CreateButton(tabContent, "Toggle Preview", 120, 24)

@@ -99,8 +99,10 @@ local function GetSettings()
         enabled = true,
         showOnlyInGroup = true,
         providerMode = false,
+        hideLabelBar = false,        -- Hide the "Missing Buffs" label bar
         iconSize = 32,
         labelFontSize = 12,
+        labelTextColor = nil,        -- nil = white, otherwise {r, g, b, a}
         position = nil,
     }
 end
@@ -495,7 +497,14 @@ local function ApplySkin()
         mainFrame.labelBar:SetBackdropColor(bgr, bgg, bgb, bga)
         mainFrame.labelBar:SetBackdropBorderColor(sr, sg, sb, sa)
         if mainFrame.labelBar.text then
-            mainFrame.labelBar.text:SetTextColor(sr, sg, sb, 1)
+            -- Use custom text color if set, otherwise default to white for readability
+            local settings = GetSettings()
+            local textColor = settings.labelTextColor
+            if textColor then
+                mainFrame.labelBar.text:SetTextColor(textColor[1], textColor[2], textColor[3], 1)
+            else
+                mainFrame.labelBar.text:SetTextColor(1, 1, 1, 1)  -- White default
+            end
         end
     end
 
@@ -569,14 +578,23 @@ local function UpdateDisplay()
     mainFrame.labelBar.text:SetText("Missing Buffs")
 
     -- Resize frames (minimum width based on both icons and text)
+    local hideLabelBar = settings.hideLabelBar
     local minIconsWidth = (3 * iconSize) + (2 * ICON_SPACING)  -- 3 icons minimum
     local minTextWidth = fontSize * 8 + 10  -- Approximate text width + padding
     local minWidth = math.max(minIconsWidth, minTextWidth)
-    local frameWidth = math.max(totalWidth, minWidth)
+    local frameWidth = math.max(totalWidth, hideLabelBar and 0 or minWidth)
 
     mainFrame.iconContainer:SetSize(frameWidth, iconSize)
-    mainFrame.labelBar:SetSize(frameWidth, labelBarHeight)
-    mainFrame:SetSize(frameWidth, iconSize + labelBarGap + labelBarHeight)
+
+    -- Show/hide label bar based on setting
+    if hideLabelBar then
+        mainFrame.labelBar:Hide()
+        mainFrame:SetSize(totalWidth, iconSize)
+    else
+        mainFrame.labelBar:SetSize(frameWidth, labelBarHeight)
+        mainFrame.labelBar:Show()
+        mainFrame:SetSize(frameWidth, iconSize + labelBarGap + labelBarHeight)
+    end
 
     -- Restore saved position
     if settings.position then
@@ -698,6 +716,7 @@ end
 
 function QUI_RaidBuffs:ForceUpdate()
     UpdateDisplay()
+    ApplySkin()
 end
 
 function QUI_RaidBuffs:Debug()
