@@ -1057,6 +1057,36 @@ local function UpdateTargetMarker(frame)
 end
 
 ---------------------------------------------------------------------------
+-- UPDATE: Leader/Assistant Icon (crown for leader, flag for assistant)
+---------------------------------------------------------------------------
+local function UpdateLeaderIcon(frame)
+    if not frame or not frame.unit or not frame.leaderIcon then return end
+    local settings = GetUnitSettings(frame.unitKey)
+    if not settings or not settings.leaderIcon or not settings.leaderIcon.enabled then
+        frame.leaderIcon:Hide()
+        return
+    end
+
+    -- Only show in group
+    if not IsInGroup() then
+        frame.leaderIcon:Hide()
+        return
+    end
+
+    -- Check if unit is leader or assistant
+    -- Note: Assistants only exist in raids, not parties
+    if UnitIsGroupLeader(frame.unit) then
+        frame.leaderIcon:SetTexture([[Interface\GroupFrame\UI-Group-LeaderIcon]])
+        frame.leaderIcon:Show()
+    elseif IsInRaid() and UnitIsGroupAssistant(frame.unit) then
+        frame.leaderIcon:SetTexture([[Interface\GroupFrame\UI-Group-AssistantIcon]])
+        frame.leaderIcon:Show()
+    else
+        frame.leaderIcon:Hide()
+    end
+end
+
+---------------------------------------------------------------------------
 -- UPDATE: Name text (with truncation and inline ToT support)
 ---------------------------------------------------------------------------
 local function UpdateName(frame)
@@ -1205,6 +1235,7 @@ local function UpdateFrame(frame)
     UpdateIndicators(frame)
     UpdateStance(frame)
     UpdateTargetMarker(frame)
+    UpdateLeaderIcon(frame)
 
     -- Update portrait texture (third param disables circular mask for square portrait)
     if frame.portraitTexture and frame.portrait and frame.portrait:IsShown() then
@@ -1854,6 +1885,25 @@ local function CreateUnitFrame(unit, unitKey)
         frame.targetMarker = targetMarker
     end
 
+    -- Leader/Assistant Icon (crown for leader, flag for assistant)
+    if settings.leaderIcon and (unitKey == "player" or unitKey == "target" or unitKey == "focus") then
+        -- Create indicator container if not exists
+        if not frame.indicatorFrame then
+            local indicatorFrame = CreateFrame("Frame", nil, frame)
+            indicatorFrame:SetAllPoints()
+            indicatorFrame:SetFrameLevel(textFrame:GetFrameLevel() + 5)
+            frame.indicatorFrame = indicatorFrame
+        end
+
+        local leader = settings.leaderIcon
+        local leaderIcon = frame.indicatorFrame:CreateTexture(nil, "OVERLAY")
+        leaderIcon:SetSize(leader.size or 16, leader.size or 16)
+        local anchorInfo = GetTextAnchorInfo(leader.anchor or "TOPLEFT")
+        leaderIcon:SetPoint(anchorInfo.point, frame, anchorInfo.point, leader.xOffset or -8, leader.yOffset or 8)
+        leaderIcon:Hide()
+        frame.leaderIcon = leaderIcon
+    end
+
     -- Event handling
     frame:RegisterEvent("PLAYER_ENTERING_WORLD")
     frame:RegisterEvent("UNIT_HEALTH")
@@ -1869,6 +1919,12 @@ local function CreateUnitFrame(unit, unitKey)
     frame:RegisterEvent("UNIT_PET")
     frame:RegisterEvent("UNIT_TARGET")  -- For inline Target of Target updates
     frame:RegisterEvent("RAID_TARGET_UPDATE")  -- Target marker (skull, cross, etc.)
+
+    -- Leader/Assistant icon events (player, target, focus only)
+    if unitKey == "player" or unitKey == "target" or unitKey == "focus" then
+        frame:RegisterEvent("PARTY_LEADER_CHANGED")
+        frame:RegisterEvent("GROUP_ROSTER_UPDATE")
+    end
 
     -- Indicator-specific events (player only)
     if unitKey == "player" then
@@ -1948,6 +2004,9 @@ local function CreateUnitFrame(unit, unitKey)
         elseif event == "RAID_TARGET_UPDATE" then
             -- Target marker changed on any unit
             UpdateTargetMarker(self)
+        elseif event == "PARTY_LEADER_CHANGED" or event == "GROUP_ROSTER_UPDATE" then
+            -- Leader/Assistant status changed (player, target, focus only)
+            UpdateLeaderIcon(self)
         elseif arg1 == self.unit then
             if event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" then
                 UpdateHealth(self)
@@ -3429,6 +3488,16 @@ function QUI_UF:RefreshFrame(unitKey)
         local anchorInfo = GetTextAnchorInfo(marker.anchor or "TOP")
         frame.targetMarker:SetPoint(anchorInfo.point, frame, anchorInfo.point, marker.xOffset or 0, marker.yOffset or 8)
         UpdateTargetMarker(frame)
+    end
+
+    -- Update leader/assistant icon (player, target, focus only)
+    if frame.leaderIcon and settings.leaderIcon then
+        local leader = settings.leaderIcon
+        frame.leaderIcon:SetSize(leader.size or 16, leader.size or 16)
+        frame.leaderIcon:ClearAllPoints()
+        local anchorInfo = GetTextAnchorInfo(leader.anchor or "TOPLEFT")
+        frame.leaderIcon:SetPoint(anchorInfo.point, frame, anchorInfo.point, leader.xOffset or -8, leader.yOffset or 8)
+        UpdateLeaderIcon(frame)
     end
 
     -- Update colors and values
