@@ -1325,6 +1325,34 @@ local function GetCDMFrames()
     return frames
 end
 
+-- Enable/disable mouse interaction on CDM frames and their children
+-- This prevents tooltips from showing when frames are faded out
+local function SetCDMMouseEnabled(enabled)
+    local frames = GetCDMFrames()
+    for _, frame in ipairs(frames) do
+        -- Set on parent frame
+        if frame.EnableMouse then
+            frame:EnableMouse(enabled)
+        end
+        -- Set on children (icons inside CDM viewers)
+        for i = 1, frame:GetNumChildren() do
+            local child = select(i, frame:GetChildren())
+            if child and child.EnableMouse then
+                child:EnableMouse(enabled)
+            end
+            -- Also check grandchildren (icon buttons inside containers)
+            if child and child.GetNumChildren then
+                for j = 1, child:GetNumChildren() do
+                    local grandchild = select(j, child:GetChildren())
+                    if grandchild and grandchild.EnableMouse then
+                        grandchild:EnableMouse(enabled)
+                    end
+                end
+            end
+        end
+    end
+end
+
 -- Get cdmVisibility settings from profile
 local function GetCDMVisibilitySettings()
     if QUICore and QUICore.db and QUICore.db.profile and QUICore.db.profile.cdmVisibility then
@@ -1378,6 +1406,8 @@ local function OnCDMFadeUpdate(self, elapsed)
         CDMVisibility.isFading = false
         CDMVisibility.currentlyHidden = (CDMVisibility.fadeTargetAlpha < 1)
         self:SetScript("OnUpdate", nil)
+        -- Toggle mouse interaction based on visibility (prevents tooltips when hidden)
+        SetCDMMouseEnabled(not CDMVisibility.currentlyHidden)
     end
 end
 
@@ -1392,6 +1422,8 @@ local function StartCDMFade(targetAlpha)
     -- Skip if already at target
     if math.abs(currentAlpha - targetAlpha) < 0.01 then
         CDMVisibility.currentlyHidden = (targetAlpha < 1)
+        -- Toggle mouse interaction based on visibility (prevents tooltips when hidden)
+        SetCDMMouseEnabled(not CDMVisibility.currentlyHidden)
         return
     end
 
@@ -1766,6 +1798,17 @@ _G.QuaziiUI_RefreshCDMVisibility = UpdateCDMVisibility
 _G.QuaziiUI_RefreshUnitframesVisibility = UpdateUnitframesVisibility
 _G.QuaziiUI_RefreshCDMMouseover = SetupCDMMouseoverDetector
 _G.QuaziiUI_RefreshUnitframesMouseover = SetupUnitframesMouseoverDetector
+
+-- Helper function for tooltip handlers to check visibility state
+-- Handles "Show on mouseover" by triggering visibility update immediately on hover
+ns.ShouldShowUnitframeTooltip = function()
+    local vis = GetUnitframesVisibilitySettings()
+    if vis and vis.showOnMouseover and UnitframesVisibility.currentlyHidden then
+        UnitframesVisibility.mouseOver = true
+        UpdateUnitframesVisibility()
+    end
+    return not UnitframesVisibility.currentlyHidden
+end
 
 ---------------------------------------------------------------------------
 -- EXPOSE MODULE

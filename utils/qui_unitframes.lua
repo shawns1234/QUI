@@ -175,6 +175,11 @@ end
 -- HELPER: Unit tooltip display
 ---------------------------------------------------------------------------
 local function ShowUnitTooltip(frame)
+    -- Skip tooltip if unit frames are hidden via visibility system
+    if ns.ShouldShowUnitframeTooltip and not ns.ShouldShowUnitframeTooltip() then
+        return
+    end
+
     local ufdb = GetDB()
     local general = ufdb and ufdb.general
 
@@ -2075,6 +2080,10 @@ local function CreateAuraIcon(parent, index, size, auraSettings, isDebuff)
 
     -- Tooltip scripts using safe auraInstanceID API
     icon:SetScript("OnEnter", function(self)
+        -- Skip tooltip if unit frames are hidden via visibility system
+        if ns.ShouldShowUnitframeTooltip and not ns.ShouldShowUnitframeTooltip() then
+            return
+        end
         if self.unit and self.auraInstanceID then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             if self.filter == "HELPFUL" then
