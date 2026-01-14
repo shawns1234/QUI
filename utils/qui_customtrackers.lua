@@ -2062,8 +2062,8 @@ local function ShouldCustomTrackersBeVisible()
     local vis = GetCustomTrackersVisibilitySettings()
     if not vis then return true end
 
-    -- Hide When Mounted overrides all other conditions
-    if vis.hideWhenMounted and IsMounted() then return false end
+    -- Hide When Mounted overrides all other conditions (includes Druid flight form)
+    if vis.hideWhenMounted and (IsMounted() or GetShapeshiftFormID() == 27) then return false end
 
     -- Show Always overrides all conditions
     if vis.showAlways then return true end
@@ -2195,6 +2195,7 @@ visibilityEventFrame:RegisterEvent("GROUP_LEFT")
 visibilityEventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 visibilityEventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 visibilityEventFrame:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED")
+visibilityEventFrame:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
 visibilityEventFrame:SetScript("OnEvent", function(self, event)
     if event == "PLAYER_ENTERING_WORLD" then
         C_Timer.After(1.5, function()
