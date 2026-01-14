@@ -2936,6 +2936,12 @@ function QUICore:OnInitialize()
     -- Initialize preserved scale - will be properly set in OnEnable after UI scale is applied
     self._preservedUIScale = nil
 
+    -- Track spec for detecting false PLAYER_SPECIALIZATION_CHANGED events during M+ entry
+    self._lastKnownSpec = GetSpecialization() or 0
+
+    -- Track current profile to detect same-profile "switches" during M+ entry
+    self._lastKnownProfile = self.db:GetCurrentProfile()
+
     self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileCopied",  "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileReset",   "OnProfileChanged")
@@ -2957,7 +2963,36 @@ end
 
 function QUICore:OnProfileChanged(event, db, profileKey)
 
-    -- Helper to apply UIParent scale safely (defers if in combat)
+    -- AGGRESSIVE M+ PROTECTION: If we're in a challenge mode dungeon, defer EVERYTHING
+    -- WoW's protected state during M+ transitions can't be reliably detected by InCombatLockdown()
+    -- and pcall doesn't suppress ADDON_ACTION_BLOCKED (fires before Lua error propagates)
+    -- Check multiple conditions: active M+ OR in an M+ dungeon (covers keystone activation phase)
+    local inChallengeMode = false
+    if C_ChallengeMode then
+        -- IsChallengeModeActive = timer is running
+        -- GetActiveChallengeMapID returns non-nil if in an M+ dungeon (even before timer starts)
+        inChallengeMode = (C_ChallengeMode.IsChallengeModeActive and C_ChallengeMode.IsChallengeModeActive())
+            or (C_ChallengeMode.GetActiveChallengeMapID and C_ChallengeMode.GetActiveChallengeMapID() ~= nil)
+    end
+    if inChallengeMode then
+        -- We're in a challenge mode dungeon - skip profile changes entirely during M+
+        -- The protected state during keystone activation doesn't play nice with SetScale
+        -- Profile will be applied correctly on next /reload or when leaving the dungeon
+        return
+    end
+
+    -- Skip if "switching" to the same profile (happens during M+ entry false events)
+    -- LibDualSpec triggers profile switch even when already on correct profile
+    local currentProfile = self.db:GetCurrentProfile()
+    if profileKey == self._lastKnownProfile and profileKey == currentProfile then
+        return  -- No actual change happening - skip all UI modifications
+    end
+    self._lastKnownProfile = profileKey
+
+    -- Update spec tracking (kept for reference)
+    self._lastKnownSpec = GetSpecialization() or 0
+
+    -- Helper to apply UIParent scale safely (defers if in combat or protected state)
     local function ApplyUIScale(scale)
         if InCombatLockdown() then
             QUICore._pendingUIScale = scale
@@ -2966,7 +3001,7 @@ function QUICore:OnProfileChanged(event, db, profileKey)
                 QUICore._scaleRegenFrame:SetScript("OnEvent", function(self)
                     self:UnregisterEvent("PLAYER_REGEN_ENABLED")
                     if QUICore._pendingUIScale and not InCombatLockdown() then
-                        UIParent:SetScale(QUICore._pendingUIScale)
+                        pcall(function() UIParent:SetScale(QUICore._pendingUIScale) end)
                         QUICore._pendingUIScale = nil
                         if QUICore.UIMult then
                             QUICore:UIMult()
@@ -2976,7 +3011,27 @@ function QUICore:OnProfileChanged(event, db, profileKey)
             end
             QUICore._scaleRegenFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
         else
-            UIParent:SetScale(scale)
+            -- Use pcall to catch protected states not detected by InCombatLockdown
+            -- (e.g., instance transitions during M+ keystone activation)
+            local success = pcall(function() UIParent:SetScale(scale) end)
+            if not success then
+                -- Protected state detected - defer to combat end
+                QUICore._pendingUIScale = scale
+                if not QUICore._scaleRegenFrame then
+                    QUICore._scaleRegenFrame = CreateFrame("Frame")
+                    QUICore._scaleRegenFrame:SetScript("OnEvent", function(self)
+                        self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+                        if QUICore._pendingUIScale and not InCombatLockdown() then
+                            pcall(function() UIParent:SetScale(QUICore._pendingUIScale) end)
+                            QUICore._pendingUIScale = nil
+                            if QUICore.UIMult then
+                                QUICore:UIMult()
+                            end
+                        end
+                    end)
+                end
+                QUICore._scaleRegenFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+            end
         end
     end
 
@@ -3296,22 +3351,23 @@ function QUICore:OnEnable()
     elseif self.db.profile.general then
         -- Fallback if pixel perfect not loaded
         local savedScale = self.db.profile.general.uiScale
+        local scaleToApply
         if savedScale and savedScale > 0 then
-            UIParent:SetScale(savedScale)
+            scaleToApply = savedScale
         else
             -- Smart default based on resolution
             local _, screenHeight = GetPhysicalScreenSize()
-            local smartScale
             if screenHeight >= 2160 then      -- 4K
-                smartScale = 0.53
+                scaleToApply = 0.53
             elseif screenHeight >= 1440 then  -- 1440p
-                smartScale = 0.64
+                scaleToApply = 0.64
             else                              -- 1080p or lower
-                smartScale = 1.0
+                scaleToApply = 1.0
             end
-            self.db.profile.general.uiScale = smartScale
-            UIParent:SetScale(smartScale)
+            self.db.profile.general.uiScale = scaleToApply
         end
+        -- Use pcall to catch protected states
+        pcall(function() UIParent:SetScale(scaleToApply) end)
     end
 
     -- Capture preserved UI scale (after it's been properly applied)

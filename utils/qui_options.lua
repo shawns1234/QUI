@@ -436,7 +436,7 @@ local function CreateGeneralQoLPage(parent)
         if db and db.general then
             local scaleSlider = GUI:CreateFormSlider(tabContent, "Global UI Scale", 0.5, 2.0, 0.01,
                 "uiScale", db.general, function(val)
-                    UIParent:SetScale(val)
+                    pcall(function() UIParent:SetScale(val) end)
                     if QUICore and QUICore.UIMult then QUICore:UIMult() end
                 end, { deferOnDrag = true })
             scaleSlider:SetPoint("TOPLEFT", PADDING, y)

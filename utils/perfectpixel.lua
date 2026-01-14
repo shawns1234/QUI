@@ -94,8 +94,21 @@ function QUICore:UIScale()
         if QUICore.db and QUICore.db.profile and QUICore.db.profile.general then
             uiScale = QUICore.db.profile.general.uiScale or 1.0
         end
-        
-        UIParent:SetScale(uiScale)
+
+        -- Use pcall to catch protected states not detected by InCombatLockdown
+        local success = pcall(function() UIParent:SetScale(uiScale) end)
+        if not success then
+            -- Protected state detected - defer to combat end
+            if not self._UIScalePending then
+                self._UIScalePending = true
+                self:RegisterEvent('PLAYER_REGEN_ENABLED', function()
+                    self._UIScalePending = nil
+                    self:UnregisterEvent('PLAYER_REGEN_ENABLED')
+                    self:UIScale()
+                end)
+            end
+            return
+        end
 
         QUICore.uiscale = UIParent:GetScale()
         QUICore.screenWidth, QUICore.screenHeight = GetScreenWidth(), GetScreenHeight()
@@ -184,16 +197,44 @@ end
 function QUICore:ApplyUIScale()
     if self.db and self.db.profile and self.db.profile.general then
         local savedScale = self.db.profile.general.uiScale
+        local scaleToApply
         if savedScale and savedScale > 0 then
-            UIParent:SetScale(savedScale)
+            scaleToApply = savedScale
         else
-            -- Option 3: No saved scale - use smart default based on resolution
-            local smartScale = self:GetSmartDefaultScale()
-            self.db.profile.general.uiScale = smartScale
-            UIParent:SetScale(smartScale)
+            -- No saved scale - use smart default based on resolution
+            scaleToApply = self:GetSmartDefaultScale()
+            self.db.profile.general.uiScale = scaleToApply
+        end
+
+        -- Use pcall to catch protected states not detected by InCombatLockdown
+        if InCombatLockdown() then
+            -- Defer to combat end
+            if not self._UIScalePending then
+                self._UIScalePending = true
+                self:RegisterEvent('PLAYER_REGEN_ENABLED', function()
+                    self._UIScalePending = nil
+                    self:UnregisterEvent('PLAYER_REGEN_ENABLED')
+                    self:ApplyUIScale()
+                end)
+            end
+            return
+        end
+
+        local success = pcall(function() UIParent:SetScale(scaleToApply) end)
+        if not success then
+            -- Protected state detected - defer to combat end
+            if not self._UIScalePending then
+                self._UIScalePending = true
+                self:RegisterEvent('PLAYER_REGEN_ENABLED', function()
+                    self._UIScalePending = nil
+                    self:UnregisterEvent('PLAYER_REGEN_ENABLED')
+                    self:ApplyUIScale()
+                end)
+            end
+            return
         end
     end
-    
+
     -- Update pixel perfect calculations
     if self.UIMult and self.UIScale then
         self:UIMult()
