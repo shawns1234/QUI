@@ -46,15 +46,16 @@ function Datapanels:CreatePanel(panelID, config)
     
     -- Borders
     local borderSize = config.borderSize or 2
+    local borderColor = config.borderColor or {0, 0, 0, 1}
     panel.borderLeft = panel:CreateTexture(nil, "BORDER")
     panel.borderRight = panel:CreateTexture(nil, "BORDER")
     panel.borderTop = panel:CreateTexture(nil, "BORDER")
     panel.borderBottom = panel:CreateTexture(nil, "BORDER")
-    
-    panel.borderLeft:SetColorTexture(0, 0, 0, 1)
-    panel.borderRight:SetColorTexture(0, 0, 0, 1)
-    panel.borderTop:SetColorTexture(0, 0, 0, 1)
-    panel.borderBottom:SetColorTexture(0, 0, 0, 1)
+
+    panel.borderLeft:SetColorTexture(unpack(borderColor))
+    panel.borderRight:SetColorTexture(unpack(borderColor))
+    panel.borderTop:SetColorTexture(unpack(borderColor))
+    panel.borderBottom:SetColorTexture(unpack(borderColor))
     
     panel.borderLeft:SetWidth(borderSize)
     panel.borderRight:SetWidth(borderSize)
@@ -261,10 +262,15 @@ function Datapanels:UpdatePanel(panelID)
     
     -- Update borders
     local borderSize = panel.config.borderSize or 2
+    local borderColor = panel.config.borderColor or {0, 0, 0, 1}
     panel.borderLeft:SetWidth(borderSize)
     panel.borderRight:SetWidth(borderSize)
     panel.borderTop:SetHeight(borderSize)
     panel.borderBottom:SetHeight(borderSize)
+    panel.borderLeft:SetColorTexture(unpack(borderColor))
+    panel.borderRight:SetColorTexture(unpack(borderColor))
+    panel.borderTop:SetColorTexture(unpack(borderColor))
+    panel.borderBottom:SetColorTexture(unpack(borderColor))
 
     -- Hide borders when borderSize is 0 (WoW enforces 1px minimum on textures)
     local showBorder = borderSize > 0
