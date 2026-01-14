@@ -10497,7 +10497,7 @@ local function CreateUnitFramesPage(parent)
             y = y - FORM_ROW
 
             -- Horizontal gap slider
-            anchorGapSlider = GUI:CreateFormSlider(tabContent, "Horizontal Gap", 5, 100, 1, "anchorGap", unitDB, function()
+            anchorGapSlider = GUI:CreateFormSlider(tabContent, "Horizontal Gap", 0, 100, 1, "anchorGap", unitDB, function()
                 if _G.QuaziiUI_UpdateAnchoredUnitFrames then
                     _G.QuaziiUI_UpdateAnchoredUnitFrames()
                 end
