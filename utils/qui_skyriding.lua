@@ -21,7 +21,7 @@ local segmentMarkers = {}
 local secondWindPips = {}
 local vigorText, speedText
 local secondWindText, secondWindMiniBar
-local swBackground, swBorder
+local swBackground, swBorder, swRechargeOverlay
 local swSegmentMarkers = {}
 local abilityIcon, abilityIconCooldown
 
@@ -95,15 +95,19 @@ end
 
 local function GetSecondWindInfo()
     local data = C_Spell.GetSpellCharges(SECOND_WIND_SPELL_ID)
-    if not data then return 0, 0 end
+    if not data then return 0, 0, 0, 0, 1 end
 
     -- Check for secret values (API restriction)
     -- issecretvalue() only exists in 12.0+, so check for its existence first
     if issecretvalue and issecretvalue(data.maxCharges) then
-        return 0, 0
+        return 0, 0, 0, 0, 1
     end
 
-    return data.currentCharges or 0, data.maxCharges or 0
+    return data.currentCharges or 0,
+           data.maxCharges or 0,
+           data.cooldownStartTime or 0,
+           data.cooldownDuration or 0,
+           data.chargeModRate or 1
 end
 
 local function GetGlidingInfo()
@@ -169,13 +173,13 @@ local function CreateSkyridingFrame()
     rechargeOverlay:SetHeight(height)
     rechargeOverlay:Hide()
 
-    -- Flash texture for charge complete animation
+    -- Flash texture for charge complete animation (positioned dynamically per-segment)
     flashTexture = vigorBar:CreateTexture(nil, "OVERLAY", nil, 7)
     flashTexture:SetTexture("Interface\\Buttons\\WHITE8x8")
     flashTexture:SetBlendMode("ADD")
-    flashTexture:SetAllPoints(vigorBar)
     flashTexture:SetVertexColor(1, 1, 1, 0)
     flashTexture:Hide()
+    -- Size/position set dynamically in UpdateVigorBar when a charge completes
 
     -- Flash animation group
     flashAnim = flashTexture:CreateAnimationGroup()
@@ -286,6 +290,13 @@ local function CreateSkyridingFrame()
         swSegmentMarkers[i] = marker
     end
 
+    -- Second Wind recharge overlay (shows progress within current charging segment)
+    swRechargeOverlay = secondWindMiniBar:CreateTexture(nil, "OVERLAY")
+    swRechargeOverlay:SetTexture("Interface\\Buttons\\WHITE8x8")
+    swRechargeOverlay:SetVertexColor(1, 0.9, 0.4, 0.6)  -- Slightly brighter gold
+    swRechargeOverlay:SetHeight(6)
+    swRechargeOverlay:Hide()
+
     -- Whirling Surge ability icon (right side of bar)
     abilityIcon = CreateFrame("Frame", nil, skyridingFrame)
     abilityIcon:SetSize(height, height)
@@ -388,7 +399,7 @@ local function UpdateSecondWind()
     if not settings or not skyridingFrame then return end
 
     local mode = settings.secondWindMode or "PIPS"
-    local current, max = GetSecondWindInfo()
+    local current, max, _, _, _ = GetSecondWindInfo()  -- Ignore cooldown data here (used in recharge func)
 
     -- Second Wind color (with class color support)
     local color
@@ -476,7 +487,14 @@ local function UpdateSecondWind()
         secondWindMiniBar:SetPoint("TOPRIGHT", skyridingFrame, "BOTTOMRIGHT", 0, -2)
         secondWindMiniBar:SetHeight(swHeight)
         secondWindMiniBar:SetMinMaxValues(0, max)
-        -- Set target for smooth animation (don't set bar directly)
+
+        -- When charge completes: SNAP bar value (don't lerp)
+        if current > lastSecondWind and lastSecondWind >= 0 then
+            swCurrentValue = current / max
+            secondWindMiniBar:SetValue(swCurrentValue * max)
+        end
+
+        -- Set target for smooth animation (lerp only applies when NOT completing a charge)
         swTargetValue = current / max
         swMaxCharges = max
         secondWindMiniBar:SetStatusBarColor(color[1], color[2], color[3], color[4] or 1)
@@ -507,6 +525,9 @@ local function UpdateSecondWind()
         end
     end
     -- mode == "HIDDEN" does nothing (all hidden)
+
+    -- Track last value for snap detection
+    lastSecondWind = current
 end
 
 ---------------------------------------------------------------------------
@@ -524,14 +545,27 @@ local function UpdateVigorBar()
         lastMaxCharges = max
     end
 
-    -- Flash animation when charge gained
+    -- When charge completes: SNAP bar value (don't lerp) then flash
     if current > lastVigorCharges and lastVigorCharges >= 0 then
+        -- Snap the bar to include the completed segment immediately
+        -- (the recharge overlay already showed the progress visually)
+        currentBarValue = current / max
+        vigorBar:SetValue(currentBarValue)
+
+        -- Flash the completed segment
         if flashAnim and not flashAnim:IsPlaying() then
+            local barWidth = skyridingFrame:GetWidth()
+            local segmentWidth = barWidth / max
+            local segmentStart = lastVigorCharges * segmentWidth
+            flashTexture:ClearAllPoints()
+            flashTexture:SetPoint("LEFT", vigorBar, "LEFT", segmentStart, 0)
+            flashTexture:SetWidth(segmentWidth)
+            flashTexture:SetHeight(skyridingFrame:GetHeight())
             flashAnim:Play()
         end
     end
 
-    -- Set target for smooth animation (don't set bar directly)
+    -- Set target for smooth animation (lerp only applies when NOT completing a charge)
     targetBarValue = current / max
 
     -- Update vigor text
@@ -587,6 +621,65 @@ local function UpdateRechargeAnimation()
     local pulse = 0.7 + 0.3 * math.sin(now * 4)
     rechargeOverlay:SetVertexColor(color[1], color[2], color[3], (color[4] or 0.6) * pulse)
     rechargeOverlay:Show()
+end
+
+---------------------------------------------------------------------------
+-- Update Second Wind Recharge Animation
+---------------------------------------------------------------------------
+local function UpdateSecondWindRecharge()
+    local settings = GetSettings()
+    if not settings or not secondWindMiniBar or not swRechargeOverlay then return end
+
+    -- Only show for MINIBAR mode
+    local mode = settings.secondWindMode or "PIPS"
+    if mode ~= "MINIBAR" then
+        swRechargeOverlay:Hide()
+        return
+    end
+
+    local current, max, startTime, duration, modRate = GetSecondWindInfo()
+
+    -- If no Second Wind available, fully charged, or not recharging, hide overlay
+    if max == 0 or current >= max or duration == 0 then
+        swRechargeOverlay:Hide()
+        return
+    end
+
+    -- Calculate progress of current charge
+    local now = GetTime()
+    local elapsedTime = (now - startTime) * modRate
+    local progress = math.min(1, elapsedTime / duration)
+
+    -- Position recharge overlay within the current segment
+    local barWidth = secondWindMiniBar:GetWidth()
+    local barHeight = secondWindMiniBar:GetHeight()
+    local segmentWidth = barWidth / max
+    local segmentStart = current * segmentWidth
+    local fillWidth = math.max(1, progress * segmentWidth)
+
+    -- Use SW color (with class color support)
+    local color
+    if settings.useClassColorSecondWind then
+        local _, class = UnitClass("player")
+        local classColor = RAID_CLASS_COLORS[class]
+        if classColor then
+            color = {classColor.r, classColor.g, classColor.b, 0.6}
+        else
+            color = {1, 0.9, 0.4, 0.6}
+        end
+    else
+        color = {1, 0.9, 0.4, 0.6}  -- Slightly brighter gold
+    end
+
+    swRechargeOverlay:ClearAllPoints()
+    swRechargeOverlay:SetPoint("LEFT", secondWindMiniBar, "LEFT", segmentStart, 0)
+    swRechargeOverlay:SetWidth(fillWidth)
+    swRechargeOverlay:SetHeight(barHeight)
+
+    -- Pulse alpha for visual feedback
+    local pulse = 0.7 + 0.3 * math.sin(now * 4)
+    swRechargeOverlay:SetVertexColor(color[1], color[2], color[3], color[4] * pulse)
+    swRechargeOverlay:Show()
 end
 
 ---------------------------------------------------------------------------
@@ -722,6 +815,13 @@ local function UpdateVisibility()
             groundedTime = 0
             fadeStart = 0  -- Cancel any fade in progress
             skyridingFrame:SetAlpha(1)
+            -- Reset icon alpha (may have been faded)
+            if abilityIcon then
+                abilityIcon:SetAlpha(1)
+                if abilityIconCooldown then
+                    abilityIconCooldown:SetAlpha(1)
+                end
+            end
             skyridingFrame:Show()
         elseif canGlideNow then
             -- Can fly but grounded - fade after delay
@@ -873,6 +973,14 @@ local function OnUpdate(self, delta)
         local alpha = fadeStartAlpha + (fadeTargetAlpha - fadeStartAlpha) * progress
         skyridingFrame:SetAlpha(alpha)
 
+        -- Explicitly fade icon components (CooldownFrameTemplate may not inherit parent alpha)
+        if abilityIcon then
+            abilityIcon:SetAlpha(alpha)
+            if abilityIconCooldown then
+                abilityIconCooldown:SetAlpha(alpha)
+            end
+        end
+
         -- Check if fade complete
         if progress >= 1 then
             fadeStart = 0  -- Stop fading
@@ -899,6 +1007,7 @@ local function OnUpdate(self, delta)
     UpdateVigorBar()
     UpdateRechargeAnimation()
     UpdateSecondWind()
+    UpdateSecondWindRecharge()
     UpdateSpeed()
     UpdateAbilityIcon()
     UpdateVisibility()
