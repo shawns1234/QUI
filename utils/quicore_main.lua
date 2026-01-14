@@ -13,6 +13,15 @@ QUI.QUICore = QUICore
 -- Expose QUICore to namespace for other files
 ns.Addon = QUICore
 
+-- Shared utility functions
+ns.Utils = {}
+
+-- Check if player is in instanced content (dungeon or raid)
+function ns.Utils.IsInInstancedContent()
+    local inInstance, instanceType = IsInInstance()
+    return inInstance and (instanceType == "party" or instanceType == "raid")
+end
+
 -- Global pending reload system
 QUICore.__pendingReload = false
 QUICore.__reloadEventFrame = nil

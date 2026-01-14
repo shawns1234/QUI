@@ -17,10 +17,15 @@ local ICON_SIZE = 32
 local ICON_SPACING = 4
 local FRAME_PADDING = 6
 local UPDATE_THROTTLE = 0.5
+local MAX_AURA_INDEX = 40  -- WoW maximum buff slots
 
--- Raid buffs: spellId, buffName, providerClass, range
--- Icons fetched dynamically via GetSpellTexture to handle expansion differences
--- Range in yards for checking if provider/target is reachable
+-- Raid buffs configuration
+-- spellId: Primary spell ID for icon lookup (can be single ID or table of IDs)
+-- name: Buff name for fallback detection (catches talent variants)
+-- stat: What the buff provides (for tooltip)
+-- providerClass: Which class provides this buff
+-- range: Range in yards for checking if provider/target is reachable
+-- NOTE: Name-based fallback catches talent-modified buffs with different spell IDs
 local RAID_BUFFS = {
     {
         spellId = 21562,
@@ -51,7 +56,8 @@ local RAID_BUFFS = {
         range = 40,
     },
     {
-        spellId = 381757,
+        -- 381748 is the buff that appears on players, 364342 is the ability
+        spellId = 381748,
         name = "Blessing of the Bronze",
         stat = "Movement Speed",
         providerClass = "EVOKER",
@@ -98,6 +104,7 @@ local function GetSettings()
     return {
         enabled = true,
         showOnlyInGroup = true,
+        showOnlyInInstance = false,  -- Only show in dungeon/raid instances
         providerMode = false,
         hideLabelBar = false,        -- Hide the "Missing Buffs" label bar
         iconSize = 32,
@@ -235,37 +242,60 @@ local function ScanGroupClasses()
     end
 end
 
-local function PlayerHasBuff(spellId)
-    if C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
-        local ok, auraData = pcall(C_UnitAuras.GetPlayerAuraBySpellID, spellId)
-        return ok and auraData ~= nil
+-- Check if a unit has a buff by spell ID, with name-based fallback
+-- Uses 3-method approach for maximum compatibility across WoW versions
+local function UnitHasBuff(unit, spellId, spellName)
+    if not unit then return false end
+    local exists = SafeBooleanCheck(UnitExists(unit))
+    if not exists then return false end
+
+    -- Method 1: AuraUtil.ForEachAura (most reliable)
+    if AuraUtil and AuraUtil.ForEachAura then
+        local found = false
+        AuraUtil.ForEachAura(unit, "HELPFUL", nil, function(auraData)
+            if auraData then
+                if auraData.spellId == spellId then
+                    found = true
+                elseif spellName and auraData.name == spellName then
+                    found = true
+                end
+            end
+            if found then return true end
+        end, true)
+        if found then return true end
     end
+
+    -- Method 2: GetAuraDataBySpellName
+    if spellName and C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName then
+        local success, auraData = pcall(C_UnitAuras.GetAuraDataBySpellName, unit, spellName, "HELPFUL")
+        if success and auraData then return true end
+    end
+
+    -- Method 3: GetAuraDataByIndex iteration
+    if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
+        for i = 1, MAX_AURA_INDEX do
+            local success, auraData = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, "HELPFUL")
+            if not success or not auraData then break end
+            if auraData.spellId == spellId then
+                return true
+            elseif spellName and auraData.name == spellName then
+                return true
+            end
+        end
+    end
+
     return false
 end
 
--- Check if a specific unit has a buff
-local function UnitHasBuff(unit, spellId)
-    if not unit then return false end
-    -- Get spell name (handle both TWW and Midnight APIs)
-    local spellName
-    if C_Spell and C_Spell.GetSpellInfo then
-        local ok, info = pcall(C_Spell.GetSpellInfo, spellId)
-        spellName = ok and info and info.name
-    elseif GetSpellInfo then
-        spellName = GetSpellInfo(spellId)
-    end
-    if not spellName then return false end
-    if C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName then
-        local ok, auraData = pcall(C_UnitAuras.GetAuraDataBySpellName, unit, spellName, "HELPFUL")
-        return ok and auraData ~= nil
-    end
-    return false
+-- Check if player has a buff (convenience wrapper)
+local function PlayerHasBuff(spellId, spellName)
+    return UnitHasBuff("player", spellId, spellName)
 end
 
 -- Check if any available group member is missing a specific buff
-local function AnyGroupMemberMissingBuff(spellId, rangeYards)
+local function AnyGroupMemberMissingBuff(spellId, spellName, rangeYards)
     -- Check player first
-    if not PlayerHasBuff(spellId) then
+    if not PlayerHasBuff(spellId, spellName) then
         return true
     end
 
@@ -274,7 +304,7 @@ local function AnyGroupMemberMissingBuff(spellId, rangeYards)
         for i = 1, GetNumGroupMembers() do
             local unit = "raid" .. i
             if IsUnitAvailable(unit, rangeYards) and not UnitIsUnit(unit, "player") then
-                if not UnitHasBuff(unit, spellId) then
+                if not UnitHasBuff(unit, spellId, spellName) then
                     return true
                 end
             end
@@ -283,7 +313,7 @@ local function AnyGroupMemberMissingBuff(spellId, rangeYards)
         for i = 1, GetNumGroupMembers() - 1 do
             local unit = "party" .. i
             if IsUnitAvailable(unit, rangeYards) then
-                if not UnitHasBuff(unit, spellId) then
+                if not UnitHasBuff(unit, spellId, spellName) then
                     return true
                 end
             end
@@ -336,8 +366,18 @@ local function GetMissingBuffs()
         return missing
     end
 
+    -- Check if we should only show in instance
+    if settings.showOnlyInInstance and not ns.Utils.IsInInstancedContent() then
+        return missing
+    end
+
     -- Only show out of combat (always enforced)
     if InCombatLockdown() then
+        return missing
+    end
+
+    -- Disable during M+ keystones - aura data is protected during challenge mode
+    if C_ChallengeMode and C_ChallengeMode.IsChallengeModeActive and C_ChallengeMode.IsChallengeModeActive() then
         return missing
     end
 
@@ -352,7 +392,7 @@ local function GetMissingBuffs()
         local buffRange = buff.range or 40
 
         -- Always show buffs YOU are missing when provider is in group AND in range
-        if groupClasses[buff.providerClass] and not PlayerHasBuff(buff.spellId) then
+        if groupClasses[buff.providerClass] and not PlayerHasBuff(buff.spellId, buff.name) then
             if IsProviderClassInRange(buff.providerClass, buffRange) then
                 table.insert(missing, buff)
                 dominated = true
@@ -362,7 +402,7 @@ local function GetMissingBuffs()
         -- Provider mode ALSO shows buffs YOU can provide that anyone else is missing
         -- (but don't duplicate if we already added it above)
         if settings.providerMode and not dominated then
-            if buff.providerClass == playerClass and AnyGroupMemberMissingBuff(buff.spellId, buffRange) then
+            if buff.providerClass == playerClass and AnyGroupMemberMissingBuff(buff.spellId, buff.name, buffRange) then
                 table.insert(missing, buff)
             end
         end
@@ -786,9 +826,9 @@ function QUI_RaidBuffs:Debug()
         local buffRange = buff.range or 40
         local hasProvider = groupClasses[buff.providerClass] and true or false
         local providerInRange = IsProviderClassInRange(buff.providerClass, buffRange)
-        local playerHas = PlayerHasBuff(buff.spellId)
+        local playerHas = PlayerHasBuff(buff.spellId, buff.name)
         local canProvide = buff.providerClass == playerClass
-        local anyMissing = AnyGroupMemberMissingBuff(buff.spellId, buffRange)
+        local anyMissing = AnyGroupMemberMissingBuff(buff.spellId, buff.name, buffRange)
         local status = ""
         if hasProvider and not playerHas then
             if providerInRange then
@@ -809,7 +849,7 @@ function QUI_RaidBuffs:Debug()
             for i = 1, numMembers - 1 do
                 local unit = "party" .. i
                 if IsUnitAvailable(unit, buffRange) then
-                    local has = UnitHasBuff(unit, buff.spellId)
+                    local has = UnitHasBuff(unit, buff.spellId, buff.name)
                     local name = UnitName(unit) or "?"
                     table.insert(lines, "    -> " .. unit .. " (" .. name .. "): " .. (has and "HAS" or "MISSING"))
                 end
