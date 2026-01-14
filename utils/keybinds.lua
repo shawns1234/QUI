@@ -851,25 +851,29 @@ local function ApplyKeybindToIcon(icon, viewerName)
     if spellID then
         keybind = GetKeybindForSpell(spellID)
         
-        -- If no keybind found, try finding the BASE spell (for proc abilities)
-        -- Thunder Blast -> Thunder Clap, etc.
-        if not keybind then
-            local ok, result = pcall(function()
-                return FindBaseSpellByID and FindBaseSpellByID(spellID)
-            end)
-            if ok and result and result ~= spellID then
-                baseSpellID = result
-                keybind = GetKeybindForSpell(baseSpellID)
+        -- If no keybind found, try the BASE spell from cooldownInfo
+        -- (CDM icons store the base spell ID even when showing evolved form)
+        if not keybind and icon.cooldownInfo and icon.cooldownInfo.spellID then
+            local baseFromInfo = icon.cooldownInfo.spellID
+            -- Use pcall for comparison since spellID may be a secret value
+            local compareOk, isDifferent = pcall(function() return baseFromInfo ~= spellID end)
+            if compareOk and isDifferent then
+                keybind = GetKeybindForSpell(baseFromInfo)
+                if keybind then baseSpellID = baseFromInfo end
             end
         end
-        
-        -- Also try C_Spell.GetOverrideSpell in reverse (find what this overrides)
-        if not keybind then
-            local ok, result = pcall(function()
-                return C_Spell.GetOverrideSpell and C_Spell.GetOverrideSpell(spellID)
-            end)
-            if ok and result and result ~= spellID then
-                keybind = GetKeybindForSpell(result)
+
+        -- Try C_Spell.GetBaseSpell API (evolved → base lookup)
+        -- e.g., Raze → Ravage, Thunder Blast → Thunder Clap
+        if not keybind and C_Spell.GetBaseSpell then
+            local ok, result = pcall(C_Spell.GetBaseSpell, spellID)
+            if ok and result then
+                -- Use pcall for comparison since spellID may be a secret value
+                local compareOk, isDifferent = pcall(function() return result ~= spellID end)
+                if compareOk and isDifferent then
+                    baseSpellID = result
+                    keybind = GetKeybindForSpell(baseSpellID)
+                end
             end
         end
     end
@@ -1074,6 +1078,11 @@ initFrame:SetScript("OnEvent", function(self, event, arg)
         end)
     end
 end)
+
+-- Export for NCDM integration (allows LayoutViewer to trigger keybind updates)
+_G.QuaziiUI_UpdateViewerKeybinds = function(viewerName)
+    UpdateViewerKeybinds(viewerName)
+end
 
 -- Debug function to see what's in the cache
 local function DebugPrintCache()

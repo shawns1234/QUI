@@ -877,6 +877,10 @@ local function LayoutViewer(viewerName, trackerKey)
             if _G.QuaziiUI_UpdateCDMAnchoredUnitFrames then
                 _G.QuaziiUI_UpdateCDMAnchoredUnitFrames()
             end
+            -- Update keybind text on CDM icons
+            if _G.QuaziiUI_UpdateViewerKeybinds then
+                _G.QuaziiUI_UpdateViewerKeybinds(viewerName)
+            end
         end)
     end
 end
