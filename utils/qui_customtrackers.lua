@@ -593,10 +593,20 @@ local PROC_GLOW_MASK = "Interface\\AddOns\\QuaziiUI\\assets\\iconskin\\ProcGlowM
 local function StartActiveGlow(icon, config)
     if not icon or not LCG then return end
     if icon._activeGlowShown then return end
+    if icon._activeGlowPending then return end  -- Prevent duplicate deferred calls
 
     if config and config.activeGlowEnabled == false then return end
 
+    -- Guard: Ensure icon has valid dimensions before starting glow effects.
+    -- In dynamic/collapsing layout, icons may be shown before layout pass sets proper size.
+    -- Without this check, Proc Glow's start animation renders at wrong (huge) dimensions.
+    local iconWidth, iconHeight = icon:GetSize()
+    if not iconWidth or not iconHeight or iconWidth < 10 or iconHeight < 10 then
+        return  -- Icon not properly sized yet; glow will start on next update tick
+    end
+
     local glowType = (config and config.activeGlowType) or "Pixel Glow"
+
     local color = (config and config.activeGlowColor) or { 1, 0.85, 0.3, 1 }
     local lines = (config and config.activeGlowLines) or 8
     local frequency = (config and config.activeGlowFrequency) or 0.25
@@ -625,25 +635,55 @@ local function StartActiveGlow(icon, config)
             icon.tex:AddMaskTexture(icon._procGlowMask)
         end
         
-        LCG.ProcGlow_Start(icon, {
-            color = color,
-            duration = duration,
-            startAnim = true,  -- Show the burst effect before looping
-            key = "_QUIActiveGlow",
-        })
+        -- CRITICAL: Defer ProcGlow_Start to next frame.
+        -- LibCustomGlow sets anchor points then immediately calls f:Show(), but the
+        -- OnShow handler fires before anchors are resolved by a layout pass, causing
+        -- GetSize() to return 0,0 and the start animation to render at wrong size.
+        -- By deferring to next frame, we ensure the layout pass has completed.
+        icon._activeGlowPending = true
+        icon._activeGlowType = glowType
+        C_Timer.After(0, function()
+            icon._activeGlowPending = nil
+            -- Double-check icon still exists and should show glow
+            if not icon or not icon:IsShown() then return end
+            if icon._activeGlowShown then return end
+            
+            LCG.ProcGlow_Start(icon, {
+                color = color,
+                duration = duration,
+                startAnim = true,  -- Show the burst effect before looping
+                key = "_QUIActiveGlow",
+            })
+            icon._activeGlowShown = true
+        end)
     elseif glowType == "Pixel Glow" then
         LCG.PixelGlow_Start(icon, color, lines, frequency, nil, thickness, 0, 0, true, "_QUIActiveGlow")
+        icon._activeGlowShown = true
+        icon._activeGlowType = glowType
     elseif glowType == "Autocast Shine" then
         LCG.AutoCastGlow_Start(icon, color, lines, frequency, scale, 0, 0, "_QUIActiveGlow")
+        icon._activeGlowShown = true
+        icon._activeGlowType = glowType
     end
-
-    icon._activeGlowShown = true
-    icon._activeGlowType = glowType
 end
 
 local function StopActiveGlow(icon)
     if not icon or not LCG then return end
-    if not icon._activeGlowShown then return end
+    
+    -- Clear pending flag (for deferred Proc Glow that hasn't started yet)
+    icon._activeGlowPending = nil
+    
+    if not icon._activeGlowShown then
+        -- Glow not started, but may need to cleanup border/mask from pending Proc Glow
+        if icon._borderWasShown and icon.border then
+            icon.border:Show()
+            icon._borderWasShown = nil
+        end
+        if icon.tex and icon._procGlowMask then
+            icon.tex:RemoveMaskTexture(icon._procGlowMask)
+        end
+        return
+    end
 
     local glowType = icon._activeGlowType or "Pixel Glow"
 
