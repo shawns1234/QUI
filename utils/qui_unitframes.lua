@@ -1721,11 +1721,13 @@ local function CreateUnitFrame(unit, unitKey)
         portrait:SetSize(portraitSize, portraitSize)
 
         local portraitGap = Scale(settings.portraitGap or 0)
+        local portraitOffsetX = Scale(settings.portraitOffsetX or 0)
+        local portraitOffsetY = Scale(settings.portraitOffsetY or 0)
         local side = settings.portraitSide or "LEFT"
         if side == "LEFT" then
-            portrait:SetPoint("RIGHT", frame, "LEFT", -portraitGap, 0)
+            portrait:SetPoint("RIGHT", frame, "LEFT", -portraitGap + portraitOffsetX, portraitOffsetY)
         else
-            portrait:SetPoint("LEFT", frame, "RIGHT", portraitGap, 0)
+            portrait:SetPoint("LEFT", frame, "RIGHT", portraitGap + portraitOffsetX, portraitOffsetY)
         end
 
         -- Border around portrait
@@ -3333,6 +3335,8 @@ function QUI_UF:RefreshFrame(unitKey)
         local portraitSize = Scale(settings.height or 40) * (settings.portraitScale or 1.0)
         local portraitBorderSize = Scale(settings.portraitBorderSize or 1)
         local portraitGap = Scale(settings.portraitGap or 0)
+        local portraitOffsetX = Scale(settings.portraitOffsetX or 0)
+        local portraitOffsetY = Scale(settings.portraitOffsetY or 0)
         local side = settings.portraitSide or "LEFT"
 
         if not frame.portrait then
@@ -3346,9 +3350,9 @@ function QUI_UF:RefreshFrame(unitKey)
         frame.portrait:SetSize(portraitSize, portraitSize)
         frame.portrait:ClearAllPoints()
         if side == "LEFT" then
-            frame.portrait:SetPoint("RIGHT", frame, "LEFT", -portraitGap, 0)
+            frame.portrait:SetPoint("RIGHT", frame, "LEFT", -portraitGap + portraitOffsetX, portraitOffsetY)
         else
-            frame.portrait:SetPoint("LEFT", frame, "RIGHT", portraitGap, 0)
+            frame.portrait:SetPoint("LEFT", frame, "RIGHT", portraitGap + portraitOffsetX, portraitOffsetY)
         end
 
         -- Determine border color first (needed for both styles)

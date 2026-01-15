@@ -10361,85 +10361,6 @@ local function CreateUnitFramesPage(parent)
             _G.QuaziiUI_RegisterEditModeSliders(unitKey, offsetXSlider, offsetYSlider)
         end
 
-        -- Portrait section (player, target, focus only)
-        if unitKey == "player" or unitKey == "target" or unitKey == "focus" then
-            local portraitHeader = GUI:CreateSectionHeader(tabContent, "Portrait")
-            portraitHeader:SetPoint("TOPLEFT", PAD, y)
-            y = y - portraitHeader.gap
-
-            -- Initialize defaults
-            if unitDB.showPortrait == nil then unitDB.showPortrait = false end
-            if unitDB.portraitSide == nil then
-                unitDB.portraitSide = (unitKey == "player") and "LEFT" or "RIGHT"
-            end
-            if unitDB.portraitScale == nil then unitDB.portraitScale = 1.0 end
-            if unitDB.portraitBorderSize == nil then unitDB.portraitBorderSize = 1 end
-
-            -- Show Portrait checkbox
-            local showPortraitCheck = GUI:CreateFormCheckbox(tabContent, "Show Portrait", "showPortrait", unitDB, RefreshUnit)
-            showPortraitCheck:SetPoint("TOPLEFT", PAD, y)
-            showPortraitCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            y = y - FORM_ROW
-
-            -- Portrait Side dropdown
-            local sideOptions = {
-                {value = "LEFT", text = "Left"},
-                {value = "RIGHT", text = "Right"},
-            }
-            local sideDropdown = GUI:CreateFormDropdown(tabContent, "Portrait Side", sideOptions, "portraitSide", unitDB, RefreshUnit)
-            sideDropdown:SetPoint("TOPLEFT", PAD, y)
-            sideDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            y = y - FORM_ROW
-
-            -- Portrait Scale slider
-            local scaleSlider = GUI:CreateFormSlider(tabContent, "Portrait Scale", 0.5, 4.0, 0.1, "portraitScale", unitDB, RefreshUnit)
-            scaleSlider:SetPoint("TOPLEFT", PAD, y)
-            scaleSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            y = y - FORM_ROW
-
-            -- Portrait Border Size slider
-            local borderSlider = GUI:CreateFormSlider(tabContent, "Portrait Border", 0, 5, 1, "portraitBorderSize", unitDB, RefreshUnit)
-            borderSlider:SetPoint("TOPLEFT", PAD, y)
-            borderSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            y = y - FORM_ROW
-
-            -- Portrait Gap slider
-            if unitDB.portraitGap == nil then unitDB.portraitGap = 0 end
-            local gapSlider = GUI:CreateFormSlider(tabContent, "Portrait Gap", 0, 10, 1, "portraitGap", unitDB, RefreshUnit)
-            gapSlider:SetPoint("TOPLEFT", PAD, y)
-            gapSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            y = y - FORM_ROW
-
-            -- Initialize border color defaults
-            if unitDB.portraitBorderUseClassColor == nil then unitDB.portraitBorderUseClassColor = false end
-            if unitDB.portraitBorderColor == nil then unitDB.portraitBorderColor = { 0, 0, 0, 1 } end
-
-            -- Forward declare color picker for conditional enable/disable
-            local borderColorPicker
-
-            -- Use Class Color for Border checkbox
-            local useClassColorCheck = GUI:CreateFormCheckbox(tabContent, "Use Class Color for Border", "portraitBorderUseClassColor", unitDB, function(val)
-                RefreshUnit()
-                -- Enable/disable color picker based on toggle
-                if borderColorPicker and borderColorPicker.SetEnabled then
-                    borderColorPicker:SetEnabled(not val)
-                end
-            end)
-            useClassColorCheck:SetPoint("TOPLEFT", PAD, y)
-            useClassColorCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            y = y - FORM_ROW
-
-            -- Custom Border Color picker
-            borderColorPicker = GUI:CreateFormColorPicker(tabContent, "Border Color", "portraitBorderColor", unitDB, RefreshUnit)
-            borderColorPicker:SetPoint("TOPLEFT", PAD, y)
-            borderColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            -- Initial state based on class color toggle
-            if borderColorPicker.SetEnabled then
-                borderColorPicker:SetEnabled(not unitDB.portraitBorderUseClassColor)
-            end
-            y = y - FORM_ROW
-        end
-
         -- Frame Anchoring section (only for player and target)
         if unitKey == "player" or unitKey == "target" then
             local anchorHeader = GUI:CreateSectionHeader(tabContent, "Frame Anchoring")
@@ -11503,9 +11424,102 @@ local function CreateUnitFramesPage(parent)
             y = y - FORM_ROW
         end
 
+        -- Portrait section (player, target, focus only)
+        if unitKey == "player" or unitKey == "target" or unitKey == "focus" then
+            local portraitHeader = GUI:CreateSectionHeader(tabContent, "Portrait")
+            portraitHeader:SetPoint("TOPLEFT", PAD, y)
+            y = y - portraitHeader.gap
+
+            -- Initialize defaults
+            if unitDB.showPortrait == nil then unitDB.showPortrait = false end
+            if unitDB.portraitSide == nil then
+                unitDB.portraitSide = (unitKey == "player") and "LEFT" or "RIGHT"
+            end
+            if unitDB.portraitScale == nil then unitDB.portraitScale = 1.0 end
+            if unitDB.portraitBorderSize == nil then unitDB.portraitBorderSize = 1 end
+
+            -- Show Portrait checkbox
+            local showPortraitCheck = GUI:CreateFormCheckbox(tabContent, "Show Portrait", "showPortrait", unitDB, RefreshUnit)
+            showPortraitCheck:SetPoint("TOPLEFT", PAD, y)
+            showPortraitCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Portrait Side dropdown
+            local sideOptions = {
+                {value = "LEFT", text = "Left"},
+                {value = "RIGHT", text = "Right"},
+            }
+            local sideDropdown = GUI:CreateFormDropdown(tabContent, "Portrait Side", sideOptions, "portraitSide", unitDB, RefreshUnit)
+            sideDropdown:SetPoint("TOPLEFT", PAD, y)
+            sideDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Portrait Scale slider
+            local scaleSlider = GUI:CreateFormSlider(tabContent, "Portrait Scale", 0.5, 4.0, 0.1, "portraitScale", unitDB, RefreshUnit)
+            scaleSlider:SetPoint("TOPLEFT", PAD, y)
+            scaleSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Portrait Border Size slider
+            local borderSlider = GUI:CreateFormSlider(tabContent, "Portrait Border", 0, 5, 1, "portraitBorderSize", unitDB, RefreshUnit)
+            borderSlider:SetPoint("TOPLEFT", PAD, y)
+            borderSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Portrait Gap slider
+            if unitDB.portraitGap == nil then unitDB.portraitGap = 0 end
+            local gapSlider = GUI:CreateFormSlider(tabContent, "Portrait Gap", 0, 10, 1, "portraitGap", unitDB, RefreshUnit)
+            gapSlider:SetPoint("TOPLEFT", PAD, y)
+            gapSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Portrait Offset X slider
+            if unitDB.portraitOffsetX == nil then unitDB.portraitOffsetX = 0 end
+            local offsetXSlider = GUI:CreateFormSlider(tabContent, "Portrait Offset X", -500, 500, 1, "portraitOffsetX", unitDB, RefreshUnit)
+            offsetXSlider:SetPoint("TOPLEFT", PAD, y)
+            offsetXSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Portrait Offset Y slider
+            if unitDB.portraitOffsetY == nil then unitDB.portraitOffsetY = 0 end
+            local offsetYSlider = GUI:CreateFormSlider(tabContent, "Portrait Offset Y", -500, 500, 1, "portraitOffsetY", unitDB, RefreshUnit)
+            offsetYSlider:SetPoint("TOPLEFT", PAD, y)
+            offsetYSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Initialize border color defaults
+            if unitDB.portraitBorderUseClassColor == nil then unitDB.portraitBorderUseClassColor = false end
+            if unitDB.portraitBorderColor == nil then unitDB.portraitBorderColor = { 0, 0, 0, 1 } end
+
+            -- Forward declare color picker for conditional enable/disable
+            local borderColorPicker
+
+            -- Use Class Color for Border checkbox
+            local useClassColorCheck = GUI:CreateFormCheckbox(tabContent, "Use Class Color for Border", "portraitBorderUseClassColor", unitDB, function(val)
+                RefreshUnit()
+                -- Enable/disable color picker based on toggle
+                if borderColorPicker and borderColorPicker.SetEnabled then
+                    borderColorPicker:SetEnabled(not val)
+                end
+            end)
+            useClassColorCheck:SetPoint("TOPLEFT", PAD, y)
+            useClassColorCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Custom Border Color picker
+            borderColorPicker = GUI:CreateFormColorPicker(tabContent, "Border Color", "portraitBorderColor", unitDB, RefreshUnit)
+            borderColorPicker:SetPoint("TOPLEFT", PAD, y)
+            borderColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            -- Initial state based on class color toggle
+            if borderColorPicker.SetEnabled then
+                borderColorPicker:SetEnabled(not unitDB.portraitBorderUseClassColor)
+            end
+            y = y - FORM_ROW
+        end
+
         tabContent:SetHeight(math.abs(y) + 30)
     end
-    
+
     -- Create sub-tabs
     local subTabs = GUI:CreateSubTabs(content, {
         {name = "General", builder = BuildGeneralTab},
