@@ -862,6 +862,15 @@ local function ApplySettings()
     skyridingFrame:ClearAllPoints()
     skyridingFrame:SetPoint("CENTER", UIParent, "CENTER", offsetX, offsetY)
 
+    -- Apply HUD layer priority
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    local db = QUICore and QUICore.db and QUICore.db.profile
+    local layerPriority = db and db.hudLayering and db.hudLayering.skyridingHUD or 5
+    if QUICore and QUICore.GetHUDFrameLevel then
+        local frameLevel = QUICore:GetHUDFrameLevel(layerPriority)
+        skyridingFrame:SetFrameLevel(frameLevel)
+    end
+
     -- Draggable state
     skyridingFrame:EnableMouse(not locked)
 

@@ -13639,6 +13639,7 @@ local function CreateHUDLayeringPage(parent)
                 playerCastbar = 5, targetCastbar = 5,
                 playerIndicators = 5,  -- Player frame indicator icons (rested, combat, stance)
                 customBars = 5,
+                skyridingHUD = 5,
             }
         end
         return db.hudLayering
@@ -13679,6 +13680,12 @@ local function CreateHUDLayeringPage(parent)
     local function RefreshCustomTrackers()
         if _G.QuaziiUI_RefreshCustomTrackers then
             _G.QuaziiUI_RefreshCustomTrackers()
+        end
+    end
+
+    local function RefreshSkyriding()
+        if _G.QuaziiUI_RefreshSkyriding then
+            _G.QuaziiUI_RefreshSkyriding()
         end
     end
 
@@ -13812,6 +13819,20 @@ local function CreateHUDLayeringPage(parent)
     local customBarsSlider = GUI:CreateFormSlider(content, "Custom Item/Spell Bars", 0, 10, 1, "customBars", layeringDB, RefreshCustomTrackers)
     customBarsSlider:SetPoint("TOPLEFT", PAD, y)
     customBarsSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
+    y = y - 10  -- Section spacing
+
+    -- =====================================================
+    -- SKYRIDING SECTION
+    -- =====================================================
+    local skyridingHeader = GUI:CreateSectionHeader(content, "Skyriding")
+    skyridingHeader:SetPoint("TOPLEFT", PAD, y)
+    y = y - skyridingHeader.gap
+
+    local skyridingSlider = GUI:CreateFormSlider(content, "Skyriding HUD", 0, 10, 1, "skyridingHUD", layeringDB, RefreshSkyriding)
+    skyridingSlider:SetPoint("TOPLEFT", PAD, y)
+    skyridingSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
     y = y - FORM_ROW
 
     -- Set content height
