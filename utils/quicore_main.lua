@@ -2510,19 +2510,19 @@ local defaults = {
 
         -- Cooldown Manager Effects
         cooldownSwipe = {
-            showBuffSwipe = true,       -- Buff/aura duration swipe (Essential/Utility)
+            showBuffSwipe = false,      -- Buff/aura duration swipe (Essential/Utility)
             showBuffIconSwipe = false,  -- BuffIcon viewer swipe (opt-in)
-            showGCDSwipe = true,        -- GCD swipe (~1.5s)
-            showCooldownSwipe = true,   -- Actual spell cooldown swipe
-            showRechargeEdge = true,    -- Yellow edge on multi-charge abilities
+            showGCDSwipe = false,       -- GCD swipe (~1.5s)
+            showCooldownSwipe = false,  -- Actual spell cooldown swipe
+            showRechargeEdge = false,   -- Yellow edge on multi-charge abilities
             showActionSwipe = true,     -- Action bar cooldown swipe
             showNcdmSwipe = true,       -- NCDM cooldown swipe
             showCustomTrackerSwipe = true, -- Custom tracker cooldown swipe
             migratedToV2 = true,        -- Migration marker from old hideEssential/hideUtility
         },
         cooldownEffects = {
-            hideEssential = false,
-            hideUtility = false,
+            hideEssential = true,
+            hideUtility = true,
         },
         cooldownManager = {
             -- hideSwipe removed - now handled by cooldownSwipe
@@ -2531,7 +2531,7 @@ local defaults = {
         -- Custom Glow Settings (for Essential/Utility cooldown viewers)
         customGlow = {
             -- Essential Cooldowns
-            essentialEnabled = false,
+            essentialEnabled = true,
             essentialGlowType = "Pixel Glow",  -- "Pixel Glow", "Autocast Shine", "Button Glow"
             essentialColor = {0.95, 0.95, 0.32, 1},  -- Default yellow/gold
             essentialLines = 14,       -- Number of lines for Pixel Glow / spots for Autocast Shine
@@ -2543,7 +2543,7 @@ local defaults = {
             essentialYOffset = 0,
 
             -- Utility Cooldowns
-            utilityEnabled = false,
+            utilityEnabled = true,
             utilityGlowType = "Pixel Glow",
             utilityColor = {0.95, 0.95, 0.32, 1},
             utilityLines = 14,
