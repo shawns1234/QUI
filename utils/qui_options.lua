@@ -2279,12 +2279,17 @@ local function CreateGeneralQoLPage(parent)
             copyHeader:SetPoint("TOPLEFT", PADDING, y)
             y = y - copyHeader.gap
 
-            local copyButtonCheck = GUI:CreateFormCheckbox(tabContent, "Show Copy Button", "copyButton", chat, RefreshChat)
-            copyButtonCheck:SetPoint("TOPLEFT", PADDING, y)
-            copyButtonCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            local copyButtonOptions = {
+                {value = "always", text = "Show Always"},
+                {value = "hover", text = "Show on Hover"},
+                {value = "disabled", text = "Disabled"},
+            }
+            local copyButtonDropdown = GUI:CreateFormDropdown(tabContent, "Copy Button", copyButtonOptions, "copyButtonMode", chat, RefreshChat)
+            copyButtonDropdown:SetPoint("TOPLEFT", PADDING, y)
+            copyButtonDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
             y = y - FORM_ROW
 
-            local copyButtonInfo = GUI:CreateLabel(tabContent, "Adds a button to each chat frame to copy full chat history.", 10, C.textMuted)
+            local copyButtonInfo = GUI:CreateLabel(tabContent, "Controls the copy button on each chat frame for copying chat history.", 10, C.textMuted)
             copyButtonInfo:SetPoint("TOPLEFT", PADDING, y)
             copyButtonInfo:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
             copyButtonInfo:SetJustifyH("LEFT")

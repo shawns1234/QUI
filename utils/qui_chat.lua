@@ -440,17 +440,17 @@ end
 ---------------------------------------------------------------------------
 -- Copy Button (per chat frame)
 ---------------------------------------------------------------------------
-local function CreateCopyButton(chatFrame)
-    local settings = GetSettings()
-    if not settings or not settings.copyButton then return end
 
+local COPY_BUTTON_IDLE_ALPHA = 0.35
+
+-- Create or get the copy button for a chat frame
+local function GetOrCreateCopyButton(chatFrame)
     local frameName = chatFrame:GetName()
-    if not frameName then return end
+    if not frameName then return nil end
 
-    -- Already created
+    -- Return existing button
     if copyButtons[chatFrame] then
-        copyButtons[chatFrame]:Show()
-        return
+        return copyButtons[chatFrame]
     end
 
     local button = CreateFrame("Button", frameName .. "QuaziiCopyButton", chatFrame)
@@ -466,9 +466,9 @@ local function CreateCopyButton(chatFrame)
     button.icon = icon
 
     -- Semi-transparent by default
-    button:SetAlpha(0.35)
+    button:SetAlpha(COPY_BUTTON_IDLE_ALPHA)
 
-    -- Hover effect
+    -- Hover effect on button itself
     button:SetScript("OnEnter", function(self)
         self:SetAlpha(1)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -477,7 +477,16 @@ local function CreateCopyButton(chatFrame)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", function(self)
-        self:SetAlpha(0.35)
+        local settings = GetSettings()
+        local mode = settings and settings.copyButtonMode or "always"
+        -- In hover mode, hide when leaving button (unless mouse is over chat frame)
+        if mode == "hover" then
+            if not chatFrame:IsMouseOver() then
+                self:SetAlpha(0)
+            end
+        else
+            self:SetAlpha(COPY_BUTTON_IDLE_ALPHA)
+        end
         GameTooltip:Hide()
     end)
 
@@ -487,9 +496,82 @@ local function CreateCopyButton(chatFrame)
     end)
 
     copyButtons[chatFrame] = button
+    return button
 end
 
--- Hide copy button (when disabled)
+-- Setup hover mode for chat frame (show button on chat frame hover)
+local function SetupCopyButtonHoverMode(chatFrame)
+    -- Check flag first to prevent duplicate hooks
+    if chatFrame.quaziiCopyButtonHooked then return end
+    chatFrame.quaziiCopyButtonHooked = true
+
+    local button = copyButtons[chatFrame]
+    if not button then return end
+
+    -- Hook chat frame enter/leave for hover mode
+    chatFrame:HookScript("OnEnter", function()
+        local settings = GetSettings()
+        local mode = settings and settings.copyButtonMode or "always"
+        if mode == "hover" and button then
+            button:SetAlpha(COPY_BUTTON_IDLE_ALPHA)
+            button:Show()
+        end
+    end)
+    chatFrame:HookScript("OnLeave", function()
+        local settings = GetSettings()
+        local mode = settings and settings.copyButtonMode or "always"
+        if mode == "hover" and button then
+            -- Only hide if mouse isn't over the button
+            if not button:IsMouseOver() then
+                button:SetAlpha(0)
+            end
+        end
+    end)
+end
+
+-- Apply copy button mode for a chat frame
+local function ApplyCopyButtonMode(chatFrame)
+    local settings = GetSettings()
+
+    -- Backwards compatibility: migrate old boolean copyButton to new copyButtonMode
+    local mode = settings and settings.copyButtonMode
+    if not mode and settings then
+        -- Old format: copyButton was boolean
+        if settings.copyButton == false then
+            mode = "disabled"
+        else
+            mode = "always"
+        end
+    end
+    mode = mode or "always"
+
+    -- Mode: disabled - hide existing button, don't create new one
+    if mode == "disabled" then
+        if copyButtons[chatFrame] then
+            copyButtons[chatFrame]:Hide()
+        end
+        return
+    end
+
+    -- Mode: always or hover - create and show
+    local button = GetOrCreateCopyButton(chatFrame)
+    if not button then return end
+
+    if mode == "always" then
+        button:SetAlpha(COPY_BUTTON_IDLE_ALPHA)
+        button:Show()
+    elseif mode == "hover" then
+        -- Start hidden, show on chat frame hover
+        button:SetAlpha(0)
+        button:Show()
+        -- Setup hover hooks if not already done
+        if not chatFrame.quaziiCopyButtonHooked then
+            SetupCopyButtonHoverMode(chatFrame)
+        end
+    end
+end
+
+-- Hide copy button
 local function HideCopyButton(chatFrame)
     if copyButtons[chatFrame] then
         copyButtons[chatFrame]:Hide()
@@ -935,10 +1017,8 @@ local function SkinChatFrame(chatFrame)
     -- Apply message padding
     ApplyMessagePadding(chatFrame)
 
-    -- Create copy button
-    if settings.copyButton then
-        CreateCopyButton(chatFrame)
-    end
+    -- Apply copy button based on mode
+    ApplyCopyButtonMode(chatFrame)
 end
 
 ---------------------------------------------------------------------------
@@ -1017,11 +1097,11 @@ local function RefreshAll()
         -- Handle message fade (native API)
         SetupMessageFade(chatFrame)
 
-        -- Handle copy button visibility
-        if not settings or not settings.enabled or not settings.copyButton then
+        -- Handle copy button based on mode
+        if not settings or not settings.enabled then
             HideCopyButton(chatFrame)
         else
-            CreateCopyButton(chatFrame)
+            ApplyCopyButtonMode(chatFrame)
         end
     end
 
