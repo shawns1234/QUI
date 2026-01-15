@@ -205,6 +205,14 @@ local function SafeUnitClass(unit)
     return nil
 end
 
+-- Safe aura field access for Midnight Beta
+-- In 12.x Beta, aura data fields can be "secret values" that error on access
+local function SafeGetAuraField(auraData, fieldName)
+    local success, value = pcall(function() return auraData[fieldName] end)
+    if success then return value end
+    return nil
+end
+
 local function ScanGroupClasses()
     wipe(groupClasses)
 
@@ -254,9 +262,12 @@ local function UnitHasBuff(unit, spellId, spellName)
         local found = false
         AuraUtil.ForEachAura(unit, "HELPFUL", nil, function(auraData)
             if auraData then
-                if auraData.spellId == spellId then
+                -- Use safe field access for Midnight Beta (12.x) secret values
+                local auraSpellId = SafeGetAuraField(auraData, "spellId")
+                local auraName = SafeGetAuraField(auraData, "name")
+                if auraSpellId and auraSpellId == spellId then
                     found = true
-                elseif spellName and auraData.name == spellName then
+                elseif spellName and auraName and auraName == spellName then
                     found = true
                 end
             end
@@ -276,9 +287,12 @@ local function UnitHasBuff(unit, spellId, spellName)
         for i = 1, MAX_AURA_INDEX do
             local success, auraData = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, "HELPFUL")
             if not success or not auraData then break end
-            if auraData.spellId == spellId then
+            -- Use safe field access for Midnight Beta (12.x) secret values
+            local auraSpellId = SafeGetAuraField(auraData, "spellId")
+            local auraName = SafeGetAuraField(auraData, "name")
+            if auraSpellId and auraSpellId == spellId then
                 return true
-            elseif spellName and auraData.name == spellName then
+            elseif spellName and auraName and auraName == spellName then
                 return true
             end
         end
