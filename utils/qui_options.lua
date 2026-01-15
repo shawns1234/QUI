@@ -11445,6 +11445,49 @@ local function CreateUnitFramesPage(parent)
         markerYSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
+        -- LEADER ICON section (player, target, focus only)
+        if unitKey == "player" or unitKey == "target" or unitKey == "focus" then
+            local leaderHeader = GUI:CreateSectionHeader(tabContent, "Leader/Assistant Icon")
+            leaderHeader:SetPoint("TOPLEFT", PAD, y)
+            y = y - leaderHeader.gap
+
+            -- Ensure leaderIcon table exists
+            if not unitDB.leaderIcon then
+                unitDB.leaderIcon = { enabled = true, size = 16, anchor = "TOPLEFT", xOffset = -8, yOffset = 8 }
+            end
+
+            local leaderDesc = GUI:CreateLabel(tabContent, "Shows crown icon for party/raid leader, flag icon for raid assistants.", 11, C.textMuted)
+            leaderDesc:SetPoint("TOPLEFT", PAD, y)
+            leaderDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            leaderDesc:SetJustifyH("LEFT")
+            y = y - 20
+
+            local leaderCheck = GUI:CreateFormCheckbox(tabContent, "Show Leader/Assistant Icon", "enabled", unitDB.leaderIcon, RefreshUnit)
+            leaderCheck:SetPoint("TOPLEFT", PAD, y)
+            leaderCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            local leaderSizeSlider = GUI:CreateFormSlider(tabContent, "Icon Size", 8, 32, 1, "size", unitDB.leaderIcon, RefreshUnit)
+            leaderSizeSlider:SetPoint("TOPLEFT", PAD, y)
+            leaderSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            local leaderAnchorDrop = GUI:CreateFormDropdown(tabContent, "Anchor To", anchorOptions, "anchor", unitDB.leaderIcon, RefreshUnit)
+            leaderAnchorDrop:SetPoint("TOPLEFT", PAD, y)
+            leaderAnchorDrop:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            local leaderXSlider = GUI:CreateFormSlider(tabContent, "X Offset", -100, 100, 1, "xOffset", unitDB.leaderIcon, RefreshUnit)
+            leaderXSlider:SetPoint("TOPLEFT", PAD, y)
+            leaderXSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            local leaderYSlider = GUI:CreateFormSlider(tabContent, "Y Offset", -100, 100, 1, "yOffset", unitDB.leaderIcon, RefreshUnit)
+            leaderYSlider:SetPoint("TOPLEFT", PAD, y)
+            leaderYSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+        end
+
         tabContent:SetHeight(math.abs(y) + 30)
     end
     

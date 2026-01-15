@@ -1515,6 +1515,14 @@ local defaults = {
                     xOffset = 0,
                     yOffset = 8,
                 },
+                -- Leader/Assistant icon (crown for leader, flag for assistant)
+                leaderIcon = {
+                    enabled = true,
+                    size = 16,
+                    anchor = "TOPLEFT",
+                    xOffset = -8,
+                    yOffset = 8,
+                },
             },
             -- Target frame settings
             target = {
@@ -1669,6 +1677,14 @@ local defaults = {
                     size = 20,
                     anchor = "TOP",
                     xOffset = 0,
+                    yOffset = 8,
+                },
+                -- Leader/Assistant icon (crown for leader, flag for assistant)
+                leaderIcon = {
+                    enabled = true,
+                    size = 16,
+                    anchor = "TOPLEFT",
+                    xOffset = -8,
                     yOffset = 8,
                 },
             },
@@ -1964,6 +1980,14 @@ local defaults = {
                     anchor = "TOP",
                     xOffset = 0,
                     yOffset = 6,
+                },
+                -- Leader/Assistant icon (crown for leader, flag for assistant)
+                leaderIcon = {
+                    enabled = true,
+                    size = 16,
+                    anchor = "TOPLEFT",
+                    xOffset = -8,
+                    yOffset = 8,
                 },
             },
             -- Boss frames
