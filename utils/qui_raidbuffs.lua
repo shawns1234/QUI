@@ -66,7 +66,7 @@ local RAID_BUFFS = {
     {
         spellId = 462854,
         name = "Skyfury",
-        stat = "Critical Strike",
+        stat = "Mastery",
         providerClass = "SHAMAN",
         range = 100,
     },
