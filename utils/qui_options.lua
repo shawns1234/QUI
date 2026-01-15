@@ -1113,13 +1113,7 @@ local function CreateGeneralQoLPage(parent)
         local anchorModeCheck = GUI:CreateFormCheckbox(tabContent, "Anchor to Ready Check", "consumableAnchorMode", db.general, function()
             -- Update icon offset slider state based on anchor mode
             if iconOffsetSlider then
-                if db.general.consumableAnchorMode then
-                    iconOffsetSlider:Enable()
-                    iconOffsetSlider:SetAlpha(1)
-                else
-                    iconOffsetSlider:Disable()
-                    iconOffsetSlider:SetAlpha(0.5)
-                end
+                iconOffsetSlider:SetEnabled(db.general.consumableAnchorMode)
             end
             RepositionConsumables()
         end)
@@ -1160,10 +1154,7 @@ local function CreateGeneralQoLPage(parent)
         iconOffsetSlider:SetPoint("TOPLEFT", PADDING, y)
         iconOffsetSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
         -- Disable slider if not in anchor mode
-        if not db.general.consumableAnchorMode then
-            iconOffsetSlider:Disable()
-            iconOffsetSlider:SetAlpha(0.5)
-        end
+        iconOffsetSlider:SetEnabled(db.general.consumableAnchorMode)
         y = y - FORM_ROW
 
         local iconOffsetDesc = GUI:CreateLabel(tabContent, "Distance (pixels) between icons and ready check frame (anchor mode only).", 11, C.textMuted)
