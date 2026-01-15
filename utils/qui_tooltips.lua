@@ -72,6 +72,32 @@ end
 local function GetTooltipContext(owner)
     if not owner then return "npcs" end
 
+    -- CDM: Check for skinned CDM icons (Essential, Utility, Buff views)
+    if owner.__cdmSkinned then
+        return "cdm"
+    end
+
+    -- Check parent for CDM (tooltip owner might be child of CDM icon)
+    local parent = owner:GetParent()
+    if parent then
+        if parent.__cdmSkinned then
+            return "cdm"
+        end
+        -- Check if parent is a CDM viewer frame
+        local parentName = parent:GetName() or ""
+        if parentName == "EssentialCooldownViewer" or
+           parentName == "UtilityCooldownViewer" or
+           parentName == "BuffIconCooldownViewer" or
+           parentName == "BuffBarCooldownViewer" then
+            return "cdm"
+        end
+    end
+
+    -- Custom Trackers: Check for custom tracker icons
+    if owner.__customTrackerIcon then
+        return "customTrackers"
+    end
+
     local name = owner:GetName() or ""
 
     -- Abilities: Check for action button patterns
@@ -98,12 +124,12 @@ local function GetTooltipContext(owner)
     end
 
     -- Check parent for bag items (nested frames)
-    local parent = owner:GetParent()
+    -- Note: parent already defined earlier for CDM check
     if parent then
-        local parentName = parent:GetName() or ""
-        if strmatch(parentName, "ContainerFrame") or
-           strmatch(parentName, "BankFrame") or
-           strmatch(parentName, "Baganator") then
+        local parentNameItems = parent:GetName() or ""
+        if strmatch(parentNameItems, "ContainerFrame") or
+           strmatch(parentNameItems, "BankFrame") or
+           strmatch(parentNameItems, "Baganator") then
             return "items"
         end
     end
@@ -208,6 +234,39 @@ local function SetupTooltipHook()
         -- If owner is UIParent (world tooltip) and a UI frame is blocking the mouse
         if tooltip:GetOwner() == UIParent and IsFrameBlockingMouse() then
             tooltip:Hide()
+        end
+    end)
+
+    -- Hook SetSpellByID to suppress CDM and Custom Tracker tooltips
+    -- These icons use SetSpellByID which bypasses GameTooltip_SetDefaultAnchor
+    hooksecurefunc(GameTooltip, "SetSpellByID", function(tooltip, spellID)
+        local settings = GetSettings()
+        if not settings or not settings.enabled then return end
+
+        local owner = tooltip:GetOwner()
+        local context = GetTooltipContext(owner)
+
+        -- Apply visibility rules to CDM and Custom Trackers contexts
+        if context == "cdm" or context == "customTrackers" then
+            if not ShouldShowTooltip(context) then
+                tooltip:Hide()
+            end
+        end
+    end)
+
+    -- Hook SetItemByID to suppress Custom Tracker item tooltips
+    hooksecurefunc(GameTooltip, "SetItemByID", function(tooltip, itemID)
+        local settings = GetSettings()
+        if not settings or not settings.enabled then return end
+
+        local owner = tooltip:GetOwner()
+        local context = GetTooltipContext(owner)
+
+        -- Apply visibility rules to Custom Trackers context
+        if context == "customTrackers" then
+            if not ShouldShowTooltip("customTrackers") then
+                tooltip:Hide()
+            end
         end
     end)
 end

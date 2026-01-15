@@ -1115,6 +1115,8 @@ local defaults = {
                 abilities = "SHOW",            -- Action bar buttons
                 items = "SHOW",                -- Bag/bank items
                 frames = "SHOW",               -- Unit frame mouseover
+                cdm = "SHOW",                  -- CDM views (Essential, Utility, Buff)
+                customTrackers = "SHOW",       -- Custom Items/Spells bars
             },
             combatKey = "SHIFT",               -- NONE/SHIFT/CTRL/ALT
         },

@@ -2361,13 +2361,13 @@ local function CreateGeneralQoLPage(parent)
         cursorInfo:SetJustifyH("LEFT")
         y = y - 20
 
-        -- SECTION: Context Visibility
-        GUI:SetSearchSection("Context Visibility")
-        local visHeader = GUI:CreateSectionHeader(tabContent, "Context Visibility")
+        -- SECTION: Tooltip Visibility
+        GUI:SetSearchSection("Tooltip Visibility")
+        local visHeader = GUI:CreateSectionHeader(tabContent, "Tooltip Visibility")
         visHeader:SetPoint("TOPLEFT", PADDING, y)
         y = y - visHeader.gap
 
-        local visInfo = GUI:CreateLabel(tabContent, "Control tooltip visibility per context. Choose a modifier key to only show tooltips while holding that key.", 10, C.textMuted)
+        local visInfo = GUI:CreateLabel(tabContent, "Control tooltip visibility per element type. Choose a modifier key to only show tooltips while holding that key.", 10, C.textMuted)
         visInfo:SetPoint("TOPLEFT", PADDING, y)
         visInfo:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
         visInfo:SetJustifyH("LEFT")
@@ -2392,6 +2392,16 @@ local function CreateGeneralQoLPage(parent)
             local framesDropdown = GUI:CreateFormDropdown(tabContent, "Frames", visibilityOptions, "frames", tooltip.visibility, RefreshTooltips)
             framesDropdown:SetPoint("TOPLEFT", PADDING, y)
             framesDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            local cdmDropdown = GUI:CreateFormDropdown(tabContent, "Cooldown Manager", visibilityOptions, "cdm", tooltip.visibility, RefreshTooltips)
+            cdmDropdown:SetPoint("TOPLEFT", PADDING, y)
+            cdmDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            local customTrackersDropdown = GUI:CreateFormDropdown(tabContent, "Custom Items/Spells", visibilityOptions, "customTrackers", tooltip.visibility, RefreshTooltips)
+            customTrackersDropdown:SetPoint("TOPLEFT", PADDING, y)
+            customTrackersDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
             y = y - FORM_ROW
         end
 

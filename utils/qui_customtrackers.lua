@@ -715,6 +715,7 @@ end
 ---------------------------------------------------------------------------
 local function CreateTrackerIcon(parent)
     local icon = CreateFrame("Frame", nil, parent)
+    icon.__customTrackerIcon = true  -- Marker for tooltip visibility system
     icon:SetSize(36, 36)  -- Default, will be resized
 
     -- Border (BACKGROUND texture at sublevel -8, combat-safe)
