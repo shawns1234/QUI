@@ -234,15 +234,19 @@ local function OnSpellCastSucceeded(unit, castGUID, spellID)
     local data = GetScannedSpell(spellID)
 
     if data then
-        -- Known spell: activate buff tracking
-        local now = GetTime()
-        SpellScanner.activeBuffs[spellID] = {
-            startTime = now,
-            duration = data.duration,
-            expirationTime = now + data.duration,
-            source = "spell",
-            sourceId = spellID,
-        }
+        -- Known spell: activate buff tracking (if we have valid duration data)
+        local duration = data.duration
+        if duration and type(duration) == "number" and duration > 0 then
+            local now = GetTime()
+            SpellScanner.activeBuffs[spellID] = {
+                startTime = now,
+                duration = duration,
+                expirationTime = now + duration,
+                source = "spell",
+                sourceId = spellID,
+            }
+        end
+        -- Even without duration data, we treat this as "known" and skip further scanning
         return
     end
 
