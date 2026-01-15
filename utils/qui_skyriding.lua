@@ -722,10 +722,10 @@ local function UpdateAbilityIcon()
     end
 
     -- Only show when skyriding is available
+    -- Don't hide directly - let the parent frame's fade animation handle it
     local _, canGlideNow, _ = GetGlidingInfo()
     if not canGlideNow then
-        abilityIcon:Hide()
-        return
+        return  -- Skip update, fade animation controls visibility
     end
 
     -- Calculate icon height to span both bars and center vertically
