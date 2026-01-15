@@ -1339,6 +1339,8 @@ function CustomTrackers:StartCooldownPolling(bar)
                     startTime, duration, enabled = GetItemCooldownInfo(entry.id)
                     count = GetItemStackCount(entry.id)
                     isOnGCD = false  -- Items don't have GCD
+                    -- Update item usability based on current count (consumables deplete during gameplay)
+                    icon._usable = IsItemUsable(entry.id, count)
                 end
 
                 -- Check if spell/item is currently active (casting/channeling/buff)
@@ -1840,6 +1842,7 @@ function CustomTrackers:AddEntry(barID, entryType, entryID, specKeyOverride)
                 if not barConfig.specSpecificSpells or specKey == currentSpec then
                     self.activeBars[barID].config = barConfig
                     self:UpdateBarIcons(self.activeBars[barID])
+                    RebuildActiveSet(self.activeBars[barID])
                 end
             end
 
@@ -1892,6 +1895,7 @@ function CustomTrackers:RemoveEntry(barID, entryType, entryID, specKeyOverride)
                             if not barConfig.specSpecificSpells or specKey == currentSpec then
                                 self.activeBars[barID].config = barConfig
                                 self:UpdateBarIcons(self.activeBars[barID])
+                                RebuildActiveSet(self.activeBars[barID])
                             end
                         end
 
@@ -1949,6 +1953,7 @@ function CustomTrackers:MoveEntry(barID, entryIndex, direction, specKeyOverride)
                 if not barConfig.specSpecificSpells or specKey == currentSpec then
                     self.activeBars[barID].config = barConfig
                     self:UpdateBarIcons(self.activeBars[barID])
+                    RebuildActiveSet(self.activeBars[barID])
                 end
             end
             return true
