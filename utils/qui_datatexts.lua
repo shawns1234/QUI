@@ -14,6 +14,9 @@ local wipe = wipe
 
 -- Constants
 local MAX_GUILD_TOOLTIP_DISPLAY = 20
+local DAY_SECONDS = 86400
+local HOUR_SECONDS = 3600
+local MINUTE_SECONDS = 60
 
 -- Module reference
 local Datatexts = {}
@@ -61,6 +64,76 @@ local function GetLabel(fullLabel, shortLabel, useShortLabel, useNoLabel)
         return shortLabel
     end
     return fullLabel
+end
+
+-- Lockout cache for throttling RequestRaidInfo
+local lockoutCache = {
+    lastUpdate = 0,
+    instances = {},
+    worldBosses = {},
+}
+
+local function GetLockoutCacheTTL()
+    local db = QUICore.db and QUICore.db.profile and QUICore.db.profile.datatext
+    local minutes = db and db.lockoutCacheMinutes or 5
+    return max(1, minutes) * 60  -- Convert to seconds, minimum 1 minute
+end
+
+local function RefreshLockoutCache()
+    local now = GetTime()
+    if now - lockoutCache.lastUpdate < GetLockoutCacheTTL() then
+        return  -- Cache still valid
+    end
+
+    RequestRaidInfo()
+    lockoutCache.lastUpdate = now
+
+    -- Cache saved instances
+    wipe(lockoutCache.instances)
+    local numSaved = GetNumSavedInstances() or 0
+    for i = 1, numSaved do
+        local name, _, reset, _, locked, _, _, _, maxPlayers, difficultyName = GetSavedInstanceInfo(i)
+        if locked and reset > 0 then
+            lockoutCache.instances[#lockoutCache.instances + 1] = {
+                name = name,
+                reset = reset,
+                maxPlayers = maxPlayers,
+                difficultyName = difficultyName,
+            }
+        end
+    end
+
+    -- Cache world bosses
+    wipe(lockoutCache.worldBosses)
+    if GetNumSavedWorldBosses then
+        local numWorldBosses = GetNumSavedWorldBosses() or 0
+        for i = 1, numWorldBosses do
+            local name, _, reset = GetSavedWorldBossInfo(i)
+            if name and reset > 0 then
+                lockoutCache.worldBosses[#lockoutCache.worldBosses + 1] = {
+                    name = name,
+                    reset = reset,
+                }
+            end
+        end
+    end
+end
+
+-- Format seconds into human-readable time
+local function FormatTimeRemaining(seconds)
+    if not seconds or seconds <= 0 then return "0m" end
+
+    local days = floor(seconds / DAY_SECONDS)
+    local hours = floor((seconds % DAY_SECONDS) / HOUR_SECONDS)
+    local minutes = floor((seconds % HOUR_SECONDS) / MINUTE_SECONDS)
+
+    if days > 0 then
+        return format("%dd %dh", days, hours)
+    elseif hours > 0 then
+        return format("%dh %dm", hours, minutes)
+    else
+        return format("%dm", minutes)
+    end
 end
 
 ---=================================================================================
@@ -256,17 +329,57 @@ Datatexts:Register("time", {
         -- Update every second
         frame.ticker = C_Timer.NewTicker(1, Update)
         
-        -- Tooltip
+        -- Tooltip with lockouts and reset timers
         slotFrame:EnableMouse(true)
         slotFrame:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
             GameTooltip:ClearLines()
             GameTooltip:AddLine("Time", 1, 1, 1)
             GameTooltip:AddLine(" ")
-            GameTooltip:AddDoubleLine("Server Time:", GameTime_GetGameTime(true), 0.8, 0.8, 0.8, 1, 1, 1)
-            GameTooltip:AddDoubleLine("Local Time:", GameTime_GetLocalTime(true), 0.8, 0.8, 0.8, 1, 1, 1)
+
+            local ar, ag, ab = GetValueColor()
+            ar, ag, ab = ar/255, ag/255, ab/255
+
+            -- Refresh lockout cache (throttled to every 30s)
+            RefreshLockoutCache()
+
+            -- Raid lockouts (from cache)
+            if #lockoutCache.instances > 0 then
+                GameTooltip:AddLine("Saved Raid(s)", 1, 0.82, 0)
+
+                for _, instance in ipairs(lockoutCache.instances) do
+                    local displayName = instance.difficultyName
+                        and format("%s (%s)", instance.name, instance.difficultyName)
+                        or instance.name
+                    GameTooltip:AddDoubleLine(displayName, FormatTimeRemaining(instance.reset), 0.8, 0.8, 0.8, ar, ag, ab)
+                end
+                GameTooltip:AddLine(" ")
+            end
+
+            -- World bosses (from cache)
+            if #lockoutCache.worldBosses > 0 then
+                GameTooltip:AddLine("World Bosses", 1, 0.82, 0)
+                for _, boss in ipairs(lockoutCache.worldBosses) do
+                    GameTooltip:AddDoubleLine(boss.name, FormatTimeRemaining(boss.reset), 0.8, 0.8, 0.8, ar, ag, ab)
+                end
+                GameTooltip:AddLine(" ")
+            end
+
+            -- Reset timers (using modern C_DateAndTime API)
+            local dailyReset = C_DateAndTime.GetSecondsUntilDailyReset and C_DateAndTime.GetSecondsUntilDailyReset()
+            if dailyReset and dailyReset > 0 then
+                GameTooltip:AddDoubleLine("Daily Reset", FormatTimeRemaining(dailyReset), 0.8, 0.8, 0.8, ar, ag, ab)
+            end
+
+            local weeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset and C_DateAndTime.GetSecondsUntilWeeklyReset()
+            if weeklyReset and weeklyReset > 0 then
+                GameTooltip:AddDoubleLine("Weekly Reset", FormatTimeRemaining(weeklyReset), 0.8, 0.8, 0.8, ar, ag, ab)
+            end
+
+            -- Realm time (server time)
+            GameTooltip:AddDoubleLine("Realm time:", GameTime_GetGameTime(true), 0.8, 0.8, 0.8, 1, 1, 1)
+
             GameTooltip:AddLine(" ")
-            local ar, ag, ab = GetValueColor(); ar, ag, ab = ar/255, ag/255, ab/255
             GameTooltip:AddLine("|cffFFFFFFLeft Click:|r Open Calendar", ar, ag, ab)
             GameTooltip:AddLine("|cffFFFFFFRight Click:|r Toggle Clock", ar, ag, ab)
             GameTooltip:Show()
@@ -363,7 +476,7 @@ Datatexts:Register("latency", {
         
         local function Update()
             local _, _, home = GetNetStats()
-            local ms = home or 0
+            local ms = floor(home or 0)
             local r, g, b
             if ms > 100 then
                 r, g, b = 255, 51, 51  -- Red warning (0-255)
@@ -381,6 +494,101 @@ Datatexts:Register("latency", {
         return frame
     end,
     
+    OnDisable = function(frame)
+        if frame.ticker then
+            frame.ticker:Cancel()
+        end
+    end,
+})
+
+-- System datatext (combined FPS + MS with latency tooltip)
+Datatexts:Register("system", {
+    displayName = "System",
+    category = "System",
+    description = "FPS and latency display",
+
+    OnEnable = function(slotFrame, settings)
+        local frame = CreateFrame("Frame", nil, slotFrame)
+        frame:SetAllPoints()
+
+        local text = slotFrame.text
+        if not text then
+            text = slotFrame:CreateFontString(nil, "OVERLAY")
+            text:SetPoint("CENTER")
+            slotFrame.text = text
+        end
+
+        local function Update()
+            local fps = floor(GetFramerate() + 0.5)
+            local _, _, homePing = GetNetStats()
+            local ms = floor(homePing or 0)
+
+            local fpsR, fpsG, fpsB
+            local msR, msG, msB
+
+            -- FPS color: red if < 30
+            if fps < 30 then
+                fpsR, fpsG, fpsB = 255, 51, 51
+            else
+                fpsR, fpsG, fpsB = GetValueColor()
+            end
+
+            -- MS color: red if > 100
+            if ms > 100 then
+                msR, msG, msB = 255, 51, 51
+            else
+                msR, msG, msB = GetValueColor()
+            end
+
+            -- Format based on label settings
+            local displayText
+            if slotFrame.noLabel then
+                -- No labels: "474 | 33"
+                displayText = format("|cff%02x%02x%02x%d|r | |cff%02x%02x%02x%d|r",
+                    fpsR, fpsG, fpsB, fps, msR, msG, msB, ms)
+            elseif slotFrame.shortLabel then
+                -- Short labels: "F: 474 M: 33"
+                displayText = format("F: |cff%02x%02x%02x%d|r M: |cff%02x%02x%02x%d|r",
+                    fpsR, fpsG, fpsB, fps, msR, msG, msB, ms)
+            else
+                -- Full labels: "FPS: 474 MS: 33"
+                displayText = format("FPS: |cff%02x%02x%02x%d|r MS: |cff%02x%02x%02x%d|r",
+                    fpsR, fpsG, fpsB, fps, msR, msG, msB, ms)
+            end
+
+            text:SetText(displayText)
+        end
+
+        frame.Update = Update
+        frame.ticker = C_Timer.NewTicker(1, Update)
+
+        -- Tooltip with latency details
+        slotFrame:EnableMouse(true)
+        slotFrame:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+            GameTooltip:ClearLines()
+            GameTooltip:AddLine("System", 1, 1, 1)
+            GameTooltip:AddLine(" ")
+
+            local ar, ag, ab = GetValueColor()
+            ar, ag, ab = ar/255, ag/255, ab/255
+
+            -- Performance stats
+            local currentFps = floor(GetFramerate() + 0.5)
+            local _, _, homePing, worldPing = GetNetStats()
+
+            GameTooltip:AddDoubleLine("Framerate:", format("%d fps", currentFps), 0.8, 0.8, 0.8, ar, ag, ab)
+            GameTooltip:AddDoubleLine("Home Latency:", format("%d ms", floor(homePing or 0)), 0.8, 0.8, 0.8, ar, ag, ab)
+            GameTooltip:AddDoubleLine("World Latency:", format("%d ms", floor(worldPing or 0)), 0.8, 0.8, 0.8, ar, ag, ab)
+
+            GameTooltip:Show()
+        end)
+        slotFrame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+        Update()
+        return frame
+    end,
+
     OnDisable = function(frame)
         if frame.ticker then
             frame.ticker:Cancel()

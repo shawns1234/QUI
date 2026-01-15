@@ -2768,7 +2768,8 @@ local defaults = {
             timeFormat = "local",  -- "local" or "server"
             use24Hour = true,
             useLocalTime = true,  -- For datatext registry
-            
+            lockoutCacheMinutes = 5,  -- minutes between lockout data refresh (min 1)
+
             -- Social datatext settings
             showTotal = true,  -- Show total count (friends/guild)
             showGuildName = false,  -- Show guild name in text
