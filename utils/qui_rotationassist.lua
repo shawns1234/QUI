@@ -175,12 +175,15 @@ CreateIconFrame = function()
     iconFrame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
 
-        -- Save position (always anchor to CENTER for simplicity)
+        -- Save position relative to screen center
         local db = GetDB()
         if db then
-            local _, _, _, x, y = self:GetPoint()
-            db.positionX = x
-            db.positionY = y
+            local selfX, selfY = self:GetCenter()
+            local parentX, parentY = UIParent:GetCenter()
+            if selfX and selfY and parentX and parentY then
+                db.positionX = selfX - parentX
+                db.positionY = selfY - parentY
+            end
         end
     end)
 
