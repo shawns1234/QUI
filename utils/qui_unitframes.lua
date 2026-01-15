@@ -1886,7 +1886,8 @@ local function CreateUnitFrame(unit, unitKey)
     end
 
     -- Leader/Assistant Icon (crown for leader, flag for assistant)
-    if settings.leaderIcon and (unitKey == "player" or unitKey == "target" or unitKey == "focus") then
+    -- Only create if enabled to avoid CPU usage when disabled
+    if settings.leaderIcon and settings.leaderIcon.enabled and (unitKey == "player" or unitKey == "target" or unitKey == "focus") then
         -- Create indicator container if not exists
         if not frame.indicatorFrame then
             local indicatorFrame = CreateFrame("Frame", nil, frame)
@@ -1920,8 +1921,8 @@ local function CreateUnitFrame(unit, unitKey)
     frame:RegisterEvent("UNIT_TARGET")  -- For inline Target of Target updates
     frame:RegisterEvent("RAID_TARGET_UPDATE")  -- Target marker (skull, cross, etc.)
 
-    -- Leader/Assistant icon events (player, target, focus only)
-    if unitKey == "player" or unitKey == "target" or unitKey == "focus" then
+    -- Leader/Assistant icon events (player, target, focus only) - only register if feature enabled
+    if settings.leaderIcon and settings.leaderIcon.enabled and (unitKey == "player" or unitKey == "target" or unitKey == "focus") then
         frame:RegisterEvent("PARTY_LEADER_CHANGED")
         frame:RegisterEvent("GROUP_ROSTER_UPDATE")
     end
@@ -3491,13 +3492,34 @@ function QUI_UF:RefreshFrame(unitKey)
     end
 
     -- Update leader/assistant icon (player, target, focus only)
-    if frame.leaderIcon and settings.leaderIcon then
+    if settings.leaderIcon and (unitKey == "player" or unitKey == "target" or unitKey == "focus") then
         local leader = settings.leaderIcon
-        frame.leaderIcon:SetSize(leader.size or 16, leader.size or 16)
-        frame.leaderIcon:ClearAllPoints()
-        local anchorInfo = GetTextAnchorInfo(leader.anchor or "TOPLEFT")
-        frame.leaderIcon:SetPoint(anchorInfo.point, frame, anchorInfo.point, leader.xOffset or -8, leader.yOffset or 8)
-        UpdateLeaderIcon(frame)
+        if leader.enabled then
+            -- Create icon if it doesn't exist (feature was enabled after initial load)
+            if not frame.leaderIcon then
+                if not frame.indicatorFrame then
+                    local indicatorFrame = CreateFrame("Frame", nil, frame)
+                    indicatorFrame:SetAllPoints()
+                    indicatorFrame:SetFrameLevel(frame.textFrame:GetFrameLevel() + 5)
+                    frame.indicatorFrame = indicatorFrame
+                end
+                local leaderIcon = frame.indicatorFrame:CreateTexture(nil, "OVERLAY")
+                leaderIcon:Hide()
+                frame.leaderIcon = leaderIcon
+                -- Register events if not already registered
+                frame:RegisterEvent("PARTY_LEADER_CHANGED")
+                frame:RegisterEvent("GROUP_ROSTER_UPDATE")
+            end
+            -- Update size and position
+            frame.leaderIcon:SetSize(leader.size or 16, leader.size or 16)
+            frame.leaderIcon:ClearAllPoints()
+            local anchorInfo = GetTextAnchorInfo(leader.anchor or "TOPLEFT")
+            frame.leaderIcon:SetPoint(anchorInfo.point, frame, anchorInfo.point, leader.xOffset or -8, leader.yOffset or 8)
+            UpdateLeaderIcon(frame)
+        elseif frame.leaderIcon then
+            -- Feature disabled - hide the icon
+            frame.leaderIcon:Hide()
+        end
     end
 
     -- Update colors and values

@@ -1517,7 +1517,7 @@ local defaults = {
                 },
                 -- Leader/Assistant icon (crown for leader, flag for assistant)
                 leaderIcon = {
-                    enabled = true,
+                    enabled = false,
                     size = 16,
                     anchor = "TOPLEFT",
                     xOffset = -8,
@@ -1681,7 +1681,7 @@ local defaults = {
                 },
                 -- Leader/Assistant icon (crown for leader, flag for assistant)
                 leaderIcon = {
-                    enabled = true,
+                    enabled = false,
                     size = 16,
                     anchor = "TOPLEFT",
                     xOffset = -8,
@@ -1983,7 +1983,7 @@ local defaults = {
                 },
                 -- Leader/Assistant icon (crown for leader, flag for assistant)
                 leaderIcon = {
-                    enabled = true,
+                    enabled = false,
                     size = 16,
                     anchor = "TOPLEFT",
                     xOffset = -8,

@@ -11458,7 +11458,7 @@ local function CreateUnitFramesPage(parent)
 
             -- Ensure leaderIcon table exists
             if not unitDB.leaderIcon then
-                unitDB.leaderIcon = { enabled = true, size = 16, anchor = "TOPLEFT", xOffset = -8, yOffset = 8 }
+                unitDB.leaderIcon = { enabled = false, size = 16, anchor = "TOPLEFT", xOffset = -8, yOffset = 8 }
             end
 
             local leaderDesc = GUI:CreateLabel(tabContent, "Shows crown icon for party/raid leader, flag icon for raid assistants.", 11, C.textMuted)
