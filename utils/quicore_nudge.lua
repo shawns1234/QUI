@@ -1077,34 +1077,61 @@ local function SetupEditModeHooks()
         
         -- Fix for arrow-key positioning bug: Convert TOPLEFT anchoring to CENTER anchoring
         -- Arrow keys in Edit Mode use TOPLEFT anchor, mouse drag uses CENTER anchor
-        -- Our icon centering requires CENTER anchoring to work properly
+        -- Uses GetCenter() for exact center position directly from WoW
         C_Timer.After(0.066, function()
+            local uiCenterX, uiCenterY = UIParent:GetCenter()
+
+            -- Fix BuffIconCooldownViewer
             local buffViewer = _G["BuffIconCooldownViewer"]
-            if not buffViewer then return end
-            
-            local point, relativeTo, relativePoint, xOfs, yOfs = buffViewer:GetPoint(1)
-            
-            -- If using TOPLEFT anchoring, convert to CENTER
-            if point == "TOPLEFT" and relativeTo == UIParent and relativePoint == "TOPLEFT" then
-                -- Calculate the CENTER position from TOPLEFT position
-                local screenWidth = UIParent:GetWidth()
-                local screenHeight = UIParent:GetHeight()
-                local centerX = xOfs - (screenWidth / 2)
-                local centerY = yOfs + (screenHeight / 2)
-                
-                -- Try LibEditModeOverride first (proper way)
-                local success = false
-                if LibEditModeOverride and LibEditModeOverride:HasEditModeSettings(buffViewer) then
-                    success = pcall(function()
-                        LibEditModeOverride:ReanchorFrame(buffViewer, "CENTER", UIParent, "CENTER", centerX, centerY)
-                    end)
+            if buffViewer then
+                local point = buffViewer:GetPoint(1)
+                if point == "TOPLEFT" then
+                    local frameCenterX, frameCenterY = buffViewer:GetCenter()
+                    if frameCenterX and frameCenterY then
+                        local offsetX = frameCenterX - uiCenterX
+                        local offsetY = frameCenterY - uiCenterY
+
+                        -- Try LibEditModeOverride first (proper way - saves to Edit Mode db)
+                        local success = false
+                        if LibEditModeOverride and LibEditModeOverride:HasEditModeSettings(buffViewer) then
+                            success = pcall(function()
+                                LibEditModeOverride:ReanchorFrame(buffViewer, "CENTER", UIParent, "CENTER", offsetX, offsetY)
+                            end)
+                        end
+
+                        -- Fallback: Direct reanchor
+                        if not success then
+                            buffViewer:ClearAllPoints()
+                            buffViewer:SetPoint("CENTER", UIParent, "CENTER", offsetX, offsetY)
+                        end
+                    end
                 end
-                
-                -- Fallback: Direct reanchor (will work for current session but won't save to Edit Mode)
-                if not success then
-                    buffViewer:ClearAllPoints()
-                    buffViewer:SetPoint("CENTER", UIParent, "CENTER", centerX, centerY)
-                    print("|cFFFF4444[QUI WARNING]: After positioning the buffbar with arrow keys, MAKE SURE to use mouse to drag slightly to the identical spot to save permanently. This is a bug with Blizzard's edit mode, and cannot be solved from the addon side.|r")
+            end
+
+            -- Fix BuffBarCooldownViewer (tracked bars)
+            local barViewer = _G["BuffBarCooldownViewer"]
+            if barViewer then
+                local point = barViewer:GetPoint(1)
+                if point == "TOPLEFT" then
+                    local frameCenterX, frameCenterY = barViewer:GetCenter()
+                    if frameCenterX and frameCenterY then
+                        local offsetX = frameCenterX - uiCenterX
+                        local offsetY = frameCenterY - uiCenterY
+
+                        -- Try LibEditModeOverride first (proper way - saves to Edit Mode db)
+                        local success = false
+                        if LibEditModeOverride and LibEditModeOverride:HasEditModeSettings(barViewer) then
+                            success = pcall(function()
+                                LibEditModeOverride:ReanchorFrame(barViewer, "CENTER", UIParent, "CENTER", offsetX, offsetY)
+                            end)
+                        end
+
+                        -- Fallback: Direct reanchor
+                        if not success then
+                            barViewer:ClearAllPoints()
+                            barViewer:SetPoint("CENTER", UIParent, "CENTER", offsetX, offsetY)
+                        end
+                    end
                 end
             end
         end)
@@ -1124,6 +1151,56 @@ else
         end
     end)
 end
+
+-- Fix anchor mismatch on startup (for /reload scenarios)
+-- Uses GetCenter() for exact center position directly from WoW
+local viewerAnchorFixFrame = CreateFrame("Frame")
+viewerAnchorFixFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+viewerAnchorFixFrame:SetScript("OnEvent", function(self, event, isInitialLogin, isReloadingUi)
+    -- Only run on reload, not fresh launch (fresh launch has correct anchors)
+    if not isReloadingUi then return end
+
+    -- Delay to ensure Edit Mode data is loaded and viewers exist
+    C_Timer.After(0.5, function()
+        -- Get UIParent center for reference
+        local uiCenterX, uiCenterY = UIParent:GetCenter()
+
+        -- Fix BuffBarCooldownViewer anchor using GetCenter() for exact position
+        local barViewer = _G["BuffBarCooldownViewer"]
+        if barViewer then
+            local point = barViewer:GetPoint(1)
+            if point == "TOPLEFT" then
+                -- Get exact center position directly from WoW
+                local frameCenterX, frameCenterY = barViewer:GetCenter()
+                if frameCenterX and frameCenterY then
+                    -- Calculate offset from UIParent center
+                    local offsetX = frameCenterX - uiCenterX
+                    local offsetY = frameCenterY - uiCenterY
+
+                    -- Apply the fix
+                    barViewer:ClearAllPoints()
+                    barViewer:SetPoint("CENTER", UIParent, "CENTER", offsetX, offsetY)
+                end
+            end
+        end
+
+        -- Same fix for BuffIconCooldownViewer
+        local iconViewer = _G["BuffIconCooldownViewer"]
+        if iconViewer then
+            local point = iconViewer:GetPoint(1)
+            if point == "TOPLEFT" then
+                local frameCenterX, frameCenterY = iconViewer:GetCenter()
+                if frameCenterX and frameCenterY then
+                    local offsetX = frameCenterX - uiCenterX
+                    local offsetY = frameCenterY - uiCenterY
+
+                    iconViewer:ClearAllPoints()
+                    iconViewer:SetPoint("CENTER", UIParent, "CENTER", offsetX, offsetY)
+                end
+            end
+        end
+    end)
+end)
 
 -- Add nudgeamount
 local oldOnInitialize = QUICore.OnInitialize
