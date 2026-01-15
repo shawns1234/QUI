@@ -840,6 +840,27 @@ local hiddenButtonParent = CreateFrame("Frame")
 hiddenButtonParent:Hide()
 hiddenButtonParent.Layout = function() end  -- Prevent nil errors when Blizzard code calls Layout on children
 
+-- Hook Show() on zoom buttons to prevent Blizzard from re-showing them
+if Minimap.ZoomIn and not Minimap.ZoomIn._QUI_ShowHooked then
+    Minimap.ZoomIn._QUI_ShowHooked = true
+    hooksecurefunc(Minimap.ZoomIn, "Show", function(self)
+        local s = GetSettings()
+        if s and not s.showZoomButtons then
+            self:Hide()
+        end
+    end)
+end
+
+if Minimap.ZoomOut and not Minimap.ZoomOut._QUI_ShowHooked then
+    Minimap.ZoomOut._QUI_ShowHooked = true
+    hooksecurefunc(Minimap.ZoomOut, "Show", function(self)
+        local s = GetSettings()
+        if s and not s.showZoomButtons then
+            self:Hide()
+        end
+    end)
+end
+
 local function UpdateButtonVisibility()
     local settings = GetSettings()
     if not settings or not settings.enabled then return end
@@ -860,11 +881,13 @@ local function UpdateButtonVisibility()
             Minimap.ZoomOut:SetPoint("BOTTOMRIGHT", Minimap, "BOTTOMRIGHT", -5, 5)
             Minimap.ZoomOut:Show()
         else
+            Minimap.ZoomIn:SetParent(hiddenButtonParent)
             Minimap.ZoomIn:Hide()
+            Minimap.ZoomOut:SetParent(hiddenButtonParent)
             Minimap.ZoomOut:Hide()
         end
     end
-    
+
     -- Mail indicator - position at bottom left
     if MinimapCluster and MinimapCluster.IndicatorFrame and MinimapCluster.IndicatorFrame.MailFrame then
         local mailFrame = MinimapCluster.IndicatorFrame.MailFrame

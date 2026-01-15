@@ -224,12 +224,22 @@ local function ApplyHideSettings()
         end
     end
     
-    -- Game Time Frame
+    -- Game Time Frame (Calendar Button)
     if GameTimeFrame then
         if settings.hideGameTime then
-        GameTimeFrame:Hide()
+            GameTimeFrame:Hide()
         else
             GameTimeFrame:Show()
+        end
+        -- Hook Show() to prevent Blizzard from re-showing when hidden
+        if not GameTimeFrame._QUI_ShowHooked then
+            GameTimeFrame._QUI_ShowHooked = true
+            hooksecurefunc(GameTimeFrame, "Show", function(self)
+                local s = GetSettings()
+                if s and s.hideGameTime then
+                    self:Hide()
+                end
+            end)
         end
     end
 

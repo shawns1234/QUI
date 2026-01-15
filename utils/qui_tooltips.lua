@@ -317,6 +317,14 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                     pcall(originalSetTooltipMoney, ...)
                 end
             end
+
+            -- Wrap GameTooltip:SetSpellByID in pcall to suppress Blizzard PTRFeedback secret value bug
+            if GameTooltip and GameTooltip.SetSpellByID then
+                local originalSetSpellByID = GameTooltip.SetSpellByID
+                GameTooltip.SetSpellByID = function(...)
+                    pcall(originalSetSpellByID, ...)
+                end
+            end
         end)
     elseif event == "MODIFIER_STATE_CHANGED" then
         OnModifierStateChanged()
