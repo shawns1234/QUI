@@ -120,10 +120,11 @@ end
 ---------------------------------------------------------------------------
 local function GetFontPath()
     local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
-    if QUICore and QUICore.Media and QUICore.Media.Font then
-        return QUICore.Media.Font
+    if QUICore and QUICore.GetGlobalFont then
+        return QUICore:GetGlobalFont()
     end
-    return "Fonts\\FRIZQT__.TTF"
+    -- Fallback to bundled Quazii font
+    return [[Interface\AddOns\QuaziiUI\assets\Quazii.ttf]]
 end
 
 ---------------------------------------------------------------------------
