@@ -7509,6 +7509,12 @@ local function CreateCDEffectsPage(parent)
         hideUtilityEffects:SetPoint("TOPLEFT", PADDING, y)
         hideUtilityEffects:SetPoint("RIGHT", content, "RIGHT", -PADDING, 0)
         y = y - FORM_ROW
+
+        local effectsWarning = GUI:CreateLabel(content, "Note: When toggled off, Blizzard's default effects will appear on top of your custom glows below.", 11, C.warning)
+        effectsWarning:SetPoint("TOPLEFT", PADDING, y)
+        effectsWarning:SetPoint("RIGHT", content, "RIGHT", -PADDING, 0)
+        effectsWarning:SetJustifyH("LEFT")
+        y = y - 24
     end
     
     -- =====================================================
