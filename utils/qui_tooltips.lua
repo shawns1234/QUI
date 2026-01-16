@@ -47,6 +47,9 @@ end
 local cachedSettings = nil
 local originalSetDefaultAnchor = nil
 
+-- Frames below this alpha are considered "faded out" and tooltips will be suppressed
+local FADED_ALPHA_THRESHOLD = 0.5
+
 ---------------------------------------------------------------------------
 -- Get settings from database (cached for performance)
 ---------------------------------------------------------------------------
@@ -244,6 +247,13 @@ local function SetupTooltipHook()
         if not settings or not settings.enabled then return end
 
         local owner = tooltip:GetOwner()
+
+        -- Suppress tooltip if owner frame is faded out (e.g., CDM hidden when mounted)
+        if owner and owner.GetEffectiveAlpha and owner:GetEffectiveAlpha() < FADED_ALPHA_THRESHOLD then
+            tooltip:Hide()
+            return
+        end
+
         local context = GetTooltipContext(owner)
 
         -- Apply visibility rules to CDM and Custom Trackers contexts
@@ -260,6 +270,13 @@ local function SetupTooltipHook()
         if not settings or not settings.enabled then return end
 
         local owner = tooltip:GetOwner()
+
+        -- Suppress tooltip if owner frame is faded out (e.g., CDM hidden when mounted)
+        if owner and owner.GetEffectiveAlpha and owner:GetEffectiveAlpha() < FADED_ALPHA_THRESHOLD then
+            tooltip:Hide()
+            return
+        end
+
         local context = GetTooltipContext(owner)
 
         -- Apply visibility rules to Custom Trackers context
