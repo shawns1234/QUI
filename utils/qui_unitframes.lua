@@ -1303,16 +1303,18 @@ local function CreateBossFrame(unit, frameKey, bossIndex)
         bgColor = general.darkModeBgColor or { 0.25, 0.25, 0.25, 1 }
     end
     
-    local borderSize = Scale(1)
-    
+    local borderSize = Scale(settings.borderSize or 1)
+
     frame:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = borderSize,
+        edgeFile = borderSize > 0 and "Interface\\Buttons\\WHITE8x8" or nil,
+        edgeSize = borderSize > 0 and borderSize or nil,
     })
     frame:SetBackdropColor(bgColor[1], bgColor[2], bgColor[3], bgColor[4] or 1)
-    frame:SetBackdropBorderColor(0, 0, 0, 1)
-    
+    if borderSize > 0 then
+        frame:SetBackdropBorderColor(0, 0, 0, 1)
+    end
+
     -- Health bar
     local powerHeight = settings.showPowerBar and Scale(settings.powerBarHeight or 4) or 0
     local separatorHeight = (settings.showPowerBar and settings.powerBarBorder ~= false) and 1 or 0
@@ -1609,16 +1611,18 @@ local function CreateUnitFrame(unit, unitKey)
     end
     
     -- Pixel-perfect border size
-    local borderSize = Scale(1)
-    
+    local borderSize = Scale(settings.borderSize or 1)
+
     frame:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = borderSize,
+        edgeFile = borderSize > 0 and "Interface\\Buttons\\WHITE8x8" or nil,
+        edgeSize = borderSize > 0 and borderSize or nil,
     })
     frame:SetBackdropColor(bgColor[1], bgColor[2], bgColor[3], bgColor[4] or 1)
-    frame:SetBackdropBorderColor(0, 0, 0, 1)
-    
+    if borderSize > 0 then
+        frame:SetBackdropBorderColor(0, 0, 0, 1)
+    end
+
     -- Health bar (pixel-perfect insets)
     local powerHeight = settings.showPowerBar and Scale(settings.powerBarHeight or 4) or 0
     local separatorHeight = (settings.showPowerBar and settings.powerBarBorder ~= false) and 1 or 0
@@ -3069,7 +3073,7 @@ function QUI_UF:RefreshFrame(unitKey)
             return
         end
         
-        local borderSize = Scale(1)
+        local borderSize = Scale(settings.borderSize or 1)
         local powerHeight = settings.showPowerBar and Scale(settings.powerBarHeight or 4) or 0
         local separatorHeight = (settings.showPowerBar and settings.powerBarBorder ~= false) and 1 or 0
         local texturePath = GetTexturePath(settings.texture)
@@ -3117,7 +3121,17 @@ function QUI_UF:RefreshFrame(unitKey)
                     bgOpacity = general and general.defaultBgOpacity or general and general.defaultOpacity or 1.0
                 end
                 local bgAlpha = (bgColor[4] or 1) * bgOpacity
+
+                -- Update backdrop (including border size)
+                frame:SetBackdrop({
+                    bgFile = "Interface\\Buttons\\WHITE8x8",
+                    edgeFile = borderSize > 0 and "Interface\\Buttons\\WHITE8x8" or nil,
+                    edgeSize = borderSize > 0 and borderSize or nil,
+                })
                 frame:SetBackdropColor(bgColor[1], bgColor[2], bgColor[3], bgAlpha)
+                if borderSize > 0 then
+                    frame:SetBackdropBorderColor(0, 0, 0, 1)
+                end
 
                 -- Apply opacity to bars only (not text)
                 frame.healthBar:SetAlpha(healthOpacity)
@@ -3275,14 +3289,24 @@ function QUI_UF:RefreshFrame(unitKey)
         bgOpacity = general and general.defaultBgOpacity or general and general.defaultOpacity or 1.0
     end
     local bgAlpha = (bgColor[4] or 1) * bgOpacity
+
+    -- Pixel-perfect border size
+    local borderSize = Scale(settings.borderSize or 1)
+
+    -- Update backdrop (including border size)
+    frame:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = borderSize > 0 and "Interface\\Buttons\\WHITE8x8" or nil,
+        edgeSize = borderSize > 0 and borderSize or nil,
+    })
     frame:SetBackdropColor(bgColor[1], bgColor[2], bgColor[3], bgAlpha)
+    if borderSize > 0 then
+        frame:SetBackdropBorderColor(0, 0, 0, 1)
+    end
 
     -- Apply opacity to bars only (not text)
     frame.healthBar:SetAlpha(healthOpacity)
     if frame.powerBar then frame.powerBar:SetAlpha(healthOpacity) end
-
-    -- Pixel-perfect border size
-    local borderSize = Scale(1)
 
     -- Update power bar height (pixel-perfect)
     local powerHeight = settings.showPowerBar and Scale(settings.powerBarHeight or 4) or 0

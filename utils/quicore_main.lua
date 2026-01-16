@@ -1351,6 +1351,7 @@ local defaults = {
             -- Player frame settings
             player = {
                 enabled = true,
+                borderSize = 1,                     -- Frame border thickness (0-5)
                 width = 240,
                 height = 40,
                 offsetX = -290,
@@ -1537,6 +1538,7 @@ local defaults = {
             -- Target frame settings
             target = {
                 enabled = true,
+                borderSize = 1,                     -- Frame border thickness (0-5)
                 width = 240,
                 height = 40,
                 offsetX = 290,
@@ -1701,6 +1703,7 @@ local defaults = {
             -- Target of Target
             targettarget = {
                 enabled = false,
+                borderSize = 1,                     -- Frame border thickness (0-5)
                 width = 160,
                 height = 30,
                 offsetX = 496,
@@ -1796,6 +1799,7 @@ local defaults = {
             -- Pet frame
             pet = {
                 enabled = true,
+                borderSize = 1,                     -- Frame border thickness (0-5)
                 width = 140,
                 height = 25,
                 offsetX = -340,
@@ -1891,6 +1895,7 @@ local defaults = {
             -- Focus frame
             focus = {
                 enabled = false,
+                borderSize = 1,                     -- Frame border thickness (0-5)
                 width = 160,
                 height = 30,
                 offsetX = -496,
@@ -2003,6 +2008,7 @@ local defaults = {
             -- Boss frames
             boss = {
                 enabled = true,
+                borderSize = 1,                     -- Frame border thickness (0-5)
                 width = 162,
                 height = 36,
                 offsetX = 974,
