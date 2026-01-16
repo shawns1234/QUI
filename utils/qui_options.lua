@@ -5478,11 +5478,14 @@ local function CreateCDMSetupPage(parent)
         if trackedData.texture == nil then trackedData.texture = "Quazii v5" end
         if trackedData.useClassColor == nil then trackedData.useClassColor = true end
         if trackedData.barColor == nil then trackedData.barColor = {0.204, 0.827, 0.6, 1} end
+        if trackedData.barOpacity == nil then trackedData.barOpacity = 1.0 end
         if trackedData.borderSize == nil then trackedData.borderSize = 1 end
+        if trackedData.bgColor == nil then trackedData.bgColor = {0, 0, 0, 1} end
         if trackedData.bgOpacity == nil then trackedData.bgOpacity = 0.7 end
         if trackedData.textSize == nil then trackedData.textSize = 12 end
         if trackedData.spacing == nil then trackedData.spacing = 4 end
         if trackedData.growUp == nil then trackedData.growUp = true end
+        if trackedData.hideText == nil then trackedData.hideText = false end
 
         y = y - 10 -- Extra spacing before new section
 
@@ -5550,10 +5553,22 @@ local function CreateCDMSetupPage(parent)
         barColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
+        -- Bar Opacity
+        local barOpacitySlider = GUI:CreateFormSlider(tabContent, "Bar Opacity", 0, 1, 0.05, "barOpacity", trackedData, RefreshBuff)
+        barOpacitySlider:SetPoint("TOPLEFT", PAD, y)
+        barOpacitySlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
         -- Border Size
         local trackedBorderSlider = GUI:CreateFormSlider(tabContent, "Border Size", 0, 4, 1, "borderSize", trackedData, RefreshBuff)
         trackedBorderSlider:SetPoint("TOPLEFT", PAD, y)
         trackedBorderSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        -- Background Color
+        local bgColorPicker = GUI:CreateFormColorPicker(tabContent, "Background Color", "bgColor", trackedData, RefreshBuff)
+        bgColorPicker:SetPoint("TOPLEFT", PAD, y)
+        bgColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
         -- Background Opacity
@@ -5566,6 +5581,12 @@ local function CreateCDMSetupPage(parent)
         local trackedTextSlider = GUI:CreateFormSlider(tabContent, "Text Size", 8, 24, 1, "textSize", trackedData, RefreshBuff)
         trackedTextSlider:SetPoint("TOPLEFT", PAD, y)
         trackedTextSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        -- Hide Text
+        local hideTextCheck = GUI:CreateFormCheckbox(tabContent, "Hide Text", "hideText", trackedData, RefreshBuff)
+        hideTextCheck:SetPoint("TOPLEFT", PAD, y)
+        hideTextCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
         -- Bar Spacing

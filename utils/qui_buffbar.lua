@@ -100,11 +100,14 @@ local function GetTrackedBarSettings()
         texture = "Quazii v5",
         useClassColor = true,
         barColor = {0.204, 0.827, 0.6, 1},
+        barOpacity = 1.0,
         borderSize = 1,
+        bgColor = {0, 0, 0, 1},
         bgOpacity = 0.7,
         textSize = 12,
         spacing = 4,
         growUp = true,
+        hideText = false,
     }
 end
 
@@ -560,10 +563,13 @@ local function ApplyBarStyle(frame, settings)
     local texture = settings.texture or "Quazii v5"
     local useClassColor = settings.useClassColor
     local barColor = settings.barColor or {0.204, 0.827, 0.6, 1}
+    local barOpacity = settings.barOpacity or 1.0
     local borderSize = settings.borderSize or 1
+    local bgColor = settings.bgColor or {0, 0, 0, 1}
     local bgOpacity = settings.bgOpacity or 0.7
     local textSize = settings.textSize or 12
     local hideIcon = settings.hideIcon
+    local hideText = settings.hideText
 
     -- Get the StatusBar child (usually frame.Bar)
     local statusBar = frame.Bar
@@ -738,18 +744,18 @@ local function ApplyBarStyle(frame, settings)
         end
     end
 
-    -- 5. Apply bar color (class or custom)
+    -- 5. Apply bar color (class or custom) with opacity
     if statusBar and statusBar.SetStatusBarColor then
         pcall(function()
             if useClassColor then
                 local _, class = UnitClass("player")
                 local color = RAID_CLASS_COLORS[class]
                 if color then
-                    statusBar:SetStatusBarColor(color.r, color.g, color.b, 1)
+                    statusBar:SetStatusBarColor(color.r, color.g, color.b, barOpacity)
                 end
             else
                 local c = barColor
-                statusBar:SetStatusBarColor(c[1] or 0.2, c[2] or 0.8, c[3] or 0.6, c[4] or 1)
+                statusBar:SetStatusBarColor(c[1] or 0.2, c[2] or 0.8, c[3] or 0.6, barOpacity)
             end
         end)
     end
@@ -758,8 +764,10 @@ local function ApplyBarStyle(frame, settings)
     -- Create on the frame itself, positioned behind statusBar
     if not frame._trackedBg then
         frame._trackedBg = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
-        frame._trackedBg:SetColorTexture(0, 0, 0, 1)
     end
+    -- Apply background color from settings
+    local bgR, bgG, bgB = bgColor[1] or 0, bgColor[2] or 0, bgColor[3] or 0
+    frame._trackedBg:SetColorTexture(bgR, bgG, bgB, 1)
     if statusBar then
         frame._trackedBg:ClearAllPoints()
         frame._trackedBg:SetAllPoints(statusBar)
@@ -824,7 +832,7 @@ local function ApplyBarStyle(frame, settings)
         end
     end
 
-    -- 8. Apply text size to duration/name text
+    -- 8. Apply text size to duration/name text (or hide if hideText is enabled)
     local generalFont = GetGeneralFont()
     local generalOutline = GetGeneralFontOutline()
 
@@ -832,7 +840,12 @@ local function ApplyBarStyle(frame, settings)
         for _, region in ipairs({frame:GetRegions()}) do
             if region and region:GetObjectType() == "FontString" then
                 pcall(function()
-                    region:SetFont(generalFont, textSize, generalOutline)
+                    if hideText then
+                        region:SetAlpha(0)
+                    else
+                        region:SetAlpha(1)
+                        region:SetFont(generalFont, textSize, generalOutline)
+                    end
                 end)
             end
         end
@@ -842,7 +855,12 @@ local function ApplyBarStyle(frame, settings)
         for _, region in ipairs({statusBar:GetRegions()}) do
             if region and region:GetObjectType() == "FontString" then
                 pcall(function()
-                    region:SetFont(generalFont, textSize, generalOutline)
+                    if hideText then
+                        region:SetAlpha(0)
+                    else
+                        region:SetAlpha(1)
+                        region:SetFont(generalFont, textSize, generalOutline)
+                    end
                 end)
             end
         end
