@@ -752,27 +752,9 @@ local function CreateTrackerIcon(parent)
     -- Cooldown state persistence (prevents false "ready" states from bad API reads)
     icon.lastKnownCDEnd = 0
 
-    -- Tooltip on mouseover (respects HUD visibility system)
+    -- Tooltip on mouseover (skip if icon is hidden via alpha for showOnlyOnCooldown mode)
     icon:SetScript("OnEnter", function(self)
-        -- Check visibility system (functions defined later in file, accessed via global refresh)
-        local visFunc = _G.QuaziiUI_GetCustomTrackersVisibilitySettings
-        local updateFunc = _G.QuaziiUI_RefreshCustomTrackersVisibility
-        local visState = _G.QuaziiUI_CustomTrackersVisibilityState
-
-        if visFunc and visState and updateFunc then
-            local vis = visFunc()
-            -- Handle "Show on mouseover": trigger visibility update immediately on hover
-            if vis and vis.showOnMouseover and visState.currentlyHidden then
-                visState.mouseOver = true
-                updateFunc()
-            end
-            -- Skip tooltip if custom trackers are hidden via visibility system
-            if visState.currentlyHidden then
-                return
-            end
-        end
-
-        if self:GetAlpha() == 0 then return end  -- Don't show tooltip when visually hidden (showOnlyOnCooldown mode)
+        if self:GetAlpha() == 0 then return end  -- Don't show tooltip when visually hidden
         if self.entry then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             if self.entry.type == "spell" then
@@ -786,18 +768,6 @@ local function CreateTrackerIcon(parent)
 
     icon:SetScript("OnLeave", function()
         GameTooltip:Hide()
-        -- Reset mouseover state for "Show on mouseover" mode
-        local visFunc = _G.QuaziiUI_GetCustomTrackersVisibilitySettings
-        local updateFunc = _G.QuaziiUI_RefreshCustomTrackersVisibility
-        local visState = _G.QuaziiUI_CustomTrackersVisibilityState
-
-        if visFunc and visState and updateFunc then
-            local vis = visFunc()
-            if vis and vis.showOnMouseover and visState.mouseOver then
-                visState.mouseOver = false
-                updateFunc()
-            end
-        end
     end)
 
     -- Forward drag events to parent bar (so clicking on icons still allows dragging)
@@ -2288,8 +2258,6 @@ end)
 ---------------------------------------------------------------------------
 _G.QuaziiUI_RefreshCustomTrackersVisibility = UpdateCustomTrackersVisibility
 _G.QuaziiUI_RefreshCustomTrackersMouseover = SetupCustomTrackersMouseoverDetector
-_G.QuaziiUI_GetCustomTrackersVisibilitySettings = GetCustomTrackersVisibilitySettings
-_G.QuaziiUI_CustomTrackersVisibilityState = CustomTrackersVisibility
 
 -- Refresh keybind display on all custom tracker icons
 _G.QuaziiUI_RefreshCustomTrackerKeybinds = function()
