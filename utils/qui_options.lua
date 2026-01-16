@@ -4857,6 +4857,7 @@ local function EnsureNCDMDefaults(db)
         zoom = 0,
         padding = -8,
         yOffset = 0,
+        opacity = 1.0,
     }
     
     -- Ensure ncdm table exists
@@ -4923,7 +4924,7 @@ local function CreateCDMSetupPage(parent)
         -- Copy all numeric and string settings
         local keys = {"iconCount", "iconSize", "borderSize", "shape", "zoom", "padding", "yOffset",
                       "durationSize", "durationOffsetX", "durationOffsetY", "durationAnchor",
-                      "stackSize", "stackOffsetX", "stackOffsetY", "stackAnchor"}
+                      "stackSize", "stackOffsetX", "stackOffsetY", "stackAnchor", "opacity"}
         for _, key in ipairs(keys) do
             if sourceRow[key] ~= nil then
                 targetRow[key] = sourceRow[key]
@@ -4958,6 +4959,7 @@ local function CreateCDMSetupPage(parent)
         if rowData.stackOffsetY == nil then rowData.stackOffsetY = 0 end
         if rowData.stackTextColor == nil then rowData.stackTextColor = {1, 1, 1, 1} end
         if rowData.stackAnchor == nil then rowData.stackAnchor = "BOTTOMRIGHT" end
+        if rowData.opacity == nil then rowData.opacity = 1.0 end
 
         -- Row Header
         local rowHeader = GUI:CreateSectionHeader(tabContent, string.format("Row %d Configuration", rowNum))
@@ -5003,6 +5005,11 @@ local function CreateCDMSetupPage(parent)
         local xOffsetSlider = GUI:CreateFormSlider(tabContent, "Row X-Offset", -500, 500, 1, "xOffset", rowData, RefreshNCDM)
         xOffsetSlider:SetPoint("TOPLEFT", PAD, y)
         xOffsetSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local opacitySlider = GUI:CreateFormSlider(tabContent, "Row Opacity", 0, 1.0, 0.05, "opacity", rowData, RefreshNCDM)
+        opacitySlider:SetPoint("TOPLEFT", PAD, y)
+        opacitySlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
         local anchorOptions = {
@@ -5315,6 +5322,7 @@ local function CreateCDMSetupPage(parent)
         if buffData.padding == nil then buffData.padding = 0 end
         if buffData.durationSize == nil then buffData.durationSize = 12 end
         if buffData.stackSize == nil then buffData.stackSize = 12 end
+        if buffData.opacity == nil then buffData.opacity = 1.0 end
 
         -- Callback to refresh buff bar
         local function RefreshBuff()
@@ -5352,6 +5360,11 @@ local function CreateCDMSetupPage(parent)
         local paddingSlider = GUI:CreateFormSlider(tabContent, "Icon Padding", -20, 20, 1, "padding", buffData, RefreshBuff)
         paddingSlider:SetPoint("TOPLEFT", PAD, y)
         paddingSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local opacitySlider = GUI:CreateFormSlider(tabContent, "Buff Opacity", 0, 1.0, 0.05, "opacity", buffData, RefreshBuff)
+        opacitySlider:SetPoint("TOPLEFT", PAD, y)
+        opacitySlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
         local durationSlider = GUI:CreateFormSlider(tabContent, "Duration Size", 8, 50, 1, "durationSize", buffData, RefreshBuff)

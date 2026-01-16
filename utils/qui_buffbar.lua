@@ -84,6 +84,7 @@ local function GetBuffSettings()
         aspectRatioCrop = 1.0,
         zoom = 0,
         padding = 0,
+        opacity = 1.0,
     }
 end
 
@@ -540,6 +541,10 @@ local function ApplyIconStyle(icon, settings)
             fs:SetPoint(stackAnchor, icon, stackAnchor, stackOffsetX, stackOffsetY)
         end)
     end
+
+    -- Apply opacity
+    local opacity = settings.opacity or 1.0
+    icon:SetAlpha(opacity)
 end
 
 ---------------------------------------------------------------------------
