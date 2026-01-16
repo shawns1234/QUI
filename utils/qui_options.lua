@@ -434,7 +434,7 @@ local function CreateGeneralQoLPage(parent)
         y = y - scaleHeader.gap
 
         if db and db.general then
-            local scaleSlider = GUI:CreateFormSlider(tabContent, "Global UI Scale", 0.5, 2.0, 0.01,
+            local scaleSlider = GUI:CreateFormSlider(tabContent, "Global UI Scale", 0.3, 2.0, 0.01,
                 "uiScale", db.general, function(val)
                     pcall(function() UIParent:SetScale(val) end)
                     if QUICore and QUICore.UIMult then QUICore:UIMult() end
