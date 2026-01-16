@@ -4250,7 +4250,7 @@ local function CreateMinimapPage(parent)
             end)
             slot1:SetPoint("TOPLEFT", PAD, y)
             slot1:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            if slot1.SetValue then slot1.SetValue(dt.slots[1] or "") end
+            if slot1.SetValue then slot1.SetValue(dt.slots[1]) end
             y = y - FORM_ROW
 
             local slot1NoLabel  -- Forward declare for mutual reference
@@ -4291,7 +4291,7 @@ local function CreateMinimapPage(parent)
             end)
             slot2:SetPoint("TOPLEFT", PAD, y)
             slot2:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            if slot2.SetValue then slot2.SetValue(dt.slots[2] or "") end
+            if slot2.SetValue then slot2.SetValue(dt.slots[2]) end
             y = y - FORM_ROW
 
             local slot2NoLabel  -- Forward declare for mutual reference
@@ -4332,7 +4332,7 @@ local function CreateMinimapPage(parent)
             end)
             slot3:SetPoint("TOPLEFT", PAD, y)
             slot3:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            if slot3.SetValue then slot3.SetValue(dt.slots[3] or "") end
+            if slot3.SetValue then slot3.SetValue(dt.slots[3]) end
             y = y - FORM_ROW
 
             local slot3NoLabel  -- Forward declare for mutual reference
