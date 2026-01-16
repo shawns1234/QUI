@@ -1113,6 +1113,7 @@ local defaults = {
             enabled = true,                    -- Master toggle for tooltip module
             anchorToCursor = true,             -- Follow cursor vs default anchor
             hideInCombat = true,               -- Suppress tooltips during combat
+            classColorName = false,            -- Color player names by class
             -- Per-Context Visibility (SHOW/HIDE/SHIFT/CTRL/ALT)
             visibility = {
                 npcs = "SHOW",                 -- NPCs/players in world
