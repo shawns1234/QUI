@@ -464,16 +464,22 @@ local function UpdateStatusBarPosition(anchorFrame, castSettings, barHeight, ico
     if border then
         border:SetFrameLevel(statusBar:GetFrameLevel() - 1)
         border:ClearAllPoints()
-        -- Border anchors to anchorFrame (full size), statusBar is inset inside it
         border:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", 0, 0)
         border:SetPoint("BOTTOMRIGHT", anchorFrame, "BOTTOMRIGHT", 0, 0)
-        border:SetBackdrop({
-            edgeFile = "Interface\\Buttons\\WHITE8x8",
-            edgeSize = borderSize,
-        })
-        local r, g, b, a = GetSafeColor(castSettings.borderColor, {0, 0, 0, 1})
-        border:SetBackdropBorderColor(r, g, b, a)
-        border:Show()
+
+        -- Only show border if borderSize > 0 (edgeSize=0 causes WoW to use texture's natural size)
+        if borderSize > 0 then
+            border:SetBackdrop({
+                edgeFile = "Interface\\Buttons\\WHITE8x8",
+                edgeSize = borderSize,
+            })
+            local r, g, b, a = GetSafeColor(castSettings.borderColor, {0, 0, 0, 1})
+            border:SetBackdropBorderColor(r, g, b, a)
+            border:Show()
+        else
+            border:SetBackdrop(nil)
+            border:Hide()
+        end
     end
 end
 
