@@ -419,9 +419,18 @@ local function GetItemCooldownInfo(itemID)
     return startTime or 0, duration or 0, enable ~= 0
 end
 
-local function GetItemStackCount(itemID)
+local function GetItemStackCount(itemID, includeCharges)
     if not itemID then return 0 end
-    return C_Item.GetItemCount(itemID, false, false, true) or 0
+    -- Parameters: itemID, includeBank, includeUses/Charges, includeReagentBank
+    -- When includeCharges=true, count charges for items like Healthstones (3 charges = shows 3)
+    -- When includeCharges=false, count items only (1 Healthstone = shows 1)
+    local includeUses = includeCharges ~= false  -- Default to true if not specified
+    local count = C_Item.GetItemCount(itemID, false, includeUses, true)
+    -- Handle nil return
+    if count == nil then return 0 end
+    -- In Midnight, item counts can be secret values - return as-is for SetText to handle
+    -- The caller will check issecretvalue() before comparisons
+    return count
 end
 
 local function GetSpellChargeCount(spellID)
@@ -1307,7 +1316,7 @@ function CustomTrackers:StartCooldownPolling(bar)
                     count, maxCharges = GetSpellChargeCount(entry.id)
                 else
                     startTime, duration, enabled = GetItemCooldownInfo(entry.id)
-                    count = GetItemStackCount(entry.id)
+                    count = GetItemStackCount(entry.id, config.showItemCharges)
                     isOnGCD = false  -- Items don't have GCD
                     -- Update item usability based on current count (consumables deplete during gameplay)
                     icon._usable = IsItemUsable(entry.id, count)

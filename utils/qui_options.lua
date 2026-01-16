@@ -2081,6 +2081,25 @@ local function CreateGeneralQoLPage(parent)
             fontSlider:SetPoint("TOPLEFT", PADDING, y)
             fontSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
             y = y - FORM_ROW
+
+            -- Section Header: Hide Blizzard Default Buffs and Debuffs
+            local hideHeader = GUI:CreateSectionHeader(tabContent, "Hide Blizzard Default Buffs and Debuffs")
+            hideHeader:SetPoint("TOPLEFT", PADDING, y)
+            y = y - hideHeader.gap
+
+            -- Hide Buffs
+            local hideBuffs = GUI:CreateFormCheckbox(tabContent, "Hide Buffs",
+                "hideBuffFrame", db.buffBorders, RefreshBuffBorders)
+            hideBuffs:SetPoint("TOPLEFT", PADDING, y)
+            hideBuffs:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            -- Hide Debuffs
+            local hideDebuffs = GUI:CreateFormCheckbox(tabContent, "Hide Debuffs",
+                "hideDebuffFrame", db.buffBorders, RefreshBuffBorders)
+            hideDebuffs:SetPoint("TOPLEFT", PADDING, y)
+            hideDebuffs:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
         else
             local info = GUI:CreateLabel(tabContent, "Buff/Debuff settings not available", 12, C.textMuted)
             info:SetPoint("TOPLEFT", PADDING, y)
@@ -9308,9 +9327,26 @@ local function CreateCustomTrackersPage(parent)
         stackHeader:SetPoint("TOPLEFT", 0, y)
         y = y - stackHeader.gap
 
-        local hideStackCheck = GUI:CreateFormCheckbox(lowerContainer, "Hide Text", "hideStackText", barConfig, RefreshThisBar)
+        local showChargesCheck  -- Forward declare for callback reference
+
+        local hideStackCheck = GUI:CreateFormCheckbox(lowerContainer, "Hide Text", "hideStackText", barConfig, function(val)
+            RefreshThisBar()
+            -- Disable "Show Item Charges" when text is hidden (it has no effect)
+            if showChargesCheck and showChargesCheck.SetEnabled then
+                showChargesCheck:SetEnabled(not val)
+            end
+        end)
         hideStackCheck:SetPoint("TOPLEFT", 0, y)
         hideStackCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        showChargesCheck = GUI:CreateFormCheckbox(lowerContainer, "Show Item Charges", "showItemCharges", barConfig, RefreshThisBar)
+        showChargesCheck:SetPoint("TOPLEFT", 0, y)
+        showChargesCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        -- Initial state: disabled if text is hidden
+        if showChargesCheck.SetEnabled then
+            showChargesCheck:SetEnabled(not barConfig.hideStackText)
+        end
         y = y - FORM_ROW
 
         local stackSizeSlider = GUI:CreateFormSlider(lowerContainer, "Size", 8, 24, 1, "stackSize", barConfig, RefreshThisBar)

@@ -2841,6 +2841,7 @@ local defaults = {
                     stackOffsetX = 3,
                     stackOffsetY = -1,
                     hideStackText = false,
+                    showItemCharges = true,  -- Show item charges (e.g., Healthstone 3 charges) instead of item count
                     -- Background
                     bgOpacity = 0,
                     bgColor = {0, 0, 0, 1},

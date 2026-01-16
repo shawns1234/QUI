@@ -12,12 +12,14 @@ local function GetSettings()
     -- Ensure buffBorders table exists
     if not QUICore.db.profile.buffBorders then
         QUICore.db.profile.buffBorders = {
-    enableBuffs = true,
-    enableDebuffs = true,
-    borderSize = 2,
-    fontSize = 12,
-    fontOutline = true,
-}
+            enableBuffs = true,
+            enableDebuffs = true,
+            hideBuffFrame = false,
+            hideDebuffFrame = false,
+            borderSize = 2,
+            fontSize = 12,
+            fontOutline = true,
+        }
     end
     return QUICore.db.profile.buffBorders
 end
@@ -159,8 +161,54 @@ local function ProcessAuraContainer(container, isBuff)
     end
 end
 
+-- Hide/show entire BuffFrame or DebuffFrame based on settings
+local function ApplyFrameHiding()
+    local settings = GetSettings()
+    if not settings then return end
+
+    -- BuffFrame hiding (simple Hide + Show hook, no EnableMouse)
+    if BuffFrame then
+        if settings.hideBuffFrame then
+            BuffFrame:Hide()
+        else
+            BuffFrame:Show()
+        end
+        -- Hook Show() once to prevent Blizzard from re-showing
+        if not BuffFrame._QUI_ShowHooked then
+            BuffFrame._QUI_ShowHooked = true
+            hooksecurefunc(BuffFrame, "Show", function(self)
+                local s = GetSettings()
+                if s and s.hideBuffFrame then
+                    self:Hide()
+                end
+            end)
+        end
+    end
+
+    -- DebuffFrame hiding (simple Hide + Show hook, no EnableMouse)
+    if DebuffFrame then
+        if settings.hideDebuffFrame then
+            DebuffFrame:Hide()
+        else
+            DebuffFrame:Show()
+        end
+        -- Hook Show() once to prevent Blizzard from re-showing
+        if not DebuffFrame._QUI_ShowHooked then
+            DebuffFrame._QUI_ShowHooked = true
+            hooksecurefunc(DebuffFrame, "Show", function(self)
+                local s = GetSettings()
+                if s and s.hideDebuffFrame then
+                    self:Hide()
+                end
+            end)
+        end
+    end
+end
+
 -- Main function to process all buff/debuff frames
 local function ApplyBuffBorders()
+    -- Apply frame hiding first
+    ApplyFrameHiding()
     -- Process BuffFrame containers (top right buffs)
     if BuffFrame and BuffFrame.AuraContainer then
         ProcessAuraContainer(BuffFrame.AuraContainer, true) -- true = buff
