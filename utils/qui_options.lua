@@ -10044,11 +10044,18 @@ local function CreateUnitFramesPage(parent)
         defaultWidgets.bgColor = defBgColor
         y = y - FORM_ROW
 
-        -- Default Opacity
-        local defOpacity = GUI:CreateFormSlider(tabContent, "Default Opacity", 0.1, 1.0, 0.01, "defaultOpacity", general, RefreshNewUF)
-        defOpacity:SetPoint("TOPLEFT", PAD, y)
-        defOpacity:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-        defaultWidgets.opacity = defOpacity
+        -- Health Opacity slider
+        local defHealthOpacity = GUI:CreateFormSlider(tabContent, "Health Opacity", 0.1, 1.0, 0.01, "defaultHealthOpacity", general, RefreshNewUF)
+        defHealthOpacity:SetPoint("TOPLEFT", PAD, y)
+        defHealthOpacity:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        defaultWidgets.healthOpacity = defHealthOpacity
+        y = y - FORM_ROW
+
+        -- Background Opacity slider
+        local defBgOpacity = GUI:CreateFormSlider(tabContent, "Background Opacity", 0.1, 1.0, 0.01, "defaultBgOpacity", general, RefreshNewUF)
+        defBgOpacity:SetPoint("TOPLEFT", PAD, y)
+        defBgOpacity:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        defaultWidgets.bgOpacity = defBgOpacity
         y = y - FORM_ROW - 10
 
         -- DARK MODE section
@@ -10084,11 +10091,18 @@ local function CreateUnitFramesPage(parent)
         darkModeWidgets.bgColor = bgColor
         y = y - FORM_ROW
 
-        -- Darkmode Opacity slider (0.1 to 1.0, step 0.01)
-        local opacitySlider = GUI:CreateFormSlider(tabContent, "Darkmode Opacity", 0.1, 1.0, 0.01, "darkModeOpacity", general, RefreshNewUF)
-        opacitySlider:SetPoint("TOPLEFT", PAD, y)
-        opacitySlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-        darkModeWidgets.opacity = opacitySlider
+        -- Darkmode Health Opacity slider
+        local dmHealthOpacity = GUI:CreateFormSlider(tabContent, "Darkmode Health Opacity", 0.1, 1.0, 0.01, "darkModeHealthOpacity", general, RefreshNewUF)
+        dmHealthOpacity:SetPoint("TOPLEFT", PAD, y)
+        dmHealthOpacity:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        darkModeWidgets.healthOpacity = dmHealthOpacity
+        y = y - FORM_ROW
+
+        -- Darkmode Background Opacity slider
+        local dmBgOpacity = GUI:CreateFormSlider(tabContent, "Darkmode Background Opacity", 0.1, 1.0, 0.01, "darkModeBgOpacity", general, RefreshNewUF)
+        dmBgOpacity:SetPoint("TOPLEFT", PAD, y)
+        dmBgOpacity:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        darkModeWidgets.bgOpacity = dmBgOpacity
         y = y - FORM_ROW - 10
 
         -- Set initial enable/disable states for both sections

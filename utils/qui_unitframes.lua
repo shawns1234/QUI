@@ -478,10 +478,13 @@ local function GetHealthBarColor(unit, settings)
     if not UnitExists(unit) then
         return 0.5, 0.5, 0.5, 1
     end
-    
-    -- Check ClassColor first - only applies to players
-    if settings and settings.useClassColor then
-        -- Safely check if unit is a player (may return secret value in combat)
+
+    -- Get global settings from MAIN profile (not quiUnitFrames sub-table)
+    local general = GetGeneralSettings()
+
+    -- Check GLOBAL defaultUseClassColor (from Colors tab)
+    -- This is the MASTER switch - when ON, use class colors for players
+    if general and general.defaultUseClassColor then
         local isPlayer = UnitIsPlayer(unit)
         if type(isPlayer) == "boolean" and isPlayer then
             local _, class = UnitClass(unit)
@@ -493,14 +496,14 @@ local function GetHealthBarColor(unit, settings)
             end
         end
     end
-    
-    -- Check HostilityColor - applies to NPCs (or all units if ClassColor didn't match)
+
+    -- When global defaultUseClassColor is OFF, skip per-unit useClassColor check
+    -- This ensures the global setting acts as a master override
+
+    -- Check HostilityColor - applies to NPCs
     if settings and settings.useHostilityColor then
         local reaction = UnitReaction(unit, "player")
         if type(reaction) == "number" then
-            -- Get custom hostility colors from DB
-            local db = GetDB()
-            local general = db and db.general
             if reaction >= 5 then
                 local c = general and general.hostilityColorFriendly or { 0.2, 0.8, 0.2, 1 }
                 return c[1], c[2], c[3], c[4] or 1
@@ -513,9 +516,9 @@ local function GetHealthBarColor(unit, settings)
             end
         end
     end
-    
-    -- Fallback to custom color
-    local c = settings and settings.customHealthColor or { 0.2, 0.6, 0.2, 1 }
+
+    -- Fallback to GLOBAL defaultHealthColor (from Colors tab)
+    local c = general and general.defaultHealthColor or { 0.2, 0.2, 0.2, 1 }
     return c[1], c[2], c[3], c[4] or 1
 end
 
@@ -3090,21 +3093,23 @@ function QUI_UF:RefreshFrame(unitKey)
                     end
                 end
 
-                -- Get colors and opacity based on dark mode state
-                local bgColor, barOpacity
+                -- Get colors and separate opacity values based on dark mode state
+                local bgColor, healthOpacity, bgOpacity
                 if general and general.darkMode then
                     bgColor = general.darkModeBgColor or { 0.25, 0.25, 0.25, 1 }
-                    barOpacity = general.darkModeOpacity or 1.0
+                    healthOpacity = general.darkModeHealthOpacity or general.darkModeOpacity or 1.0
+                    bgOpacity = general.darkModeBgOpacity or general.darkModeOpacity or 1.0
                 else
                     bgColor = general and general.defaultBgColor or { 0.1, 0.1, 0.1, 0.9 }
-                    barOpacity = general and general.defaultOpacity or 1.0
+                    healthOpacity = general and general.defaultHealthOpacity or general and general.defaultOpacity or 1.0
+                    bgOpacity = general and general.defaultBgOpacity or general and general.defaultOpacity or 1.0
                 end
-                local bgAlpha = (bgColor[4] or 1) * barOpacity
+                local bgAlpha = (bgColor[4] or 1) * bgOpacity
                 frame:SetBackdropColor(bgColor[1], bgColor[2], bgColor[3], bgAlpha)
 
                 -- Apply opacity to bars only (not text)
-                frame.healthBar:SetAlpha(barOpacity)
-                if frame.powerBar then frame.powerBar:SetAlpha(barOpacity) end
+                frame.healthBar:SetAlpha(healthOpacity)
+                if frame.powerBar then frame.powerBar:SetAlpha(healthOpacity) end
 
                 -- Update health bar texture and position
                 frame.healthBar:SetStatusBarTexture(texturePath)
@@ -3246,21 +3251,23 @@ function QUI_UF:RefreshFrame(unitKey)
         frame:SetPoint("CENTER", UIParent, "CENTER", settings.offsetX or 0, settings.offsetY or 0)
     end
     
-    -- Get colors and opacity based on dark mode state
-    local bgColor, barOpacity
+    -- Get colors and separate opacity values based on dark mode state
+    local bgColor, healthOpacity, bgOpacity
     if general and general.darkMode then
         bgColor = general.darkModeBgColor or { 0.25, 0.25, 0.25, 1 }
-        barOpacity = general.darkModeOpacity or 1.0
+        healthOpacity = general.darkModeHealthOpacity or general.darkModeOpacity or 1.0
+        bgOpacity = general.darkModeBgOpacity or general.darkModeOpacity or 1.0
     else
         bgColor = general and general.defaultBgColor or { 0.1, 0.1, 0.1, 0.9 }
-        barOpacity = general and general.defaultOpacity or 1.0
+        healthOpacity = general and general.defaultHealthOpacity or general and general.defaultOpacity or 1.0
+        bgOpacity = general and general.defaultBgOpacity or general and general.defaultOpacity or 1.0
     end
-    local bgAlpha = (bgColor[4] or 1) * barOpacity
+    local bgAlpha = (bgColor[4] or 1) * bgOpacity
     frame:SetBackdropColor(bgColor[1], bgColor[2], bgColor[3], bgAlpha)
 
     -- Apply opacity to bars only (not text)
-    frame.healthBar:SetAlpha(barOpacity)
-    if frame.powerBar then frame.powerBar:SetAlpha(barOpacity) end
+    frame.healthBar:SetAlpha(healthOpacity)
+    if frame.powerBar then frame.powerBar:SetAlpha(healthOpacity) end
 
     -- Pixel-perfect border size
     local borderSize = Scale(1)
