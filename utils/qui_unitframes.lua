@@ -1713,7 +1713,7 @@ local function CreateUnitFrame(unit, unitKey)
 
     -- Portrait (optional, side-attached)
     if settings.showPortrait then
-        local portrait = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+        local portrait = CreateFrame("Button", nil, frame, "SecureUnitButtonTemplate, BackdropTemplate")
         local portraitSize = height * (settings.portraitScale or 1.0)
         local portraitBorderSize = Scale(settings.portraitBorderSize or 1)
         portrait:SetSize(portraitSize, portraitSize)
@@ -1727,6 +1727,18 @@ local function CreateUnitFrame(unit, unitKey)
         else
             portrait:SetPoint("LEFT", frame, "RIGHT", portraitGap + portraitOffsetX, portraitOffsetY)
         end
+
+        -- Secure unit attributes for click targeting
+        portrait:SetAttribute("unit", unit)
+        portrait:SetAttribute("*type1", "target")
+        portrait:SetAttribute("*type2", "togglemenu")
+        portrait:RegisterForClicks("AnyUp")
+
+        -- Tooltip on hover
+        portrait:HookScript("OnEnter", function(self)
+            ShowUnitTooltip(frame)
+        end)
+        portrait:HookScript("OnLeave", HideUnitTooltip)
 
         -- Border around portrait
         portrait:SetBackdrop({
@@ -3338,10 +3350,22 @@ function QUI_UF:RefreshFrame(unitKey)
         local side = settings.portraitSide or "LEFT"
 
         if not frame.portrait then
-            local portrait = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+            local portrait = CreateFrame("Button", nil, frame, "SecureUnitButtonTemplate, BackdropTemplate")
             local portraitTex = portrait:CreateTexture(nil, "ARTWORK")
             frame.portraitTexture = portraitTex
             frame.portrait = portrait
+
+            -- Secure unit attributes for click targeting
+            portrait:SetAttribute("unit", frame.unit)
+            portrait:SetAttribute("*type1", "target")
+            portrait:SetAttribute("*type2", "togglemenu")
+            portrait:RegisterForClicks("AnyUp")
+
+            -- Tooltip on hover
+            portrait:HookScript("OnEnter", function(self)
+                ShowUnitTooltip(frame)
+            end)
+            portrait:HookScript("OnLeave", HideUnitTooltip)
         end
 
         -- Update size and position
