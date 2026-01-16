@@ -4432,6 +4432,24 @@ local function CreateMinimapPage(parent)
 
             y = y - 10
 
+            -- SECTION 5b: Time Datatext Settings
+            local timeHeader = GUI:CreateSectionHeader(tabContent, "Time Datatext")
+            timeHeader:SetPoint("TOPLEFT", PAD, y)
+            y = y - timeHeader.gap
+
+            local lockoutCacheSlider = GUI:CreateFormSlider(tabContent, "Lockout Refresh (minutes)", 1, 30, 1, "lockoutCacheMinutes", dt, nil)
+            lockoutCacheSlider:SetPoint("TOPLEFT", PAD, y)
+            lockoutCacheSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            local lockoutNote = GUI:CreateLabel(tabContent, "How often to refresh raid lockout data when hovering the Time datatext.", 11, C.textMuted)
+            lockoutNote:SetPoint("TOPLEFT", PAD, y)
+            lockoutNote:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            lockoutNote:SetJustifyH("LEFT")
+            y = y - 20
+
+            y = y - 10
+
             -- SECTION 6: Custom Movable Datapanels
             local customPanelsHeader = GUI:CreateSectionHeader(tabContent, "Custom Movable Panels")
             customPanelsHeader:SetPoint("TOPLEFT", PAD, y)
