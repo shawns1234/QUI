@@ -611,6 +611,7 @@ local function LayoutViewer(viewerName, trackerKey)
                 stackOffsetY = settings[rowKey].stackOffsetY or 0,
                 stackTextColor = settings[rowKey].stackTextColor or {1, 1, 1, 1},
                 stackAnchor = settings[rowKey].stackAnchor or "BOTTOMRIGHT",
+                opacity = settings[rowKey].opacity or 1.0,
             })
         end
     end
@@ -784,6 +785,10 @@ local function LayoutViewer(viewerName, trackerKey)
             icon:ClearAllPoints()
             icon:SetPoint("CENTER", viewer, "CENTER", x, y)
             icon:Show()
+
+            -- Apply row opacity
+            local opacity = rowConfig.opacity or 1.0
+            icon:SetAlpha(opacity)
         end
 
         if isVertical then
