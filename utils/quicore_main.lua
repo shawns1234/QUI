@@ -1137,6 +1137,7 @@ local defaults = {
                 backdropAlpha = 0.8,        -- Backdrop opacity (0-1)
                 showGloss = true,           -- Show gloss/shine overlay
                 glossAlpha = 0.6,           -- Gloss opacity (0-1)
+                showBorders = true,         -- Show button borders
                 showKeybinds = true,        -- Show hotkey text
                 showMacroNames = false,     -- Show macro name text
                 showCounts = true,          -- Show stack/charge count
