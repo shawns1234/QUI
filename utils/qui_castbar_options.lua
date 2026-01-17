@@ -84,6 +84,12 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
             castDB.lockedToFrame = nil
         end
 
+        -- Initialize separate offset storage for free vs locked modes
+        if castDB.freeOffsetX == nil then castDB.freeOffsetX = 0 end
+        if castDB.freeOffsetY == nil then castDB.freeOffsetY = 0 end
+        if castDB.lockedOffsetX == nil then castDB.lockedOffsetX = 0 end
+        if castDB.lockedOffsetY == nil then castDB.lockedOffsetY = -25 end
+
         local unitDisplayNames = {
             player = "Player Frame",
             target = "Target Frame",
@@ -214,18 +220,18 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
                 castWidthAdjSlider:SetEnabled(isLocked)
             end
             
-            -- Disable offset sliders when anchor is "none" (position controlled by dragging)
+            -- Enable X/Y offset sliders for all anchor modes
+            -- "none" mode: offset from screen center (absolute positioning)
+            -- locked modes: offset from anchor (relative positioning)
             if castOffsetXSlider and castOffsetYSlider then
-                if castDB.anchor == "none" then
-                    castOffsetXSlider:SetEnabled(false)
-                    castOffsetYSlider:SetEnabled(false)
-                else
-                    castOffsetXSlider:SetEnabled(true)
-                    castOffsetYSlider:SetEnabled(true)
-                end
+                castOffsetXSlider:SetEnabled(true)
+                castOffsetYSlider:SetEnabled(true)
             end
         end
         
+        -- Track previous anchor to swap offsets when mode changes
+        local prevAnchor = castDB.anchor or "none"
+
         anchorDropdown = GUI:CreateFormDropdown(tabContent, "Autoresize + Lock To", anchorOptions, "anchor", castDB, function()
             -- Clear all lock flags when anchor changes
             castDB.lockedToFrame = false
@@ -235,10 +241,29 @@ local function BuildCastbarOptions(tabContent, unitKey, y, PAD, FORM_ROW, Refres
             if castDB.anchor == "essential" or castDB.anchor == "utility" then
                 castDB.width = 0
             end
-            -- Reset offsets when anchor mode changes
-            -- Prevents stale positions from one mode contaminating another
-            castDB.offsetX = 0
-            castDB.offsetY = 0
+
+            -- Swap offsets between free (none) and locked modes
+            local wasNone = (prevAnchor == "none")
+            local isNone = (castDB.anchor == "none")
+
+            if wasNone and not isNone then
+                -- Switching FROM none TO locked: save free offsets, load locked offsets
+                castDB.freeOffsetX = castDB.offsetX or 0
+                castDB.freeOffsetY = castDB.offsetY or 0
+                castDB.offsetX = castDB.lockedOffsetX or 0
+                castDB.offsetY = castDB.lockedOffsetY or -25
+            elseif not wasNone and isNone then
+                -- Switching FROM locked TO none: save locked offsets, load free offsets
+                castDB.lockedOffsetX = castDB.offsetX or 0
+                castDB.lockedOffsetY = castDB.offsetY or 0
+                castDB.offsetX = castDB.freeOffsetX or 0
+                castDB.offsetY = castDB.freeOffsetY or 0
+            end
+            -- If locked→locked (e.g. essential→utility), keep current offsets
+
+            -- Update previous anchor for next change
+            prevAnchor = castDB.anchor
+
             UpdateCastbarSliders()
             RefreshUnit()
         end)

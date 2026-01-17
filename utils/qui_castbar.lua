@@ -681,6 +681,9 @@ local function SimulateCast(castbar, castSettings, unitKey, bossIndex)
                 local offsetY = castbarY - screenY
                 castSettings.offsetX = offsetX
                 castSettings.offsetY = offsetY
+                -- Also save to freeOffset for mode switching (drag only works in "none" mode)
+                castSettings.freeOffsetX = offsetX
+                castSettings.freeOffsetY = offsetY
                 self:ClearAllPoints()
                 self:SetPoint("CENTER", UIParent, "CENTER", offsetX, offsetY)
             end
