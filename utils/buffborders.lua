@@ -118,22 +118,16 @@ end
 -- Apply font settings to duration text
 local function ApplyFontSettings(button)
     if not button then return end
-    
+
     local settings = GetSettings()
     if not settings then return end
-    
-    -- Find the duration text (the timer showing remaining time)
-    local duration = button.Duration or button.duration
-    if not duration then return end
-    
-    -- Get font settings
-    local fontSize = settings.fontSize or 12
-    
+
     -- Get font and outline from general settings
     local LSM = LibStub("LibSharedMedia-3.0", true)
     local generalFont = "Fonts\\FRIZQT__.TTF"
     local generalOutline = "OUTLINE"
-    
+
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
     if QUICore and QUICore.db and QUICore.db.profile and QUICore.db.profile.general then
         local general = QUICore.db.profile.general
         if general.font and LSM then
@@ -141,9 +135,13 @@ local function ApplyFontSettings(button)
         end
         generalOutline = general.fontOutline or "OUTLINE"
     end
-    
-    -- Apply font settings
-    duration:SetFont(generalFont, fontSize, generalOutline)
+
+    -- Duration text (timer showing remaining time)
+    local duration = button.Duration or button.duration
+    if duration and duration.SetFont then
+        local fontSize = settings.fontSize or 12
+        duration:SetFont(generalFont, fontSize, generalOutline)
+    end
 end
 
 -- Process all aura buttons in a container

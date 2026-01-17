@@ -2076,7 +2076,7 @@ local function CreateGeneralQoLPage(parent)
             y = y - FORM_ROW
 
             -- Font Size slider
-            local fontSlider = GUI:CreateFormSlider(tabContent, "Font Size", 8, 20, 1,
+            local fontSlider = GUI:CreateFormSlider(tabContent, "Font Size", 6, 24, 1,
                 "fontSize", db.buffBorders, RefreshBuffBorders)
             fontSlider:SetPoint("TOPLEFT", PADDING, y)
             fontSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)

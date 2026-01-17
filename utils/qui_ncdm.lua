@@ -93,6 +93,24 @@ local function GetTrackerSettings(trackerKey)
 end
 
 ---------------------------------------------------------------------------
+-- HELPER: Update Blizzard cooldownViewerEnabled CVar based on settings
+---------------------------------------------------------------------------
+local function UpdateCooldownViewerCVar()
+    local db = GetDB()
+    if not db then return end
+
+    local essentialEnabled = db.essential and db.essential.enabled
+    local utilityEnabled = db.utility and db.utility.enabled
+
+    -- If BOTH are disabled, turn off Blizzard CVar; otherwise keep it on
+    if essentialEnabled or utilityEnabled then
+        pcall(function() SetCVar("cooldownViewerEnabled", 1) end)
+    else
+        pcall(function() SetCVar("cooldownViewerEnabled", 0) end)
+    end
+end
+
+---------------------------------------------------------------------------
 -- HELPER: Check if a child frame is a cooldown icon
 ---------------------------------------------------------------------------
 local function IsIconFrame(child)
@@ -1085,6 +1103,7 @@ end
 -- PUBLIC: Force refresh all layouts
 ---------------------------------------------------------------------------
 local function RefreshAll()
+    UpdateCooldownViewerCVar()
     NCDM.applying["essential"] = false
     NCDM.applying["utility"] = false
 
