@@ -1335,8 +1335,8 @@ function CustomTrackers:StartCooldownPolling(bar)
                 -- Simplified cooldown handling - let Blizzard's Cooldown frame handle secrets
                 local hideGCD = config.hideGCD ~= false
 
-                -- Determine if on cooldown using isOnGCD flag (the reliable way!)
-                -- No secret value comparisons needed - isOnGCD is a boolean
+                -- Determine if on cooldown using API values directly
+                -- Avoids frame-delay issues with IsVisible() on cooldown frames
                 local isOnCD = false
 
                 -- If active, show active state progress instead of cooldown
@@ -1359,9 +1359,31 @@ function CustomTrackers:StartCooldownPolling(bar)
                     if hideGCD and isOnGCD then
                         -- It's just GCD - clear cooldown display, don't desaturate
                         icon.cooldown:Clear()
+                        isOnCD = false
                     else
-                        -- Not GCD (or hideGCD is off) - check if cooldown is visible
-                        isOnCD = icon.cooldown:IsVisible()
+                        -- Try multiple methods to detect cooldown (Midnight secret value handling)
+                        -- Method 1: Direct API comparison (works out of combat)
+                        local checkSuccess, checkResult = pcall(function()
+                            return startTime and startTime > 0 and duration and duration > 0
+                        end)
+                        if checkSuccess then
+                            isOnCD = checkResult
+                        else
+                            -- Method 2: Check cooldown frame's duration (also may be secret)
+                            local durationSuccess, durationResult = pcall(function()
+                                local cdRemaining = icon.cooldown:GetCooldownDuration()
+                                return cdRemaining and cdRemaining > 0
+                            end)
+                            if durationSuccess then
+                                isOnCD = durationResult
+                            else
+                                -- Method 3: Check if cooldown swipe is visible
+                                -- The cooldown frame draws its swipe only when there's an active cooldown.
+                                -- After SetCooldown(0,0) or Clear(), the swipe disappears.
+                                -- IsShown() is a frame property, not protected API data.
+                                isOnCD = icon.cooldown:IsShown()
+                            end
+                        end
                     end
                 end
 
@@ -1976,6 +1998,8 @@ initFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 initFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 -- Talent change detection for active icon rebuild (talent loadout swaps)
 initFrame:RegisterEvent("PLAYER_TALENT_UPDATE")
+-- Pet change detection (warlock demons, hunter pets with unique abilities)
+initFrame:RegisterEvent("UNIT_PET")
 initFrame:SetScript("OnEvent", function(self, event, ...)
     -- Spec change: refresh all bars to load spec-appropriate spells
     -- PLAYER_SPECIALIZATION_CHANGED only fires for player, no unit check needed
@@ -2008,6 +2032,29 @@ initFrame:SetScript("OnEvent", function(self, event, ...)
                 end
             end
         end)
+        return
+    end
+
+    -- Pet change: rebuild active icon sets (warlock demons, hunter pets)
+    -- When summoning a different pet, old pet abilities become unavailable
+    -- and new pet abilities need to be picked up.
+    if event == "UNIT_PET" then
+        local unit = ...
+        if unit == "player" then
+            -- Small delay to ensure pet spell info is fully updated
+            C_Timer.After(0.2, function()
+                for _, bar in pairs(CustomTrackers.activeBars) do
+                    if bar then
+                        RebuildActiveSet(bar)
+                        -- Immediately apply visibility logic to prevent flash
+                        -- (e.g., showOnlyOnCooldown would otherwise briefly show the icon)
+                        if bar.DoUpdate then
+                            bar.DoUpdate()
+                        end
+                    end
+                end
+            end)
+        end
         return
     end
 
