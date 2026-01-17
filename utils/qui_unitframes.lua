@@ -482,8 +482,36 @@ local function GetHealthBarColor(unit, settings)
     -- Get global settings from MAIN profile (not quiUnitFrames sub-table)
     local general = GetGeneralSettings()
 
-    -- Check GLOBAL defaultUseClassColor (from Colors tab)
-    -- This is the MASTER switch - when ON, use class colors for players
+    -- Check per-unit useClassColor setting first (for pets, etc.)
+    -- This allows individual frames to opt into class coloring
+    if settings and settings.useClassColor then
+        local isPlayer = UnitIsPlayer(unit)
+        if type(isPlayer) == "boolean" and isPlayer then
+            -- Unit is a player - use their class color
+            local _, class = UnitClass(unit)
+            if type(class) == "string" then
+                local color = RAID_CLASS_COLORS[class]
+                if color then
+                    return color.r, color.g, color.b, 1
+                end
+            end
+        else
+            -- Unit is not a player (pet, NPC, etc.) - use owner's class color for pets
+            local isPet = UnitIsUnit(unit, "pet") or UnitIsUnit(unit, "playerpet")
+            if isPet then
+                -- Pet: use player's class color
+                local _, class = UnitClass("player")
+                if type(class) == "string" then
+                    local color = RAID_CLASS_COLORS[class]
+                    if color then
+                        return color.r, color.g, color.b, 1
+                    end
+                end
+            end
+        end
+    end
+
+    -- Check GLOBAL defaultUseClassColor (from Colors tab) as fallback for players
     if general and general.defaultUseClassColor then
         local isPlayer = UnitIsPlayer(unit)
         if type(isPlayer) == "boolean" and isPlayer then
@@ -496,9 +524,6 @@ local function GetHealthBarColor(unit, settings)
             end
         end
     end
-
-    -- When global defaultUseClassColor is OFF, skip per-unit useClassColor check
-    -- This ensures the global setting acts as a master override
 
     -- Check HostilityColor - applies to NPCs
     if settings and settings.useHostilityColor then
@@ -515,6 +540,12 @@ local function GetHealthBarColor(unit, settings)
                 return c[1], c[2], c[3], c[4] or 1
             end
         end
+    end
+
+    -- Use per-unit customHealthColor if available, otherwise fall back to global
+    if settings and settings.customHealthColor then
+        local c = settings.customHealthColor
+        return c[1], c[2], c[3], c[4] or 1
     end
 
     -- Fallback to GLOBAL defaultHealthColor (from Colors tab)
