@@ -468,6 +468,7 @@ end
 ---------------------------------------------------------------------------
 
 local function UpdateVisibility()
+    if InCombatLockdown() then return end
     if not IsEnabled() then
         KeyTrackerFrame:Hide()
         return
