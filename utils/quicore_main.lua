@@ -970,6 +970,10 @@ local defaults = {
 
             -- Specialized Resources
             stagger = { 0.00, 1.00, 0.59, 1 },
+            staggerLight = { 0.52, 1.00, 0.52, 1 },     -- Green (0-30% of max health)
+            staggerModerate = { 1.00, 0.98, 0.72, 1 },  -- Yellow (30-60% of max health)
+            staggerHeavy = { 1.00, 0.42, 0.42, 1 },     -- Red (60%+ of max health)
+            useStaggerLevelColors = true,               -- Enable dynamic stagger colors
             soulFragments = { 0.64, 0.19, 0.79, 1 },
             runes = { 0.77, 0.12, 0.23, 1 },
             bloodRunes = { 0.77, 0.12, 0.23, 1 },
