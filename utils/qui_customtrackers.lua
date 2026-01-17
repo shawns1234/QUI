@@ -1976,6 +1976,8 @@ initFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 initFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 -- Talent change detection for active icon rebuild (talent loadout swaps)
 initFrame:RegisterEvent("PLAYER_TALENT_UPDATE")
+-- Pet change detection (warlock demons, hunter pets with unique abilities)
+initFrame:RegisterEvent("UNIT_PET")
 initFrame:SetScript("OnEvent", function(self, event, ...)
     -- Spec change: refresh all bars to load spec-appropriate spells
     -- PLAYER_SPECIALIZATION_CHANGED only fires for player, no unit check needed
@@ -2008,6 +2010,29 @@ initFrame:SetScript("OnEvent", function(self, event, ...)
                 end
             end
         end)
+        return
+    end
+
+    -- Pet change: rebuild active icon sets (warlock demons, hunter pets)
+    -- When summoning a different pet, old pet abilities become unavailable
+    -- and new pet abilities need to be picked up.
+    if event == "UNIT_PET" then
+        local unit = ...
+        if unit == "player" then
+            -- Small delay to ensure pet spell info is fully updated
+            C_Timer.After(0.2, function()
+                for _, bar in pairs(CustomTrackers.activeBars) do
+                    if bar then
+                        RebuildActiveSet(bar)
+                        -- Immediately apply visibility logic to prevent flash
+                        -- (e.g., showOnlyOnCooldown would otherwise briefly show the icon)
+                        if bar.DoUpdate then
+                            bar.DoUpdate()
+                        end
+                    end
+                end
+            end)
+        end
         return
     end
 
