@@ -2117,7 +2117,7 @@ local lastAuraUpdate = {}
 
 -- Apply aura icon settings (for real-time updates without recreating icons)
 -- isDebuff: true for debuffs, false for buffs - uses per-type settings when available
--- Note: Duration text removed - secret value API prevents display on enemy targets in combat
+-- Duration text uses Blizzard's built-in countdown (handles secret values internally)
 local function ApplyAuraIconSettings(icon, auraSettings, isDebuff)
     if not icon then return end
     auraSettings = auraSettings or {}
@@ -2152,6 +2152,45 @@ local function ApplyAuraIconSettings(icon, auraSettings, isDebuff)
     if hideSwipe == nil then hideSwipe = false end  -- default: show swipe
     if icon.cooldown then
         icon.cooldown:SetDrawSwipe(not hideSwipe)
+    end
+
+    -- Duration text settings (per-type)
+    local showDuration = auraSettings[prefix .. "ShowDuration"]
+    if showDuration == nil then showDuration = true end
+
+    local durationSize = auraSettings[prefix .. "DurationSize"] or 12
+    local durationAnchor = auraSettings[prefix .. "DurationAnchor"] or "CENTER"
+    local durationOffsetX = auraSettings[prefix .. "DurationOffsetX"] or 0
+    local durationOffsetY = auraSettings[prefix .. "DurationOffsetY"] or 0
+    local durationColor = auraSettings[prefix .. "DurationColor"] or {1, 1, 1, 1}
+
+    -- Safe duration text handling (pcall wrapped to prevent errors from breaking auras)
+    if icon.cooldown then
+        pcall(function()
+            -- Toggle Blizzard countdown visibility
+            if icon.cooldown.SetHideCountdownNumbers then
+                icon.cooldown:SetHideCountdownNumbers(not showDuration)
+            end
+
+            -- Find and style the countdown FontString (created lazily by Blizzard)
+            if showDuration and icon.cooldown.GetRegions then
+                for _, region in ipairs({ icon.cooldown:GetRegions() }) do
+                    if region and region.GetObjectType and region:GetObjectType() == "FontString" then
+                        if region.SetFont then
+                            region:SetFont(fontPath, durationSize, fontOutline)
+                        end
+                        if region.ClearAllPoints and region.SetPoint then
+                            region:ClearAllPoints()
+                            region:SetPoint(durationAnchor, icon, durationAnchor, durationOffsetX, durationOffsetY)
+                        end
+                        if region.SetTextColor then
+                            region:SetTextColor(durationColor[1] or 1, durationColor[2] or 1, durationColor[3] or 1, durationColor[4] or 1)
+                        end
+                        break
+                    end
+                end
+            end
+        end)
     end
 end
 
@@ -2211,7 +2250,7 @@ local function CreateAuraIcon(parent, index, size, auraSettings, isDebuff)
     cd:SetSwipeTexture("Interface\\Buttons\\WHITE8X8")
     cd:SetSwipeColor(0, 0, 0, 0.8)
     cd.noOCC = true
-    cd.noCooldownCount = true
+    -- noCooldownCount removed to enable Blizzard countdown text (styled via ApplyAuraIconSettings)
     icon.cooldown = cd
     
     -- Stack count (position/font set by ApplyAuraIconSettings)

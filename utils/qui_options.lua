@@ -11131,8 +11131,7 @@ local function CreateUnitFramesPage(parent)
             debuffYSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
 
-            -- Debuff-specific text customization
-            -- Note: Duration text removed - secret value API prevents display on enemy targets in combat
+            -- Debuff-specific text customization (stack and duration)
             if unitKey == "target" or unitKey == "player" or unitKey == "focus" or unitKey == "targettarget" or unitKey == "boss" then
                 -- Initialize debuff-specific defaults
                 if auraDB.debuffSpacing == nil then auraDB.debuffSpacing = 2 end
@@ -11142,6 +11141,13 @@ local function CreateUnitFramesPage(parent)
                 if auraDB.debuffStackOffsetX == nil then auraDB.debuffStackOffsetX = -1 end
                 if auraDB.debuffStackOffsetY == nil then auraDB.debuffStackOffsetY = 1 end
                 if auraDB.debuffStackColor == nil then auraDB.debuffStackColor = {1, 1, 1, 1} end
+                -- Duration defaults
+                if auraDB.debuffShowDuration == nil then auraDB.debuffShowDuration = true end
+                if auraDB.debuffDurationSize == nil then auraDB.debuffDurationSize = 12 end
+                if auraDB.debuffDurationAnchor == nil then auraDB.debuffDurationAnchor = "CENTER" end
+                if auraDB.debuffDurationOffsetX == nil then auraDB.debuffDurationOffsetX = 0 end
+                if auraDB.debuffDurationOffsetY == nil then auraDB.debuffDurationOffsetY = 0 end
+                if auraDB.debuffDurationColor == nil then auraDB.debuffDurationColor = {1, 1, 1, 1} end
 
                 local debuffSpacingSlider = GUI:CreateFormSlider(tabContent, "Spacing", 0, 10, 1, "debuffSpacing", auraDB, RefreshAuras)
                 debuffSpacingSlider:SetPoint("TOPLEFT", PAD, y)
@@ -11153,7 +11159,7 @@ local function CreateUnitFramesPage(parent)
                 debuffShowStackCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
                 y = y - FORM_ROW
 
-                local debuffStackSizeSlider = GUI:CreateFormSlider(tabContent, "Stack Size", 8, 24, 1, "debuffStackSize", auraDB, RefreshAuras)
+                local debuffStackSizeSlider = GUI:CreateFormSlider(tabContent, "Stack Size", 8, 40, 1, "debuffStackSize", auraDB, RefreshAuras)
                 debuffStackSizeSlider:SetPoint("TOPLEFT", PAD, y)
                 debuffStackSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
                 y = y - FORM_ROW
@@ -11176,6 +11182,37 @@ local function CreateUnitFramesPage(parent)
                 local debuffStackColorPicker = GUI:CreateFormColorPicker(tabContent, "Stack Color", "debuffStackColor", auraDB, RefreshAuras)
                 debuffStackColorPicker:SetPoint("TOPLEFT", PAD, y)
                 debuffStackColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+
+                -- Duration text settings
+                local debuffShowDurationCheck = GUI:CreateFormCheckbox(tabContent, "Duration Show", "debuffShowDuration", auraDB, RefreshAuras)
+                debuffShowDurationCheck:SetPoint("TOPLEFT", PAD, y)
+                debuffShowDurationCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+
+                local debuffDurationSizeSlider = GUI:CreateFormSlider(tabContent, "Duration Size", 8, 40, 1, "debuffDurationSize", auraDB, RefreshAuras)
+                debuffDurationSizeSlider:SetPoint("TOPLEFT", PAD, y)
+                debuffDurationSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+
+                local debuffDurationAnchorDD = GUI:CreateFormDropdown(tabContent, "Duration Anchor", ninePointAnchorOptions, "debuffDurationAnchor", auraDB, RefreshAuras)
+                debuffDurationAnchorDD:SetPoint("TOPLEFT", PAD, y)
+                debuffDurationAnchorDD:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+
+                local debuffDurationXSlider = GUI:CreateFormSlider(tabContent, "Duration X Offset", -20, 20, 1, "debuffDurationOffsetX", auraDB, RefreshAuras)
+                debuffDurationXSlider:SetPoint("TOPLEFT", PAD, y)
+                debuffDurationXSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+
+                local debuffDurationYSlider = GUI:CreateFormSlider(tabContent, "Duration Y Offset", -20, 20, 1, "debuffDurationOffsetY", auraDB, RefreshAuras)
+                debuffDurationYSlider:SetPoint("TOPLEFT", PAD, y)
+                debuffDurationYSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+
+                local debuffDurationColorPicker = GUI:CreateFormColorPicker(tabContent, "Duration Color", "debuffDurationColor", auraDB, RefreshAuras)
+                debuffDurationColorPicker:SetPoint("TOPLEFT", PAD, y)
+                debuffDurationColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
                 y = y - FORM_ROW
             end
 
@@ -11278,8 +11315,7 @@ local function CreateUnitFramesPage(parent)
             buffYSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
 
-            -- Buff-specific text customization
-            -- Note: Duration text removed - secret value API prevents display on enemy targets in combat
+            -- Buff-specific text customization (stack and duration)
             if unitKey == "target" or unitKey == "player" or unitKey == "focus" or unitKey == "targettarget" or unitKey == "boss" then
                 -- Initialize buff-specific defaults
                 if auraDB.buffSpacing == nil then auraDB.buffSpacing = 2 end
@@ -11289,6 +11325,13 @@ local function CreateUnitFramesPage(parent)
                 if auraDB.buffStackOffsetX == nil then auraDB.buffStackOffsetX = -1 end
                 if auraDB.buffStackOffsetY == nil then auraDB.buffStackOffsetY = 1 end
                 if auraDB.buffStackColor == nil then auraDB.buffStackColor = {1, 1, 1, 1} end
+                -- Duration defaults
+                if auraDB.buffShowDuration == nil then auraDB.buffShowDuration = true end
+                if auraDB.buffDurationSize == nil then auraDB.buffDurationSize = 12 end
+                if auraDB.buffDurationAnchor == nil then auraDB.buffDurationAnchor = "CENTER" end
+                if auraDB.buffDurationOffsetX == nil then auraDB.buffDurationOffsetX = 0 end
+                if auraDB.buffDurationOffsetY == nil then auraDB.buffDurationOffsetY = 0 end
+                if auraDB.buffDurationColor == nil then auraDB.buffDurationColor = {1, 1, 1, 1} end
 
                 local buffSpacingSlider = GUI:CreateFormSlider(tabContent, "Spacing", 0, 10, 1, "buffSpacing", auraDB, RefreshAuras)
                 buffSpacingSlider:SetPoint("TOPLEFT", PAD, y)
@@ -11300,7 +11343,7 @@ local function CreateUnitFramesPage(parent)
                 buffShowStackCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
                 y = y - FORM_ROW
 
-                local buffStackSizeSlider = GUI:CreateFormSlider(tabContent, "Stack Size", 8, 24, 1, "buffStackSize", auraDB, RefreshAuras)
+                local buffStackSizeSlider = GUI:CreateFormSlider(tabContent, "Stack Size", 8, 40, 1, "buffStackSize", auraDB, RefreshAuras)
                 buffStackSizeSlider:SetPoint("TOPLEFT", PAD, y)
                 buffStackSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
                 y = y - FORM_ROW
@@ -11323,6 +11366,37 @@ local function CreateUnitFramesPage(parent)
                 local buffStackColorPicker = GUI:CreateFormColorPicker(tabContent, "Stack Color", "buffStackColor", auraDB, RefreshAuras)
                 buffStackColorPicker:SetPoint("TOPLEFT", PAD, y)
                 buffStackColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+
+                -- Duration text settings
+                local buffShowDurationCheck = GUI:CreateFormCheckbox(tabContent, "Duration Show", "buffShowDuration", auraDB, RefreshAuras)
+                buffShowDurationCheck:SetPoint("TOPLEFT", PAD, y)
+                buffShowDurationCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+
+                local buffDurationSizeSlider = GUI:CreateFormSlider(tabContent, "Duration Size", 8, 40, 1, "buffDurationSize", auraDB, RefreshAuras)
+                buffDurationSizeSlider:SetPoint("TOPLEFT", PAD, y)
+                buffDurationSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+
+                local buffDurationAnchorDD = GUI:CreateFormDropdown(tabContent, "Duration Anchor", ninePointAnchorOptions, "buffDurationAnchor", auraDB, RefreshAuras)
+                buffDurationAnchorDD:SetPoint("TOPLEFT", PAD, y)
+                buffDurationAnchorDD:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+
+                local buffDurationXSlider = GUI:CreateFormSlider(tabContent, "Duration X Offset", -20, 20, 1, "buffDurationOffsetX", auraDB, RefreshAuras)
+                buffDurationXSlider:SetPoint("TOPLEFT", PAD, y)
+                buffDurationXSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+
+                local buffDurationYSlider = GUI:CreateFormSlider(tabContent, "Duration Y Offset", -20, 20, 1, "buffDurationOffsetY", auraDB, RefreshAuras)
+                buffDurationYSlider:SetPoint("TOPLEFT", PAD, y)
+                buffDurationYSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+                y = y - FORM_ROW
+
+                local buffDurationColorPicker = GUI:CreateFormColorPicker(tabContent, "Duration Color", "buffDurationColor", auraDB, RefreshAuras)
+                buffDurationColorPicker:SetPoint("TOPLEFT", PAD, y)
+                buffDurationColorPicker:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
                 y = y - FORM_ROW
             end
         end
