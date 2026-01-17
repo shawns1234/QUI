@@ -1273,7 +1273,7 @@ local function Initialize()
     -- Force populate buff icons first (teaches the viewer what spells to show)
     ForcePopulateBuffIcons()
 
-    -- OnUpdate polling at 0.05s (20 FPS) - hash-based detection prevents unnecessary layouts
+    -- OnUpdate polling at 0.05s (20 FPS) - works alongside UNIT_AURA event detection
     if BuffIconCooldownViewer and not BuffIconCooldownViewer.__quiOnUpdateHooked then
         BuffIconCooldownViewer.__quiOnUpdateHooked = true
         BuffIconCooldownViewer.__quiElapsed = 0
@@ -1334,6 +1334,35 @@ local function Initialize()
         hooksecurefunc(BuffBarCooldownViewer, "Layout", function()
             if isBarLayoutRunning then return end
             LayoutBuffBars()  -- Direct call
+        end)
+    end
+
+    ---------------------------------------------------------------------------
+    -- EVENT-BASED UPDATES: UNIT_AURA hook for immediate buff change detection
+    -- (Replaces polling as primary detection - polling becomes fallback only)
+    ---------------------------------------------------------------------------
+
+    if BuffIconCooldownViewer and not BuffIconCooldownViewer.__quiAuraHook then
+        BuffIconCooldownViewer.__quiAuraHook = CreateFrame("Frame")
+        BuffIconCooldownViewer.__quiAuraHook:RegisterEvent("UNIT_AURA")
+        BuffIconCooldownViewer.__quiAuraHook:SetScript("OnEvent", function(_, event, unit)
+            if unit == "player" and BuffIconCooldownViewer:IsShown() then
+                -- Debounce: only queue one rescan per 0.1s window
+                if not BuffIconCooldownViewer.__quiRescanPending then
+                    BuffIconCooldownViewer.__quiRescanPending = true
+                    C_Timer.After(0.1, function()
+                        BuffIconCooldownViewer.__quiRescanPending = nil
+                        -- Re-check visibility after timer (viewer may have hidden)
+                        if BuffIconCooldownViewer:IsShown() then
+                            if isIconLayoutRunning then return end
+                            if IsLayoutSuppressed() then return end
+                            -- Reset hash to force layout recalculation
+                            lastIconHash = ""
+                            CheckIconChanges()
+                        end
+                    end)
+                end
+            end
         end)
     end
 
