@@ -214,7 +214,12 @@ function Datapanels:UpdateSlots(panel)
         
         -- Store slot index
         slot.index = i
-        
+
+        -- Apply per-slot shortLabel/noLabel settings (#119)
+        local slotSettings = panel.config.slotSettings and panel.config.slotSettings[i]
+        slot.shortLabel = slotSettings and slotSettings.shortLabel or false
+        slot.noLabel = slotSettings and slotSettings.noLabel or false
+
         -- Forward drag events to parent
         slot:EnableMouse(true)
         slot:RegisterForDrag("LeftButton")
