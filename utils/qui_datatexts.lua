@@ -2552,7 +2552,8 @@ Datatexts:Register("currencies", {
                 if info and info.quantity then
                     shown = shown + 1
                     local icon = format(iconString, info.iconFileID)
-                    local quantity = AbbreviateLargeNumbers and AbbreviateLargeNumbers(info.quantity) or tostring(info.quantity)
+                    local abbr = AbbreviateNumbers or AbbreviateLargeNumbers
+                    local quantity = abbr and abbr(info.quantity) or tostring(info.quantity)
                     if displayString ~= "" then
                         displayString = displayString .. " "
                     end

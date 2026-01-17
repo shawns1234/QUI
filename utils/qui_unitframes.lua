@@ -335,8 +335,10 @@ local function FormatHealthText(hp, hpPct, style, divider, maxHp)
     divider = divider or " | "
 
     -- Use pcall to handle Midnight secret values from UnitHealth()
+    -- Prefer AbbreviateNumbers (Midnight API) over AbbreviateLargeNumbers (legacy)
     local success, hpStr = pcall(function()
-        return AbbreviateLargeNumbers and AbbreviateLargeNumbers(hp) or tostring(hp)
+        local abbr = AbbreviateNumbers or AbbreviateLargeNumbers
+        return abbr and abbr(hp) or tostring(hp)
     end)
     if not success then hpStr = "" end
 
@@ -377,7 +379,8 @@ local function FormatHealthText(hp, hpPct, style, divider, maxHp)
             local success, missing = pcall(function() return maxHp - hp end)
             if not success then return "" end
             if missing > 0 then
-                local missingStr = AbbreviateLargeNumbers and AbbreviateLargeNumbers(missing) or tostring(missing)
+                local abbr = AbbreviateNumbers or AbbreviateLargeNumbers
+                local missingStr = abbr and abbr(missing) or tostring(missing)
                 return "-" .. missingStr
             end
             return "0"
@@ -398,9 +401,11 @@ local function FormatPowerText(power, powerPct, style, divider)
     divider = divider or " | "
 
     -- Format current power value (pcall for secret value protection)
+    -- Prefer AbbreviateNumbers (Midnight API) over AbbreviateLargeNumbers (legacy)
     local powerStr = ""
     pcall(function()
-        powerStr = AbbreviateLargeNumbers and AbbreviateLargeNumbers(power) or tostring(power)
+        local abbr = AbbreviateNumbers or AbbreviateLargeNumbers
+        powerStr = abbr and abbr(power) or tostring(power)
     end)
 
     -- All return paths wrapped in pcall to catch secret values in string operations
