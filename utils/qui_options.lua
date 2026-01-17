@@ -10477,6 +10477,11 @@ local function CreateUnitFramesPage(parent)
         heightSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
+        local borderSizeSlider = GUI:CreateFormSlider(tabContent, "Border Size", 0, 5, 1, "borderSize", unitDB, RefreshUnit)
+        borderSizeSlider:SetPoint("TOPLEFT", PAD, y)
+        borderSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
         -- Boss frames get spacing slider
         if unitKey == "boss" then
             local spacingSlider = GUI:CreateFormSlider(tabContent, "Spacing", 0, 100, 1, "spacing", unitDB, RefreshUnit)
