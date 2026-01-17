@@ -10311,17 +10311,17 @@ local function CreateUnitFramesPage(parent)
         hostilityDesc:SetJustifyH("LEFT")
         y = y - 24
 
-        local hostileColor = GUI:CreateFormColorPicker(tabContent, "Hostile Color", "hostilityColorHostile", ufdb.general, RefreshNewUF, { noAlpha = true })
+        local hostileColor = GUI:CreateFormColorPicker(tabContent, "Hostile Color", "hostilityColorHostile", general, RefreshNewUF, { noAlpha = true })
         hostileColor:SetPoint("TOPLEFT", PAD, y)
         hostileColor:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
-        local neutralColor = GUI:CreateFormColorPicker(tabContent, "Neutral Color", "hostilityColorNeutral", ufdb.general, RefreshNewUF, { noAlpha = true })
+        local neutralColor = GUI:CreateFormColorPicker(tabContent, "Neutral Color", "hostilityColorNeutral", general, RefreshNewUF, { noAlpha = true })
         neutralColor:SetPoint("TOPLEFT", PAD, y)
         neutralColor:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
-        local friendlyColor = GUI:CreateFormColorPicker(tabContent, "Friendly Color", "hostilityColorFriendly", ufdb.general, RefreshNewUF, { noAlpha = true })
+        local friendlyColor = GUI:CreateFormColorPicker(tabContent, "Friendly Color", "hostilityColorFriendly", general, RefreshNewUF, { noAlpha = true })
         friendlyColor:SetPoint("TOPLEFT", PAD, y)
         friendlyColor:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW

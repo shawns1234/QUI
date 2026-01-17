@@ -1391,25 +1391,13 @@ local function CreateBossFrame(unit, frameKey, bossIndex)
     healAbsorbBar:SetReverseFill(true)
     frame.healAbsorbBar = healAbsorbBar
 
-    -- Set initial health bar color
+    -- Set initial health bar color based on settings (use same logic as UpdateFrame)
     if general and general.darkMode then
         local c = general.darkModeHealthColor or { 0.15, 0.15, 0.15, 1 }
         healthBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
     else
-        -- Default mode: use class color or custom default health color
-        if general and general.defaultUseClassColor then
-            local _, class = UnitClass("player")
-            if class and RAID_CLASS_COLORS[class] then
-                local color = RAID_CLASS_COLORS[class]
-                healthBar:SetStatusBarColor(color.r, color.g, color.b, 1)
-            else
-                local c = general.defaultHealthColor or { 0.2, 0.2, 0.2, 1 }
-                healthBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
-            end
-        else
-            local c = general and general.defaultHealthColor or { 0.2, 0.2, 0.2, 1 }
-            healthBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
-        end
+        local r, g, b, a = GetHealthBarColor(unit, settings)
+        healthBar:SetStatusBarColor(r, g, b, a)
     end
 
     -- Power bar
@@ -1419,7 +1407,8 @@ local function CreateBossFrame(unit, frameKey, bossIndex)
         powerBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -borderSize, borderSize)
         powerBar:SetHeight(powerHeight)
         powerBar:SetStatusBarTexture(GetTexturePath(settings.texture))
-        powerBar:SetStatusBarColor(0, 0.5, 1, 1)
+        local powerColor = settings.powerBarColor or { 0, 0.5, 1, 1 }
+        powerBar:SetStatusBarColor(powerColor[1], powerColor[2], powerColor[3], powerColor[4] or 1)
         powerBar:SetMinMaxValues(0, 100)
         powerBar:SetValue(100)
         powerBar:EnableMouse(false)
@@ -1703,25 +1692,13 @@ local function CreateUnitFrame(unit, unitKey)
     healAbsorbBar:SetReverseFill(true)
     frame.healAbsorbBar = healAbsorbBar
 
-    -- Set initial health bar color based on settings
+    -- Set initial health bar color based on settings (use same logic as UpdateFrame)
     if general and general.darkMode then
         local c = general.darkModeHealthColor or { 0.15, 0.15, 0.15, 1 }
         healthBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
     else
-        -- Default mode: use class color or custom default health color
-        if general and general.defaultUseClassColor then
-            local _, class = UnitClass("player")
-            if class and RAID_CLASS_COLORS[class] then
-                local color = RAID_CLASS_COLORS[class]
-                healthBar:SetStatusBarColor(color.r, color.g, color.b, 1)
-            else
-                local c = general.defaultHealthColor or { 0.2, 0.2, 0.2, 1 }
-                healthBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
-            end
-        else
-            local c = general and general.defaultHealthColor or { 0.2, 0.2, 0.2, 1 }
-            healthBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
-        end
+        local r, g, b, a = GetHealthBarColor(unit, settings)
+        healthBar:SetStatusBarColor(r, g, b, a)
     end
 
     -- Power bar (inside the frame, at the bottom, pixel-perfect)
@@ -1733,8 +1710,9 @@ local function CreateUnitFrame(unit, unitKey)
         powerBar:SetStatusBarTexture(GetTexturePath(settings.texture))
         powerBar:SetMinMaxValues(0, 100)
         powerBar:SetValue(100)
-        -- Set initial power color (mana blue as default)
-        powerBar:SetStatusBarColor(0, 0.5, 1, 1)
+        -- Set initial power color from settings
+        local powerColor = settings.powerBarColor or { 0, 0.5, 1, 1 }
+        powerBar:SetStatusBarColor(powerColor[1], powerColor[2], powerColor[3], powerColor[4] or 1)
         powerBar:EnableMouse(false)
         frame.powerBar = powerBar
 
@@ -3484,7 +3462,8 @@ function QUI_UF:RefreshFrame(unitKey)
             powerBar:SetStatusBarTexture(texturePath)
             powerBar:SetMinMaxValues(0, 100)
             powerBar:SetValue(100)
-            powerBar:SetStatusBarColor(0, 0.5, 1, 1)
+            local powerColor = settings.powerBarColor or { 0, 0.5, 1, 1 }
+            powerBar:SetStatusBarColor(powerColor[1], powerColor[2], powerColor[3], powerColor[4] or 1)
             powerBar:EnableMouse(false)
             frame.powerBar = powerBar
         end
