@@ -691,15 +691,19 @@ local function SkinButton(button, settings)
     end
 
     -- Create or update Normal overlay (border frame texture)
-    if not button._quiNormal then
-        button._quiNormal = button:CreateTexture(nil, "OVERLAY", nil, 1)
-        button._quiNormal:SetTexture(TEXTURES.normal)
-        button._quiNormal:SetVertexColor(0, 0, 0, 1)
+    if settings.showBorders ~= false then
+        if not button._quiNormal then
+            button._quiNormal = button:CreateTexture(nil, "OVERLAY", nil, 1)
+            button._quiNormal:SetTexture(TEXTURES.normal)
+            button._quiNormal:SetVertexColor(0, 0, 0, 1)
+        end
+        button._quiNormal:SetSize(iconSize, iconSize)
+        button._quiNormal:ClearAllPoints()
+        button._quiNormal:SetAllPoints(button)
+        button._quiNormal:Show()
+    elseif button._quiNormal then
+        button._quiNormal:Hide()
     end
-    button._quiNormal:SetSize(iconSize, iconSize)
-    button._quiNormal:ClearAllPoints()
-    button._quiNormal:SetAllPoints(button)
-    button._quiNormal:Show()
 
     -- Create or update Gloss overlay (ADD blend shine)
     if settings.showGloss then

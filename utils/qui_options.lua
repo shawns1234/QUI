@@ -11949,6 +11949,12 @@ local function CreateActionBarsPage(parent)
         glossAlphaSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
+        local bordersCheck = GUI:CreateFormCheckbox(tabContent, "Show Button Borders",
+            "showBorders", global, RefreshActionBars)
+        bordersCheck:SetPoint("TOPLEFT", PAD, y)
+        bordersCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
         ---------------------------------------------------------
         -- Section: Bar Layout
         ---------------------------------------------------------
@@ -12370,6 +12376,13 @@ local function CreateActionBarsPage(parent)
             glossAlphaSlider:SetPoint("TOPLEFT", 0, sy)
             glossAlphaSlider:SetPoint("RIGHT", container, "RIGHT", 0, 0)
             table.insert(widgetRefs, glossAlphaSlider)
+            sy = sy - FORM_ROW
+
+            local bordersCheck = GUI:CreateFormCheckbox(container, "Show Borders",
+                "showBorders", barDB, RefreshActionBars)
+            bordersCheck:SetPoint("TOPLEFT", 0, sy)
+            bordersCheck:SetPoint("RIGHT", container, "RIGHT", 0, 0)
+            table.insert(widgetRefs, bordersCheck)
             sy = sy - FORM_ROW
 
             -- Keybind Section
