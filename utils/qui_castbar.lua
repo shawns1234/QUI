@@ -1805,17 +1805,19 @@ function QUI_Castbar:SetupBossCastbar(castbar, unit, bossIndex, castSettings)
             self:SetScript("OnUpdate", CastBar_OnUpdate)
             self:Show()
         else
-            -- No real cast - check if preview mode is enabled
+            -- No real cast - check if preview mode is enabled AND boss frame preview is active
             C_Timer.After(0.1, function()
                 if not UnitCastingInfo(self.unit) and not UnitChannelInfo(self.unit) then
                     ClearEmpoweredState(self)
                     local settings = GetUnitSettings(self.unitKey)
-                    if settings and settings.castbar and settings.castbar.previewMode then
+                    local QUI_UF = QUI_Castbar.unitFramesModule
+                    local bossFramePreviewActive = QUI_UF and QUI_UF.previewMode and QUI_UF.previewMode["boss" .. bossIndex]
+                    if settings and settings.castbar and settings.castbar.previewMode and bossFramePreviewActive then
                         -- Show preview simulation
-                        SimulateCast(self, castSettings, self.unitKey)
+                        SimulateCast(self, castSettings, self.unitKey, bossIndex)
                         self:SetScript("OnUpdate", CastBar_OnUpdate)
                     else
-                        -- No preview mode - hide
+                        -- No preview mode or boss frame not in preview - hide
                         if self.isPreviewSimulation then
                             ClearPreviewSimulation(self)
                         end
@@ -1826,7 +1828,7 @@ function QUI_Castbar:SetupBossCastbar(castbar, unit, bossIndex, castSettings)
             end)
         end
     end
-    
+
     -- Register events
     castbar:RegisterUnitEvent("UNIT_SPELLCAST_START", unit)
     castbar:RegisterUnitEvent("UNIT_SPELLCAST_STOP", unit)
@@ -2089,16 +2091,18 @@ function QUI_Castbar:CreateBossCastbar(unitFrame, unit, bossIndex)
             self:SetScript("OnUpdate", BossCastBar_OnUpdate)
             self:Show()
         else
-            -- No real cast - check if preview mode is enabled
+            -- No real cast - check if preview mode is enabled AND boss frame preview is active
             C_Timer.After(0.1, function()
                 if not UnitCastingInfo(self.unit) and not UnitChannelInfo(self.unit) then
                     local settings = GetUnitSettings(self.unitKey)
-                    if settings and settings.castbar and settings.castbar.previewMode then
+                    local QUI_UF = QUI_Castbar.unitFramesModule
+                    local bossFramePreviewActive = QUI_UF and QUI_UF.previewMode and QUI_UF.previewMode["boss" .. self.bossIndex]
+                    if settings and settings.castbar and settings.castbar.previewMode and bossFramePreviewActive then
                         -- Show preview simulation
                         SimulateCast(self, castSettings, "boss", self.bossIndex)
                         self:SetScript("OnUpdate", BossCastBar_OnUpdate)
                     else
-                        -- No preview mode - hide
+                        -- No preview mode or boss frame not in preview - hide
                         if self.isPreviewSimulation then
                             ClearPreviewSimulation(self)
                         end
@@ -2137,15 +2141,17 @@ function QUI_Castbar:CreateBossCastbar(unitFrame, unit, bossIndex)
         end
     end)
 
-    -- Apply preview if enabled and start OnUpdate
-    if castSettings.previewMode then
+    -- Apply preview if enabled AND boss frame preview is active
+    local QUI_UF = QUI_Castbar.unitFramesModule
+    local bossFramePreviewActive = QUI_UF and QUI_UF.previewMode and QUI_UF.previewMode["boss" .. bossIndex]
+    if castSettings.previewMode and bossFramePreviewActive then
         SimulateCast(anchorFrame, castSettings, "boss", bossIndex)
         -- Start OnUpdate handler for preview
         if anchorFrame.bossOnUpdate then
             anchorFrame:SetScript("OnUpdate", anchorFrame.bossOnUpdate)
         end
     end
-    
+
     return anchorFrame
 end
 
