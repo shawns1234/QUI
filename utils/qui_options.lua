@@ -4224,7 +4224,7 @@ local function CreateMinimapPage(parent)
 
             -- Build datatext options from registry (no section header - flows from Vertical Offset)
             -- NOTE: Use QUICore.Datatexts:GetAll() for consistent behavior with extra panels (#89)
-            local dtOptions = {{value = nil, text = "(empty)"}}
+            local dtOptions = {{value = "", text = "(empty)"}}
             if QUICore and QUICore.Datatexts then
                 local allDatatexts = QUICore.Datatexts:GetAll()
                 for _, datatextDef in ipairs(allDatatexts) do
@@ -4591,7 +4591,7 @@ local function CreateMinimapPage(parent)
                         slotLabel:SetText("Slot " .. slotIdx .. ":")
                         
                         -- Build datatext options
-                        local datatextOptions = {{value = nil, text = "(empty)"}}
+                        local datatextOptions = {{value = "", text = "(empty)"}}
                         if QUICore and QUICore.Datatexts then
                             local allDatatexts = QUICore.Datatexts:GetAll()
                             for _, datatextDef in ipairs(allDatatexts) do
@@ -4601,14 +4601,14 @@ local function CreateMinimapPage(parent)
                                 })
                             end
                         end
-                        
-                        -- Ensure slot entry exists
+
+                        -- Ensure slot entry exists (use "" for empty, not nil - SavedVariables can't persist nil)
                         if not panelConfig.slots[slotIdx] then
-                            panelConfig.slots[slotIdx] = nil
+                            panelConfig.slots[slotIdx] = ""
                         end
-                        
+
                         -- Create a wrapper table for the dropdown to reference
-                        local slotWrapper = {value = panelConfig.slots[slotIdx]}
+                        local slotWrapper = {value = panelConfig.slots[slotIdx] or ""}
                         
                         local slotDropdown = GUI:CreateDropdown(editFrame, "", datatextOptions, "value", slotWrapper, function()
                             panelConfig.slots[slotIdx] = slotWrapper.value
