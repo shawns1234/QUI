@@ -7407,11 +7407,37 @@ local function CreateCDMSetupPage(parent)
         specialHeader:SetPoint("TOPLEFT", PAD, y)
         y = y - specialHeader.gap
 
-        local staggerColor = GUI:CreateFormColorPicker(tabContent, "Stagger", "stagger", pc, RefreshPowerBars)
+        local staggerColor = GUI:CreateFormColorPicker(tabContent, "Stagger (Fallback)", "stagger", pc, RefreshPowerBars)
         staggerColor:SetPoint("TOPLEFT", PAD, y)
         staggerColor:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         staggerColor.dbKey = "stagger"
         table.insert(powerColorWidgets, staggerColor)
+        y = y - FORM_ROW
+
+        local useStaggerLevels = GUI:CreateFormCheckbox(tabContent, "Use Stagger Level Colors", "useStaggerLevelColors", pc, RefreshPowerBars)
+        useStaggerLevels:SetPoint("TOPLEFT", PAD, y)
+        useStaggerLevels:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local staggerLightColor = GUI:CreateFormColorPicker(tabContent, "Stagger - Light (0-30%)", "staggerLight", pc, RefreshPowerBars)
+        staggerLightColor:SetPoint("TOPLEFT", PAD, y)
+        staggerLightColor:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        staggerLightColor.dbKey = "staggerLight"
+        table.insert(powerColorWidgets, staggerLightColor)
+        y = y - FORM_ROW
+
+        local staggerModerateColor = GUI:CreateFormColorPicker(tabContent, "Stagger - Moderate (30-60%)", "staggerModerate", pc, RefreshPowerBars)
+        staggerModerateColor:SetPoint("TOPLEFT", PAD, y)
+        staggerModerateColor:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        staggerModerateColor.dbKey = "staggerModerate"
+        table.insert(powerColorWidgets, staggerModerateColor)
+        y = y - FORM_ROW
+
+        local staggerHeavyColor = GUI:CreateFormColorPicker(tabContent, "Stagger - Heavy (60%+)", "staggerHeavy", pc, RefreshPowerBars)
+        staggerHeavyColor:SetPoint("TOPLEFT", PAD, y)
+        staggerHeavyColor:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        staggerHeavyColor.dbKey = "staggerHeavy"
+        table.insert(powerColorWidgets, staggerHeavyColor)
         y = y - FORM_ROW
 
         local soulFragmentsColor = GUI:CreateFormColorPicker(tabContent, "Soul Fragments", "soulFragments", pc, RefreshPowerBars)

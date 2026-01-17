@@ -298,7 +298,22 @@ local function GetResourceColor(resource)
         local customColor = nil
 
         if resource == "STAGGER" then
-            customColor = pc.stagger
+            -- Dynamic stagger level colors (Light/Moderate/Heavy)
+            if pc.useStaggerLevelColors then
+                local stagger = UnitStagger("player") or 0
+                local maxHealth = UnitHealthMax("player") or 1
+                local staggerPercent = (stagger / maxHealth) * 100
+
+                if staggerPercent >= 60 then
+                    customColor = pc.staggerHeavy
+                elseif staggerPercent >= 30 then
+                    customColor = pc.staggerModerate
+                else
+                    customColor = pc.staggerLight
+                end
+            else
+                customColor = pc.stagger
+            end
         elseif resource == "SOUL" then
             customColor = pc.soulFragments
         elseif resource == Enum.PowerType.SoulShards then
