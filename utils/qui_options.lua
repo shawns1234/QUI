@@ -4224,7 +4224,7 @@ local function CreateMinimapPage(parent)
 
             -- Build datatext options from registry (no section header - flows from Vertical Offset)
             -- NOTE: Use QUICore.Datatexts:GetAll() for consistent behavior with extra panels (#89)
-            local dtOptions = {{value = nil, text = "(empty)"}}
+            local dtOptions = {{value = "", text = "(empty)"}}
             if QUICore and QUICore.Datatexts then
                 local allDatatexts = QUICore.Datatexts:GetAll()
                 for _, datatextDef in ipairs(allDatatexts) do
@@ -4250,7 +4250,7 @@ local function CreateMinimapPage(parent)
             end)
             slot1:SetPoint("TOPLEFT", PAD, y)
             slot1:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            if slot1.SetValue then slot1.SetValue(dt.slots[1]) end
+            if slot1.SetValue then slot1.SetValue(dt.slots[1] or "") end
             y = y - FORM_ROW
 
             local slot1NoLabel  -- Forward declare for mutual reference
@@ -4291,7 +4291,7 @@ local function CreateMinimapPage(parent)
             end)
             slot2:SetPoint("TOPLEFT", PAD, y)
             slot2:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            if slot2.SetValue then slot2.SetValue(dt.slots[2]) end
+            if slot2.SetValue then slot2.SetValue(dt.slots[2] or "") end
             y = y - FORM_ROW
 
             local slot2NoLabel  -- Forward declare for mutual reference
@@ -4332,7 +4332,7 @@ local function CreateMinimapPage(parent)
             end)
             slot3:SetPoint("TOPLEFT", PAD, y)
             slot3:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            if slot3.SetValue then slot3.SetValue(dt.slots[3]) end
+            if slot3.SetValue then slot3.SetValue(dt.slots[3] or "") end
             y = y - FORM_ROW
 
             local slot3NoLabel  -- Forward declare for mutual reference
@@ -4591,7 +4591,7 @@ local function CreateMinimapPage(parent)
                         slotLabel:SetText("Slot " .. slotIdx .. ":")
                         
                         -- Build datatext options
-                        local datatextOptions = {{value = nil, text = "(empty)"}}
+                        local datatextOptions = {{value = "", text = "(empty)"}}
                         if QUICore and QUICore.Datatexts then
                             local allDatatexts = QUICore.Datatexts:GetAll()
                             for _, datatextDef in ipairs(allDatatexts) do
@@ -4601,14 +4601,14 @@ local function CreateMinimapPage(parent)
                                 })
                             end
                         end
-                        
-                        -- Ensure slot entry exists
+
+                        -- Ensure slot entry exists (use "" for empty, not nil - SavedVariables can't persist nil)
                         if not panelConfig.slots[slotIdx] then
-                            panelConfig.slots[slotIdx] = nil
+                            panelConfig.slots[slotIdx] = ""
                         end
-                        
+
                         -- Create a wrapper table for the dropdown to reference
-                        local slotWrapper = {value = panelConfig.slots[slotIdx]}
+                        local slotWrapper = {value = panelConfig.slots[slotIdx] or ""}
                         
                         local slotDropdown = GUI:CreateDropdown(editFrame, "", datatextOptions, "value", slotWrapper, function()
                             panelConfig.slots[slotIdx] = slotWrapper.value
