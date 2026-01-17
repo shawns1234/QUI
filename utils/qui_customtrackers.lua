@@ -1335,8 +1335,8 @@ function CustomTrackers:StartCooldownPolling(bar)
                 -- Simplified cooldown handling - let Blizzard's Cooldown frame handle secrets
                 local hideGCD = config.hideGCD ~= false
 
-                -- Determine if on cooldown using isOnGCD flag (the reliable way!)
-                -- No secret value comparisons needed - isOnGCD is a boolean
+                -- Determine if on cooldown using API values directly
+                -- Avoids frame-delay issues with IsVisible() on cooldown frames
                 local isOnCD = false
 
                 -- If active, show active state progress instead of cooldown
@@ -1359,9 +1359,31 @@ function CustomTrackers:StartCooldownPolling(bar)
                     if hideGCD and isOnGCD then
                         -- It's just GCD - clear cooldown display, don't desaturate
                         icon.cooldown:Clear()
+                        isOnCD = false
                     else
-                        -- Not GCD (or hideGCD is off) - check if cooldown is visible
-                        isOnCD = icon.cooldown:IsVisible()
+                        -- Try multiple methods to detect cooldown (Midnight secret value handling)
+                        -- Method 1: Direct API comparison (works out of combat)
+                        local checkSuccess, checkResult = pcall(function()
+                            return startTime and startTime > 0 and duration and duration > 0
+                        end)
+                        if checkSuccess then
+                            isOnCD = checkResult
+                        else
+                            -- Method 2: Check cooldown frame's duration (also may be secret)
+                            local durationSuccess, durationResult = pcall(function()
+                                local cdRemaining = icon.cooldown:GetCooldownDuration()
+                                return cdRemaining and cdRemaining > 0
+                            end)
+                            if durationSuccess then
+                                isOnCD = durationResult
+                            else
+                                -- Method 3: Check if cooldown swipe is visible
+                                -- The cooldown frame draws its swipe only when there's an active cooldown.
+                                -- After SetCooldown(0,0) or Clear(), the swipe disappears.
+                                -- IsShown() is a frame property, not protected API data.
+                                isOnCD = icon.cooldown:IsShown()
+                            end
+                        end
                     end
                 end
 
