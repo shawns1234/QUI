@@ -1407,22 +1407,26 @@ local function CreateBossFrame(unit, frameKey, bossIndex)
     -- Name text
     if settings.showName then
         local nameAnchorInfo = GetTextAnchorInfo(settings.nameAnchor or "LEFT")
+        local nameOffsetX = Scale(settings.nameOffsetX or 4)
+        local nameOffsetY = Scale(settings.nameOffsetY or 0)
         local nameText = healthBar:CreateFontString(nil, "OVERLAY")
         nameText:SetFont(GetFontPath(), settings.nameFontSize or 12, GetFontOutline())
         nameText:SetShadowOffset(0, 0)
-        nameText:SetPoint(nameAnchorInfo.point, healthBar, nameAnchorInfo.point, 4, 0)
+        nameText:SetPoint(nameAnchorInfo.point, healthBar, nameAnchorInfo.point, nameOffsetX, nameOffsetY)
         nameText:SetJustifyH(nameAnchorInfo.justify)
         nameText:SetText("Boss " .. bossIndex)
         frame.nameText = nameText
     end
-    
+
     -- Health text
     if settings.showHealth then
         local healthAnchorInfo = GetTextAnchorInfo(settings.healthAnchor or "RIGHT")
+        local healthOffsetX = Scale(settings.healthOffsetX or -4)
+        local healthOffsetY = Scale(settings.healthOffsetY or 0)
         local healthText = healthBar:CreateFontString(nil, "OVERLAY")
         healthText:SetFont(GetFontPath(), settings.healthFontSize or 11, GetFontOutline())
         healthText:SetShadowOffset(0, 0)
-        healthText:SetPoint(healthAnchorInfo.point, healthBar, healthAnchorInfo.point, -4, 0)
+        healthText:SetPoint(healthAnchorInfo.point, healthBar, healthAnchorInfo.point, healthOffsetX, healthOffsetY)
         healthText:SetJustifyH(healthAnchorInfo.justify)
         healthText:SetText("100%")
         frame.healthText = healthText
@@ -1433,8 +1437,8 @@ local function CreateBossFrame(unit, frameKey, bossIndex)
     local powerText = healthBar:CreateFontString(nil, "OVERLAY")
     powerText:SetFont(GetFontPath(), settings.powerTextFontSize or 10, GetFontOutline())
     powerText:SetShadowOffset(0, 0)
-    local pOffX = settings.powerTextOffsetX or -4
-    local pOffY = settings.powerTextOffsetY or 2
+    local pOffX = Scale(settings.powerTextOffsetX or -4)
+    local pOffY = Scale(settings.powerTextOffsetY or 2)
     powerText:SetPoint(powerAnchorInfo.point, healthBar, powerAnchorInfo.point, pOffX, pOffY)
     powerText:SetJustifyH(powerAnchorInfo.justify)
     powerText:Hide()  -- Hidden by default, UpdatePowerText will show if enabled
@@ -2679,6 +2683,23 @@ function QUI_UF:ShowPreview(unitKey)
                         frame.healthBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
                     end
                 end
+
+                -- Show boss castbar preview if castbar previewMode is enabled
+                if settings and settings.castbar and settings.castbar.previewMode then
+                    local castbar = self.castbars[bossKey]
+                    if castbar and QUI_Castbar then
+                        -- Trigger the castbar to show its preview
+                        QUI_Castbar:RefreshBossCastbar(castbar, bossKey, settings.castbar, frame)
+                    end
+                end
+
+                -- Show boss aura previews if aura previewMode is enabled
+                if self.auraPreviewMode["boss_buff"] then
+                    self:ShowAuraPreviewForFrame(frame, "boss", "buff")
+                end
+                if self.auraPreviewMode["boss_debuff"] then
+                    self:ShowAuraPreviewForFrame(frame, "boss", "debuff")
+                end
             end
         end
         return
@@ -2791,11 +2812,25 @@ function QUI_UF:HidePreview(unitKey)
                 else
                     frame:Hide()
                 end
+
+                -- Hide boss castbar preview
+                local castbar = self.castbars[bossKey]
+                if castbar then
+                    castbar.isPreviewSimulation = false
+                    castbar:SetScript("OnUpdate", nil)
+                    castbar:Hide()
+                end
+
+                -- Hide boss aura previews
+                self:HideAuraPreviewForFrame(frame, bossKey, "buff")
+                self:HideAuraPreviewForFrame(frame, bossKey, "debuff")
             end
         end
+        -- Clear aura preview mode flags (don't change the saved setting)
+        -- Just visually hide them - the setting persists so they show when preview is re-enabled
         return
     end
-    
+
     local frame = self.frames[unitKey]
     if not frame then return end
     
@@ -2828,11 +2863,32 @@ end
 -- AURA PREVIEW MODE: Show fake buff/debuff icons
 ---------------------------------------------------------------------------
 function QUI_UF:ShowAuraPreview(unitKey, auraType)
+    -- Handle boss frames specially - show aura preview on all 5
+    if unitKey == "boss" then
+        local previewKey = "boss_" .. auraType
+        self.auraPreviewMode[previewKey] = true
+        -- Only show if boss frame preview is active
+        for i = 1, 5 do
+            local bossKey = "boss" .. i
+            local frame = self.frames[bossKey]
+            if frame and self.previewMode[bossKey] then
+                self:ShowAuraPreviewForFrame(frame, "boss", auraType)
+            end
+        end
+        return
+    end
+
     local frame = self.frames[unitKey]
     if not frame then return end
 
     local previewKey = unitKey .. "_" .. auraType
     self.auraPreviewMode[previewKey] = true
+
+    self:ShowAuraPreviewForFrame(frame, unitKey, auraType)
+end
+
+function QUI_UF:ShowAuraPreviewForFrame(frame, unitKey, auraType)
+    if not frame then return end
 
     -- Get settings
     local settings = GetUnitSettings(unitKey)
@@ -3027,11 +3083,31 @@ function QUI_UF:ShowAuraPreview(unitKey, auraType)
 end
 
 function QUI_UF:HideAuraPreview(unitKey, auraType)
+    -- Handle boss frames specially - hide aura preview on all 5
+    if unitKey == "boss" then
+        local previewKey = "boss_" .. auraType
+        self.auraPreviewMode[previewKey] = false
+        for i = 1, 5 do
+            local bossKey = "boss" .. i
+            local frame = self.frames[bossKey]
+            if frame then
+                self:HideAuraPreviewForFrame(frame, bossKey, auraType)
+            end
+        end
+        return
+    end
+
     local frame = self.frames[unitKey]
     if not frame then return end
 
     local previewKey = unitKey .. "_" .. auraType
     self.auraPreviewMode[previewKey] = false
+
+    self:HideAuraPreviewForFrame(frame, unitKey, auraType)
+end
+
+function QUI_UF:HideAuraPreviewForFrame(frame, unitKey, auraType)
+    if not frame then return end
 
     local isDebuff = (auraType == "debuff")
     local containerKey = isDebuff and "previewDebuffIcons" or "previewBuffIcons"
@@ -3152,36 +3228,81 @@ function QUI_UF:RefreshFrame(unitKey)
                     end
                 end
 
-                -- Update name text
-                if frame.nameText then
-                    if settings.showName then
-                        frame.nameText:SetFont(GetFontPath(), settings.nameSize or 11, GetFontOutline())
-                        frame.nameText:Show()
-                    else
-                        frame.nameText:Hide()
+                -- Update name text (create dynamically if needed)
+                if settings.showName then
+                    if not frame.nameText then
+                        local nameText = frame.healthBar:CreateFontString(nil, "OVERLAY")
+                        nameText:SetShadowOffset(0, 0)
+                        frame.nameText = nameText
                     end
-                end
-                
-                -- Update health text
-                if frame.healthText then
-                    if settings.showHealthText then
-                        frame.healthText:SetFont(GetFontPath(), settings.healthTextSize or 11, GetFontOutline())
-                        frame.healthText:Show()
+                    frame.nameText:SetFont(GetFontPath(), settings.nameFontSize or 11, GetFontOutline())
+                    local nameAnchorInfo = GetTextAnchorInfo(settings.nameAnchor or "LEFT")
+                    local nameOffsetX = Scale(settings.nameOffsetX or 4)
+                    local nameOffsetY = Scale(settings.nameOffsetY or 0)
+                    frame.nameText:ClearAllPoints()
+                    frame.nameText:SetPoint(nameAnchorInfo.point, frame.healthBar, nameAnchorInfo.point, nameOffsetX, nameOffsetY)
+                    frame.nameText:SetJustifyH(nameAnchorInfo.justify)
+                    frame.nameText:Show()
+                    -- In preview mode, set preview text; otherwise update with real data
+                    if self.previewMode[bossKey] then
+                        frame.nameText:SetText("Boss " .. i)
                     else
-                        frame.healthText:Hide()
+                        UpdateName(frame)
                     end
+                elseif frame.nameText then
+                    frame.nameText:Hide()
                 end
 
-                -- Update power text
-                if frame.powerText then
+                -- Update health text (create dynamically if needed)
+                if settings.showHealth then
+                    if not frame.healthText then
+                        local healthText = frame.healthBar:CreateFontString(nil, "OVERLAY")
+                        healthText:SetShadowOffset(0, 0)
+                        frame.healthText = healthText
+                    end
+                    frame.healthText:SetFont(GetFontPath(), settings.healthFontSize or 11, GetFontOutline())
+                    local healthAnchorInfo = GetTextAnchorInfo(settings.healthAnchor or "RIGHT")
+                    local healthOffsetX = Scale(settings.healthOffsetX or -4)
+                    local healthOffsetY = Scale(settings.healthOffsetY or 0)
+                    frame.healthText:ClearAllPoints()
+                    frame.healthText:SetPoint(healthAnchorInfo.point, frame.healthBar, healthAnchorInfo.point, healthOffsetX, healthOffsetY)
+                    frame.healthText:SetJustifyH(healthAnchorInfo.justify)
+                    frame.healthText:Show()
+                    -- In preview mode, set preview text; otherwise update with real data
+                    if self.previewMode[bossKey] then
+                        frame.healthText:SetText("100%")
+                    else
+                        UpdateHealth(frame)
+                    end
+                elseif frame.healthText then
+                    frame.healthText:Hide()
+                end
+
+                -- Update power text (create dynamically if needed)
+                if settings.showPowerText then
+                    if not frame.powerText then
+                        local powerText = frame.healthBar:CreateFontString(nil, "OVERLAY")
+                        powerText:SetShadowOffset(0, 0)
+                        frame.powerText = powerText
+                    end
                     local fontPath = GetFontPath()
                     local fontOutline = GetFontOutline()
                     frame.powerText:SetFont(fontPath, settings.powerTextFontSize or 12, fontOutline)
                     frame.powerText:ClearAllPoints()
                     local powerAnchorInfo = GetTextAnchorInfo(settings.powerTextAnchor or "BOTTOMRIGHT")
-                    frame.powerText:SetPoint(powerAnchorInfo.point, frame, powerAnchorInfo.point, Scale(settings.powerTextOffsetX or -4), Scale(settings.powerTextOffsetY or 2))
+                    local powerOffsetX = Scale(settings.powerTextOffsetX or -4)
+                    local powerOffsetY = Scale(settings.powerTextOffsetY or 2)
+                    frame.powerText:SetPoint(powerAnchorInfo.point, frame.healthBar, powerAnchorInfo.point, powerOffsetX, powerOffsetY)
                     frame.powerText:SetJustifyH(powerAnchorInfo.justify)
-                    -- Show/hide handled by UpdatePowerText based on settings.showPowerText
+                    frame.powerText:Show()
+                    -- In preview mode, set preview text; otherwise update with real data
+                    if self.previewMode[bossKey] then
+                        frame.powerText:SetText("100%")
+                    else
+                        UpdatePowerText(frame)
+                    end
+                elseif frame.powerText then
+                    frame.powerText:Hide()
                 end
 
                 -- Update target marker (boss frames)
@@ -4291,7 +4412,7 @@ function QUI_UF:Initialize()
 
     local db = GetDB()
     if not db or not db.enabled then return end
-    
+
     -- Setup castbar module with helpers and references
     if QUI_Castbar then
         QUI_Castbar:SetHelpers({
