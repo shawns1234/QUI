@@ -237,6 +237,27 @@ local function SetupTooltipHook()
         -- If owner is UIParent (world tooltip) and a UI frame is blocking the mouse
         if tooltip:GetOwner() == UIParent and IsFrameBlockingMouse() then
             tooltip:Hide()
+            return
+        end
+    end)
+
+    -- Apply class color to player names in tooltips (WoW 10.0+)
+    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tooltip)
+        if tooltip ~= GameTooltip then return end
+
+        local settings = GetSettings()
+        if not settings or not settings.enabled or not settings.classColorName then return end
+
+        local _, unit = tooltip:GetUnit()
+        if unit and UnitIsPlayer(unit) then
+            local _, class = UnitClass(unit)
+            local classColor = class and RAID_CLASS_COLORS[class]
+            if classColor then
+                local nameLine = GameTooltipTextLeft1
+                if nameLine and nameLine:GetText() then
+                    nameLine:SetTextColor(classColor.r, classColor.g, classColor.b)
+                end
+            end
         end
     end)
 

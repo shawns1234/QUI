@@ -2380,6 +2380,18 @@ local function CreateGeneralQoLPage(parent)
         cursorInfo:SetJustifyH("LEFT")
         y = y - 20
 
+        -- Class Color Name option
+        local classColorCheck = GUI:CreateFormCheckbox(tabContent, "Class Color Player Names", "classColorName", tooltip, RefreshTooltips)
+        classColorCheck:SetPoint("TOPLEFT", PADDING, y)
+        classColorCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local classColorInfo = GUI:CreateLabel(tabContent, "Color player names in tooltips by their class.", 10, C.textMuted)
+        classColorInfo:SetPoint("TOPLEFT", PADDING, y)
+        classColorInfo:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        classColorInfo:SetJustifyH("LEFT")
+        y = y - 20
+
         -- SECTION: Tooltip Visibility
         GUI:SetSearchSection("Tooltip Visibility")
         local visHeader = GUI:CreateSectionHeader(tabContent, "Tooltip Visibility")
