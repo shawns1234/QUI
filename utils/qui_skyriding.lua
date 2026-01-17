@@ -119,9 +119,9 @@ end
 -- Font Helper
 ---------------------------------------------------------------------------
 local function GetFontPath()
-    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
-    if QUICore and QUICore.GetGlobalFont then
-        return QUICore:GetGlobalFont()
+    local QUI = _G.QuaziiUI
+    if QUI and QUI.GetGlobalFont then
+        return QUI:GetGlobalFont()
     end
     -- Fallback to bundled Quazii font
     return [[Interface\AddOns\QuaziiUI\assets\Quazii.ttf]]
@@ -924,8 +924,9 @@ local function ApplySettings()
     -- Font sizes
     local vigorFontSize = settings.vigorFontSize or 11
     local speedFontSize = settings.speedFontSize or 11
-    vigorText:SetFont(GetFontPath(), vigorFontSize, "OUTLINE")
-    speedText:SetFont(GetFontPath(), speedFontSize, "OUTLINE")
+    local fontPath = GetFontPath()
+    vigorText:SetFont(fontPath, vigorFontSize, "OUTLINE")
+    speedText:SetFont(fontPath, speedFontSize, "OUTLINE")
 
     -- Update segment markers
     local _, max = GetVigorInfo()
