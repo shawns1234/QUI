@@ -112,6 +112,74 @@ local function GetTrackedBarSettings()
 end
 
 ---------------------------------------------------------------------------
+-- HEIGHT COMPENSATION: Fixes buff bar position shift after /reload
+-- CENTER-anchored frames shift when height changes; we compensate
+---------------------------------------------------------------------------
+
+-- Save position to database (persists across reloads)
+local function SaveBarPositionToDB()
+    local db = GetDB()
+    if not db then return end
+    if not BuffBarCooldownViewer then return end
+
+    local point, relativeTo, relPoint, x, y = BuffBarCooldownViewer:GetPoint(1)
+    if not point then return end
+
+    local width, height = BuffBarCooldownViewer:GetSize()
+    local relName = relativeTo and relativeTo:GetName() or "UIParent"
+
+    -- Store in database for persistence
+    db.buffBarSavedPosition = {
+        point = point,
+        relativeToName = relName,
+        relPoint = relPoint,
+        x = x,
+        y = y,
+        width = width,
+        height = height,
+    }
+end
+
+-- Load position from database and apply height compensation
+local function ApplyHeightCompensationFromDB()
+    local db = GetDB()
+    if not db or not db.buffBarSavedPosition then return end
+    if not BuffBarCooldownViewer then return end
+    if InCombatLockdown() then return end
+
+    local saved = db.buffBarSavedPosition
+    local currentWidth, currentHeight = BuffBarCooldownViewer:GetSize()
+
+    if not currentHeight or currentHeight == 0 then return end
+
+    -- Buff bars grow UPWARD, so BOTTOM edge should stay fixed
+    -- With CENTER anchor: move center UP when height INCREASES
+    local savedHeight = saved.height or currentHeight
+    local heightDiff = currentHeight - savedHeight  -- POSITIVE when taller
+    local yCompensation = heightDiff / 2  -- Move UP when taller
+
+    -- Only apply if there's a significant height difference (> 1 pixel)
+    if math.abs(heightDiff) > 1 then
+        local relativeTo = _G[saved.relativeToName] or UIParent
+
+        BuffBarCooldownViewer:ClearAllPoints()
+        BuffBarCooldownViewer:SetPoint(saved.point, relativeTo, saved.relPoint,
+                                       saved.x, saved.y + yCompensation)
+    end
+end
+
+-- Hook for edit mode exit to save position
+local function OnEditModeExitForBars()
+    -- Defer to let Blizzard finish saving the new position
+    C_Timer.After(0.15, function()
+        -- SAVE the NEW position to database (so it persists across reloads)
+        if BuffBarCooldownViewer then
+            SaveBarPositionToDB()
+        end
+    end)
+end
+
+---------------------------------------------------------------------------
 -- FORWARD DECLARATIONS
 ---------------------------------------------------------------------------
 
@@ -1337,6 +1405,11 @@ local function Initialize()
         end)
     end
 
+    -- Hook edit mode exit to save buff bar position for height compensation
+    if EditModeManagerFrame then
+        EditModeManagerFrame:HookScript("OnHide", OnEditModeExitForBars)
+    end
+
     ---------------------------------------------------------------------------
     -- EVENT-BASED UPDATES: UNIT_AURA hook for immediate buff change detection
     -- (Replaces polling as primary detection - polling becomes fallback only)
@@ -1394,6 +1467,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 ForcePopulateBuffIcons()
                 LayoutBuffIcons()  -- Direct calls
                 LayoutBuffBars()
+            end)
+            -- Apply height compensation after layouts complete (1.5 + 0.3 = 1.8s)
+            C_Timer.After(1.8, function()
+                ApplyHeightCompensationFromDB()
             end)
         end
     elseif event == "PLAYER_REGEN_ENABLED" then
