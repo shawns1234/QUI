@@ -5534,7 +5534,7 @@ local function CreateCDMSetupPage(parent)
         y = y - FORM_ROW
 
         -- Bar Height
-        local heightSlider = GUI:CreateFormSlider(tabContent, "Bar Height", 16, 48, 1, "barHeight", trackedData, RefreshBuff)
+        local heightSlider = GUI:CreateFormSlider(tabContent, "Bar Height", 2, 48, 1, "barHeight", trackedData, RefreshBuff)
         heightSlider:SetPoint("TOPLEFT", PAD, y)
         heightSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
