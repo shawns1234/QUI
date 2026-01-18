@@ -4595,13 +4595,14 @@ local function CreateMinimapPage(parent)
                     
                     -- Create dropdown for each slot
                     if not panelConfig.slots then panelConfig.slots = {} end
-                    
+                    if not panelConfig.slotSettings then panelConfig.slotSettings = {} end
+
                     local slotDropdowns = {}
                     for slotIdx = 1, 6 do
                         local slotLabel = editFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
                         slotLabel:SetPoint("TOPLEFT", editPad, editY)
                         slotLabel:SetText("Slot " .. slotIdx .. ":")
-                        
+
                         -- Build datatext options
                         local datatextOptions = {{value = "", text = "(empty)"}}
                         if QUICore and QUICore.Datatexts then
@@ -4619,9 +4620,14 @@ local function CreateMinimapPage(parent)
                             panelConfig.slots[slotIdx] = ""
                         end
 
+                        -- Ensure slotSettings entry exists for shortLabel/noLabel (#119)
+                        if not panelConfig.slotSettings[slotIdx] then
+                            panelConfig.slotSettings[slotIdx] = { shortLabel = false, noLabel = false }
+                        end
+
                         -- Create a wrapper table for the dropdown to reference
                         local slotWrapper = {value = panelConfig.slots[slotIdx] or ""}
-                        
+
                         local slotDropdown = GUI:CreateDropdown(editFrame, "", datatextOptions, "value", slotWrapper, function()
                             panelConfig.slots[slotIdx] = slotWrapper.value
                             if QUICore and QUICore.Datapanels then
@@ -4630,17 +4636,66 @@ local function CreateMinimapPage(parent)
                         end)
                         slotDropdown:SetPoint("LEFT", slotLabel, "RIGHT", 10, 0)
                         slotDropdown:SetWidth(200)
-                        
+
+                        -- #119: Per-slot label options (Short/Hide)
+                        -- Uses compact inline GUI:CreateCheckbox (vs minimap's full-width CreateFormCheckbox)
+                        -- Pattern mirrors dt.slot1/slot2/slot3 but with array-based storage for dynamic slots
+                        local slotSettings = panelConfig.slotSettings[slotIdx]
+                        local shortLabelCb, noLabelCb  -- Forward declare for mutual reference
+
+                        shortLabelCb = GUI:CreateCheckbox(editFrame, "Short", "shortLabel", slotSettings, function(val)
+                            -- Mutual exclusion: if enabling short, disable hide
+                            if val and noLabelCb then
+                                noLabelCb.SetValue(false)
+                            end
+                            if QUICore and QUICore.Datapanels then
+                                QUICore.Datapanels:UpdatePanel(panelConfig.id)
+                            end
+                        end)
+                        shortLabelCb:SetSize(70, 20)  -- Compact for inline display
+                        shortLabelCb:SetPoint("LEFT", slotDropdown, "RIGHT", 10, 0)
+
+                        -- Hide Label checkbox (#119) - using themed GUI checkbox
+                        noLabelCb = GUI:CreateCheckbox(editFrame, "Hide", "noLabel", slotSettings, function(val)
+                            -- Mutual exclusion: if enabling hide, disable short
+                            if val and shortLabelCb then
+                                shortLabelCb.SetValue(false)
+                            end
+                            if QUICore and QUICore.Datapanels then
+                                QUICore.Datapanels:UpdatePanel(panelConfig.id)
+                            end
+                        end)
+                        noLabelCb:SetSize(60, 20)  -- Compact inline layout (vs minimap's full-width form checkboxes)
+                        noLabelCb:SetPoint("LEFT", shortLabelCb, "RIGHT", 5, 0)
+
+                        -- #119: Resolve conflict if both are true in SavedVariables (noLabel wins per GetLabel behavior)
+                        if slotSettings.shortLabel and slotSettings.noLabel then
+                            slotSettings.shortLabel = false
+                        end
+
+                        -- #119: Sync checkbox visual state with stored values
+                        if shortLabelCb.SetValue then shortLabelCb.SetValue(slotSettings.shortLabel) end
+                        if noLabelCb.SetValue then noLabelCb.SetValue(slotSettings.noLabel) end
+
                         -- Show/hide based on numSlots
                         if slotIdx <= (panelConfig.numSlots or 3) then
                             slotLabel:Show()
                             slotDropdown:Show()
+                            shortLabelCb:Show()
+                            noLabelCb:Show()
                         else
                             slotLabel:Hide()
                             slotDropdown:Hide()
+                            shortLabelCb:Hide()
+                            noLabelCb:Hide()
                         end
-                        
-                        slotDropdowns[slotIdx] = {label = slotLabel, dropdown = slotDropdown}
+
+                        slotDropdowns[slotIdx] = {
+                            label = slotLabel,
+                            dropdown = slotDropdown,
+                            shortLabelCb = shortLabelCb,
+                            noLabelCb = noLabelCb
+                        }
                         editY = editY - 30
                     end
                     
@@ -4743,9 +4798,13 @@ local function CreateMinimapPage(parent)
                             if idx <= numSlots then
                                 controls.label:Show()
                                 controls.dropdown:Show()
+                                if controls.shortLabelCb then controls.shortLabelCb:Show() end
+                                if controls.noLabelCb then controls.noLabelCb:Show() end
                             else
                                 controls.label:Hide()
                                 controls.dropdown:Hide()
+                                if controls.shortLabelCb then controls.shortLabelCb:Hide() end
+                                if controls.noLabelCb then controls.noLabelCb:Hide() end
                             end
                         end
 
@@ -4787,9 +4846,13 @@ local function CreateMinimapPage(parent)
                                 if idx <= numSlots then
                                     controls.label:Show()
                                     controls.dropdown:Show()
+                                    if controls.shortLabelCb then controls.shortLabelCb:Show() end
+                                    if controls.noLabelCb then controls.noLabelCb:Show() end
                                 else
                                     controls.label:Hide()
                                     controls.dropdown:Hide()
+                                    if controls.shortLabelCb then controls.shortLabelCb:Hide() end
+                                    if controls.noLabelCb then controls.noLabelCb:Hide() end
                                 end
                             end
                         end
