@@ -1420,7 +1420,7 @@ function CustomTrackers:StartCooldownPolling(bar)
 
                         -- isOnCD for charge spells = out of charges
                         -- Use cooldown frame to detect main cooldown active (handles secret values internally)
-                        -- NephUI pattern: set cooldown with main values, check if frame is active
+                        -- Set cooldown with main values, check if frame is active
                         local mainCDActive = false
 
                         -- Temporarily set cooldown with MAIN spell cooldown values
