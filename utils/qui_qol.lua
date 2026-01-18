@@ -299,6 +299,42 @@ local function CheckResumeLogging()
 end
 
 ---------------------------------------------------------------------------
+-- DELETE CONFIRMATION: AUTO-FILL
+---------------------------------------------------------------------------
+
+local deletePopups = {
+    ["DELETE_ITEM"] = true,
+    ["DELETE_GOOD_ITEM"] = true,
+    ["DELETE_GOOD_QUEST_ITEM"] = true,
+    ["DELETE_QUEST_ITEM"] = true,
+}
+
+hooksecurefunc("StaticPopup_Show", function(which)
+    if not deletePopups[which] then return end
+
+    local settings = GetSettings()
+    if not settings or not settings.autoDeleteConfirm then return end
+
+    -- Find the popup frame that's showing this dialog
+    for i = 1, STATICPOPUP_NUMDIALOGS or 4 do
+        local frame = _G["StaticPopup" .. i]
+        if frame and frame.which == which and frame:IsShown() then
+            local editBox = frame.editBox or _G["StaticPopup" .. i .. "EditBox"]
+            if editBox then
+                editBox:SetText(DELETE_ITEM_CONFIRM_STRING or "DELETE")
+                -- Trigger OnTextChanged to enable the confirm button
+                local handler = editBox:GetScript("OnTextChanged")
+                if handler then
+                    handler(editBox)
+                end
+                -- Note: Cannot auto-click - DeleteCursorItem() is protected
+            end
+            break
+        end
+    end
+end)
+
+---------------------------------------------------------------------------
 -- EVENT REGISTRATION
 ---------------------------------------------------------------------------
 
