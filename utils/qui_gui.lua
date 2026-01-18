@@ -737,16 +737,16 @@ function GUI:CreateColorPicker(parent, label, dbKey, dbTable, onChange)
             r = r,
             g = g,
             b = b,
-            opacity = 1 - originalA,
+            opacity = originalA,
             hasOpacity = true,
             swatchFunc = function()
                 local newR, newG, newB = ColorPickerFrame:GetColorRGB()
-                local newA = 1 - ColorPickerFrame:GetColorAlpha()
+                local newA = ColorPickerFrame:GetColorAlpha()
                 SetColor(newR, newG, newB, newA)
             end,
             opacityFunc = function()
                 local newR, newG, newB = ColorPickerFrame:GetColorRGB()
-                local newA = 1 - ColorPickerFrame:GetColorAlpha()
+                local newA = ColorPickerFrame:GetColorAlpha()
                 SetColor(newR, newG, newB, newA)
             end,
             cancelFunc = function(prev)
