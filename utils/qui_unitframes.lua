@@ -7,6 +7,7 @@
 local ADDON_NAME, ns = ...
 local QUICore = ns.Addon
 local LSM = LibStub("LibSharedMedia-3.0")
+local IsSecretValue = function(v) return ns.Utils and ns.Utils.IsSecretValue and ns.Utils.IsSecretValue(v) or false end
 
 ---------------------------------------------------------------------------
 -- MODULE TABLE
@@ -125,17 +126,6 @@ local function GetPowerPct(unit, powerType, usePredicted)
         return result
     end
     return nil
-end
-
----------------------------------------------------------------------------
--- HELPER: Safe secret value check (checks if global exists first)
----------------------------------------------------------------------------
-local function IsSecretValue(value)
-    if type(issecretvalue) == "function" then
-        return issecretvalue(value)
-    end
-    -- Fallback: if issecretvalue doesn't exist, assume value is not secret
-    return false
 end
 
 ---------------------------------------------------------------------------
@@ -502,7 +492,9 @@ local function GetHealthBarColor(unit, settings)
             end
         else
             -- Unit is not a player (pet, NPC, etc.) - use owner's class color for pets
-            local isPet = UnitIsUnit(unit, "pet") or UnitIsUnit(unit, "playerpet")
+            local petCheck = UnitIsUnit(unit, "pet")
+            local playerPetCheck = UnitIsUnit(unit, "playerpet")
+            local isPet = (not IsSecretValue(petCheck) and petCheck == true) or (not IsSecretValue(playerPetCheck) and playerPetCheck == true)
             if isPet then
                 -- Pet: use player's class color
                 local _, class = UnitClass("player")

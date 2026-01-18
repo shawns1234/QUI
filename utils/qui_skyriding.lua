@@ -7,6 +7,7 @@ local QUI = ns.QUI or {}
 ns.QUI = QUI
 
 local LSM = LibStub("LibSharedMedia-3.0")
+local IsSecretValue = function(v) return ns.Utils and ns.Utils.IsSecretValue and ns.Utils.IsSecretValue(v) or false end
 
 -- Constants
 local VIGOR_SPELL_ID = 372608
@@ -81,8 +82,7 @@ local function GetVigorInfo()
     if not data then return 0, 6, 0, 0, 1 end
 
     -- Check for secret values (API restriction when not skyriding)
-    -- issecretvalue() only exists in 12.0+, so check for its existence first
-    if issecretvalue and issecretvalue(data.maxCharges) then
+    if IsSecretValue(data.maxCharges) then
         return 0, 6, 0, 0, 1
     end
 
@@ -98,8 +98,7 @@ local function GetSecondWindInfo()
     if not data then return 0, 0, 0, 0, 1 end
 
     -- Check for secret values (API restriction)
-    -- issecretvalue() only exists in 12.0+, so check for its existence first
-    if issecretvalue and issecretvalue(data.maxCharges) then
+    if IsSecretValue(data.maxCharges) then
         return 0, 0, 0, 0, 1
     end
 
@@ -747,7 +746,7 @@ local function UpdateAbilityIcon()
 
     -- Get cooldown info
     local cooldownInfo = C_Spell.GetSpellCooldown(WHIRLING_SURGE_SPELL_ID)
-    if cooldownInfo and cooldownInfo.duration and not (issecretvalue and issecretvalue(cooldownInfo.duration)) and cooldownInfo.duration > 0 then
+    if cooldownInfo and cooldownInfo.duration and not IsSecretValue(cooldownInfo.duration) and cooldownInfo.duration > 0 then
         abilityIconCooldown:SetCooldown(cooldownInfo.startTime, cooldownInfo.duration)
     else
         abilityIconCooldown:Clear()

@@ -1,5 +1,6 @@
 local ADDON_NAME, ns = ...
 local QUICore = ns.Addon
+local IsSecretValue = function(v) return ns.Utils and ns.Utils.IsSecretValue and ns.Utils.IsSecretValue(v) or false end
 
 ---------------------------------------------------------------------------
 -- QUI Missing Raid Buffs Display
@@ -118,18 +119,12 @@ end
 -- HELPER FUNCTIONS
 ---------------------------------------------------------------------------
 
--- Use native issecretvalue() in Midnight (12.x), fallback pcall for TWW (11.x)
+-- Safe value check - returns nil if secret value, otherwise returns the value
 local function SafeBooleanCheck(value)
-    if issecretvalue then
-        -- Midnight: use native API
-        if issecretvalue(value) then
-            return nil
-        end
-        return value
-    else
-        -- TWW: no secret values, return as-is
-        return value
+    if IsSecretValue(value) then
+        return nil
     end
+    return value
 end
 
 -- Check if unit is within a specific range (in yards)
@@ -317,7 +312,8 @@ local function AnyGroupMemberMissingBuff(spellId, spellName, rangeYards)
     if IsInRaid() then
         for i = 1, GetNumGroupMembers() do
             local unit = "raid" .. i
-            if IsUnitAvailable(unit, rangeYards) and not UnitIsUnit(unit, "player") then
+            local isPlayer = UnitIsUnit(unit, "player")
+            if IsUnitAvailable(unit, rangeYards) and not IsSecretValue(isPlayer) and not isPlayer then
                 if not UnitHasBuff(unit, spellId, spellName) then
                     return true
                 end
@@ -347,7 +343,8 @@ local function IsProviderClassInRange(providerClass, rangeYards)
     if IsInRaid() then
         for i = 1, GetNumGroupMembers() do
             local unit = "raid" .. i
-            if not UnitIsUnit(unit, "player") then
+            local isPlayer = UnitIsUnit(unit, "player")
+            if not IsSecretValue(isPlayer) and not isPlayer then
                 local class = SafeUnitClass(unit)
                 if class == providerClass and IsUnitAvailable(unit, rangeYards) then
                     return true
@@ -811,19 +808,19 @@ function QUI_RaidBuffs:Debug()
             local uirRange, uirChecked = "?", "?"
             local ok1, r1, r2 = pcall(UnitInRange, unit)
             if ok1 then
-                uirRange = issecretvalue and issecretvalue(r1) and "SECRET" or tostring(r1)
-                uirChecked = issecretvalue and issecretvalue(r2) and "SECRET" or tostring(r2)
+                uirRange = IsSecretValue(r1) and "SECRET" or tostring(r1)
+                uirChecked = IsSecretValue(r2) and "SECRET" or tostring(r2)
             end
             local cidResult = "?"
             local ok2, cid = pcall(CheckInteractDistance, unit, 1)
             if ok2 then
-                cidResult = issecretvalue and issecretvalue(cid) and "SECRET" or tostring(cid)
+                cidResult = IsSecretValue(cid) and "SECRET" or tostring(cid)
             end
             local udsResult = "N/A"
             if UnitDistanceSquared then
                 local ok3, distSq = pcall(UnitDistanceSquared, unit)
                 if ok3 then
-                    udsResult = issecretvalue and issecretvalue(distSq) and "SECRET" or tostring(distSq)
+                    udsResult = IsSecretValue(distSq) and "SECRET" or tostring(distSq)
                 end
             end
             local rangeInfo = " UnitInRange:" .. uirRange .. "/" .. uirChecked .. " CheckInteract:" .. cidResult .. " DistSq:" .. udsResult

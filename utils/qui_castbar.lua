@@ -7,6 +7,7 @@
 local ADDON_NAME, ns = ...
 local QUICore = ns.Addon
 local LSM = LibStub("LibSharedMedia-3.0")
+local IsSecretValue = function(v) return ns.Utils and ns.Utils.IsSecretValue and ns.Utils.IsSecretValue(v) or false end
 
 ---------------------------------------------------------------------------
 -- MODULE TABLE
@@ -63,17 +64,6 @@ end
 
 local function GetDB()
     return Helpers.GetDB and Helpers.GetDB() or nil
-end
-
----------------------------------------------------------------------------
--- HELPER: Safe secret value check (checks if global exists first)
----------------------------------------------------------------------------
-local function IsSecretValue(value)
-    if type(issecretvalue) == "function" then
-        return issecretvalue(value)
-    end
-    -- Fallback: if issecretvalue doesn't exist, assume value is not secret
-    return false
 end
 
 ---------------------------------------------------------------------------

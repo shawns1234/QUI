@@ -22,6 +22,15 @@ function ns.Utils.IsInInstancedContent()
     return inInstance and (instanceType == "party" or instanceType == "raid")
 end
 
+-- Check if a value is a "secret value" (12.x returns these from some unit APIs in instanced content)
+-- issecretvalue() only exists in 12.x, so we check for its existence first for 11.x compatibility
+function ns.Utils.IsSecretValue(value)
+    if type(issecretvalue) == "function" then
+        return issecretvalue(value)
+    end
+    return false
+end
+
 -- Global pending reload system
 QUICore.__pendingReload = false
 QUICore.__reloadEventFrame = nil

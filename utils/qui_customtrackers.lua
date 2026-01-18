@@ -8,6 +8,7 @@ local ADDON_NAME, ns = ...
 local QUI = QuaziiUI  -- Use global addon table, not ns.Addon (which is QUICore)
 local LSM = LibStub("LibSharedMedia-3.0")
 local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)  -- For active state glow
+local IsSecretValue = function(v) return ns.Utils and ns.Utils.IsSecretValue and ns.Utils.IsSecretValue(v) or false end
 
 ---------------------------------------------------------------------------
 -- MODULE NAMESPACE
@@ -442,7 +443,7 @@ local function GetSpellChargeCount(spellID)
 
     -- Handle secret values (protected in combat)
     -- If maxCharges is secret, spell definitely has charges - use safe default
-    if issecretvalue and issecretvalue(chargeInfo.maxCharges) then
+    if IsSecretValue(chargeInfo.maxCharges) then
         return chargeInfo.currentCharges, 2  -- Return secret currentCharges, SetText handles it
     end
 
@@ -1495,7 +1496,7 @@ function CustomTrackers:StartCooldownPolling(bar)
 
                 if showStack then
                     -- Handle secret values: SetText handles them, but comparisons crash
-                    local isSecret = issecretvalue and issecretvalue(count)
+                    local isSecret = IsSecretValue(count)
                     if isSecret then
                         -- Secret value: pass directly to SetText (it handles secrets)
                         icon.stackText:SetText(count)

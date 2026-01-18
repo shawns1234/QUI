@@ -249,14 +249,21 @@ local function SetupTooltipHook()
         if not settings or not settings.enabled or not settings.classColorName then return end
 
         local _, unit = tooltip:GetUnit()
-        if unit and UnitIsPlayer(unit) then
-            local _, class = UnitClass(unit)
-            local classColor = class and RAID_CLASS_COLORS[class]
-            if classColor then
-                local nameLine = GameTooltipTextLeft1
-                if nameLine and nameLine:GetText() then
-                    nameLine:SetTextColor(classColor.r, classColor.g, classColor.b)
-                end
+        if not unit then return end
+
+        -- Wrap UnitIsPlayer in pcall to handle protected "secret" unit values
+        -- During instanced combat, unit can be a protected value that causes taint errors
+        local okPlayer, isPlayer = pcall(UnitIsPlayer, unit)
+        if not okPlayer or not isPlayer then return end
+
+        local okClass, _, class = pcall(UnitClass, unit)
+        if not okClass or not class then return end
+
+        local classColor = class and RAID_CLASS_COLORS[class]
+        if classColor then
+            local nameLine = GameTooltipTextLeft1
+            if nameLine and nameLine:GetText() then
+                nameLine:SetTextColor(classColor.r, classColor.g, classColor.b)
             end
         end
     end)
