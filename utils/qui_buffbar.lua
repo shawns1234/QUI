@@ -152,19 +152,33 @@ local function ApplyHeightCompensationFromDB()
 
     if not currentHeight or currentHeight == 0 then return end
 
-    -- Buff bars grow UPWARD, so BOTTOM edge should stay fixed
-    -- With CENTER anchor: move center UP when height INCREASES
+    -- Get tracked bar settings to check growth direction
+    local settings = GetTrackedBarSettings()
+    local growUp = (settings.growUp ~= false)  -- Default is true (upward)
+
     local savedHeight = saved.height or currentHeight
     local heightDiff = currentHeight - savedHeight  -- POSITIVE when taller
-    local yCompensation = heightDiff / 2  -- Move UP when taller
+    local yCompensation = heightDiff / 2
 
     -- Only apply if there's a significant height difference (> 1 pixel)
     if math.abs(heightDiff) > 1 then
         local relativeTo = _G[saved.relativeToName] or UIParent
 
+        -- Adjust compensation direction based on growth direction
+        -- Frame uses BOTTOM anchor, so BOTTOM edge is positioned by y coordinate
+        local adjustedY
+        if growUp then
+            -- Grow Upward: BOTTOM edge stays fixed, use half compensation
+            adjustedY = saved.y + yCompensation
+        else
+            -- Grow Downward: TOP edge stays fixed
+            -- With BOTTOM anchor: new_y = saved.y - heightDiff
+            adjustedY = saved.y - heightDiff
+        end
+
         BuffBarCooldownViewer:ClearAllPoints()
         BuffBarCooldownViewer:SetPoint(saved.point, relativeTo, saved.relPoint,
-                                       saved.x, saved.y + yCompensation)
+                                       saved.x, adjustedY)
     end
 end
 

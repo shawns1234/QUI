@@ -766,7 +766,13 @@ local function CreateTrackerIcon(parent)
     icon:SetScript("OnEnter", function(self)
         if self:GetAlpha() == 0 then return end  -- Don't show tooltip when visually hidden
         if self.entry then
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            -- Respect tooltip anchor setting
+            local tooltipSettings = QUI.QUICore and QUI.QUICore.db and QUI.QUICore.db.profile and QUI.QUICore.db.profile.tooltip
+            if tooltipSettings and tooltipSettings.anchorToCursor then
+                GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+            else
+                GameTooltip_SetDefaultAnchor(GameTooltip, self)
+            end
             if self.entry.type == "spell" then
                 GameTooltip:SetSpellByID(self.entry.id)
             elseif self.entry.type == "item" then
