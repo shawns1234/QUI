@@ -1922,6 +1922,33 @@ _G.QuaziiUI_RefreshActionBars = function()
 end
 
 ---------------------------------------------------------------------------
+-- EDIT MODE INTEGRATION
+-- Show/hide extra button movers when Edit Mode is entered/exited
+---------------------------------------------------------------------------
+
+local function SetupEditModeHooks()
+    if not EditModeManagerFrame then return end
+
+    -- Show movers when entering Edit Mode
+    hooksecurefunc(EditModeManagerFrame, "EnterEditMode", function()
+        local extraSettings = GetExtraButtonDB("extraActionButton")
+        local zoneSettings = GetExtraButtonDB("zoneAbility")
+        -- Only show movers if at least one extra button feature is enabled
+        if (extraSettings and extraSettings.enabled) or (zoneSettings and zoneSettings.enabled) then
+            ShowExtraButtonMovers()
+        end
+    end)
+
+    -- Hide movers when exiting Edit Mode
+    hooksecurefunc(EditModeManagerFrame, "ExitEditMode", function()
+        HideExtraButtonMovers()
+    end)
+end
+
+-- Call setup after a short delay to ensure EditModeManagerFrame exists
+C_Timer.After(1, SetupEditModeHooks)
+
+---------------------------------------------------------------------------
 -- EXPOSE MODULE
 ---------------------------------------------------------------------------
 
