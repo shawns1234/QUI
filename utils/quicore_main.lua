@@ -2908,6 +2908,7 @@ local defaults = {
             essential = 5,
             utility = 5,
             buffIcon = 5,
+            buffBar = 5,
             -- Power bars (higher defaults so text visible above CDM)
             primaryPowerBar = 7,
             secondaryPowerBar = 6,

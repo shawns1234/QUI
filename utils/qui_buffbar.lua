@@ -1141,6 +1141,18 @@ LayoutBuffBars = function()
 
     isBarLayoutRunning = true
 
+    -- Apply HUD layer priority (strata + level)
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    local hudLayering = QUICore and QUICore.db and QUICore.db.profile and QUICore.db.profile.hudLayering
+    local layerPriority = hudLayering and hudLayering.buffBar or 5
+    local frameLevel = 200  -- Default fallback
+    if QUICore and QUICore.GetHUDFrameLevel then
+        frameLevel = QUICore:GetHUDFrameLevel(layerPriority)
+    end
+    -- Set strata to MEDIUM to match power bars, then apply frame level
+    BuffBarCooldownViewer:SetFrameStrata("MEDIUM")
+    BuffBarCooldownViewer:SetFrameLevel(frameLevel)
+
     local bars = GetBuffBarFrames()
     local count = #bars
     if count == 0 then
@@ -1204,6 +1216,17 @@ LayoutBuffBars = function()
         -- Apply visual styling if enabled
         if stylingEnabled then
             ApplyBarStyle(bar, settings)
+        end
+        -- Apply frame strata/level to each bar AND its .Bar child for proper HUD layering
+        bar:SetFrameStrata("MEDIUM")
+        bar:SetFrameLevel(frameLevel)
+        if bar.Bar then
+            bar.Bar:SetFrameStrata("MEDIUM")
+            bar.Bar:SetFrameLevel(frameLevel + 1)
+        end
+        if bar.Icon then
+            bar.Icon:SetFrameStrata("MEDIUM")
+            bar.Icon:SetFrameLevel(frameLevel + 1)
         end
     end
 

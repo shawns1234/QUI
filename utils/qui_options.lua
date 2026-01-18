@@ -14078,6 +14078,11 @@ local function CreateHUDLayeringPage(parent)
     buffIconSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
     y = y - FORM_ROW
 
+    local buffBarSlider = GUI:CreateFormSlider(content, "Buff Bar Viewer", 0, 10, 1, "buffBar", layeringDB, RefreshCDM)
+    buffBarSlider:SetPoint("TOPLEFT", PAD, y)
+    buffBarSlider:SetPoint("RIGHT", content, "RIGHT", -PAD, 0)
+    y = y - FORM_ROW
+
     y = y - 10  -- Section spacing
 
     -- =====================================================
