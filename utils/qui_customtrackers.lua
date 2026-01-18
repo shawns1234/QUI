@@ -435,23 +435,36 @@ local function GetItemStackCount(itemID, includeCharges)
 end
 
 local function GetSpellChargeCount(spellID)
-    if not spellID then return 0, 1 end
+    if not spellID then return 0, 1, 0, 0 end
     local chargeInfo = C_Spell.GetSpellCharges(spellID)
+
     if not chargeInfo or not chargeInfo.maxCharges then
-        return 0, 1  -- Not a charge-based spell
+        return 0, 1, 0, 0  -- Not a charge-based spell
     end
 
     -- Handle secret values (protected in combat)
     -- If maxCharges is secret, spell definitely has charges - use safe default
     if IsSecretValue(chargeInfo.maxCharges) then
-        return chargeInfo.currentCharges, 2  -- Return secret currentCharges, SetText handles it
+        -- Return secret currentCharges (SetText handles it) + charge cooldown values
+        return chargeInfo.currentCharges, 2,
+               chargeInfo.cooldownStartTime or 0,
+               chargeInfo.cooldownDuration or 0
     end
 
     -- Normal case: safe to compare
     if chargeInfo.maxCharges > 1 then
-        return chargeInfo.currentCharges or 0, chargeInfo.maxCharges
+        return chargeInfo.currentCharges or 0, chargeInfo.maxCharges,
+               chargeInfo.cooldownStartTime or 0,
+               chargeInfo.cooldownDuration or 0
     end
-    return 0, 1  -- Single charge spell (not multi-charge)
+    return 0, 1, 0, 0  -- Single charge spell (not multi-charge)
+end
+
+-- Helper to check if cooldown frame is actively showing a cooldown
+local function IsCooldownFrameActive(cooldownFrame)
+    if not cooldownFrame then return false end
+    local ok, visible = pcall(cooldownFrame.IsVisible, cooldownFrame)
+    return ok and visible == true
 end
 
 -- Check if item is equipment (armor/weapon) vs consumable
@@ -1319,10 +1332,11 @@ function CustomTrackers:StartCooldownPolling(bar)
                 local startTime, duration, enabled, isOnGCD
                 local count = 0
                 local maxCharges = 1
+                local chargeStartTime, chargeDuration = 0, 0  -- For charge spell recharge display
 
                 if entry.type == "spell" then
                     startTime, duration, enabled, isOnGCD = GetSpellCooldownInfo(entry.id)
-                    count, maxCharges = GetSpellChargeCount(entry.id)
+                    count, maxCharges, chargeStartTime, chargeDuration = GetSpellChargeCount(entry.id)
                 else
                     startTime, duration, enabled = GetItemCooldownInfo(entry.id)
                     count = GetItemStackCount(entry.id, config.showItemCharges)
@@ -1358,39 +1372,95 @@ function CustomTrackers:StartCooldownPolling(bar)
                     isOnCD = false  -- Active overrides cooldown state
                 else
                     -- Normal cooldown display
-                    pcall(function()
-                        icon.cooldown:SetReverse(false)
-                        if startTime and duration then
-                            icon.cooldown:SetCooldown(startTime, duration)
-                        end
-                    end)
+                    local isChargeSpell = maxCharges > 1
+                    local rechargeActive = false
 
-                    if hideGCD and isOnGCD then
-                        -- It's just GCD - clear cooldown display, don't desaturate
-                        icon.cooldown:Clear()
-                        isOnCD = false
-                    else
-                        -- Try multiple methods to detect cooldown (Midnight secret value handling)
-                        -- Method 1: Direct API comparison (works out of combat)
-                        local checkSuccess, checkResult = pcall(function()
-                            return startTime and startTime > 0 and duration and duration > 0
-                        end)
-                        if checkSuccess then
-                            isOnCD = checkResult
-                        else
-                            -- Method 2: Check cooldown frame's duration (also may be secret)
-                            local durationSuccess, durationResult = pcall(function()
-                                local cdRemaining = icon.cooldown:GetCooldownDuration()
-                                return cdRemaining and cdRemaining > 0
+                    icon.cooldown:SetReverse(false)
+
+                    if isChargeSpell then
+                        -- For charge spells: use charge cooldown values
+                        if chargeStartTime and chargeDuration then
+                            -- Set cooldown first (inside pcall for secret value safety)
+                            pcall(function()
+                                icon.cooldown:SetCooldown(chargeStartTime, chargeDuration)
                             end)
-                            if durationSuccess then
-                                isOnCD = durationResult
+                            -- Check if cooldown is active AFTER setting it
+                            rechargeActive = IsCooldownFrameActive(icon.cooldown)
+                        else
+                            icon.cooldown:Clear()
+                        end
+
+                        -- Control swipe/edge for charge spells (outside pcall for reliability)
+                        if config.showRechargeSwipe then
+                            pcall(icon.cooldown.SetSwipeColor, icon.cooldown, 0, 0, 0, 0.6)
+                            pcall(icon.cooldown.SetDrawSwipe, icon.cooldown, true)
+                        else
+                            pcall(icon.cooldown.SetSwipeColor, icon.cooldown, 0, 0, 0, 0)
+                            pcall(icon.cooldown.SetDrawSwipe, icon.cooldown, false)
+                        end
+                        pcall(icon.cooldown.SetDrawEdge, icon.cooldown, rechargeActive)
+
+                        -- EXPLICIT show/hide (critical for cooldown visibility)
+                        if rechargeActive then
+                            icon.cooldown:Show()
+                        else
+                            icon.cooldown:Hide()
+                        end
+
+                        -- isOnCD for charge spells = out of charges
+                        -- Use cooldown frame to detect main cooldown active (handles secret values internally)
+                        -- NephUI pattern: set cooldown with main values, check if frame is active
+                        local mainCDActive = false
+
+                        -- Temporarily set cooldown with MAIN spell cooldown values
+                        -- Main cooldown is only active when ALL charges are depleted
+                        -- Clear first to ensure clean state (SetCooldown(0,0) doesn't clear previous state)
+                        icon.cooldown:Clear()
+                        pcall(function()
+                            icon.cooldown:SetCooldown(startTime, duration)
+                        end)
+                        -- Check if the frame shows this cooldown as active
+                        -- IsCooldownFrameActive uses IsVisible() which handles secret values internally
+                        mainCDActive = IsCooldownFrameActive(icon.cooldown)
+
+                        -- Now restore charge cooldown values for display
+                        if chargeStartTime and chargeDuration then
+                            pcall(function()
+                                icon.cooldown:SetCooldown(chargeStartTime, chargeDuration)
+                            end)
+                        end
+
+                        -- Exclude GCD from triggering desaturation
+                        if hideGCD and isOnGCD then
+                            mainCDActive = false
+                        end
+
+                        isOnCD = mainCDActive
+
+                    else
+                        -- Normal spell/item cooldown
+                        if startTime and duration then
+                            pcall(function()
+                                icon.cooldown:SetCooldown(startTime, duration)
+                            end)
+                        end
+
+                        pcall(icon.cooldown.SetDrawSwipe, icon.cooldown, false)
+                        pcall(icon.cooldown.SetDrawEdge, icon.cooldown, false)
+
+                        if hideGCD and isOnGCD then
+                            -- It's just GCD - clear cooldown display, don't desaturate
+                            icon.cooldown:Clear()
+                            isOnCD = false
+                        else
+                            -- Check if on cooldown using multiple methods
+                            local checkSuccess, checkResult = pcall(function()
+                                return startTime and startTime > 0 and duration and duration > 0
+                            end)
+                            if checkSuccess then
+                                isOnCD = checkResult
                             else
-                                -- Method 3: Check if cooldown swipe is visible
-                                -- The cooldown frame draws its swipe only when there's an active cooldown.
-                                -- After SetCooldown(0,0) or Clear(), the swipe disappears.
-                                -- IsShown() is a frame property, not protected API data.
-                                isOnCD = icon.cooldown:IsShown()
+                                isOnCD = IsCooldownFrameActive(icon.cooldown)
                             end
                         end
                     end

@@ -9409,6 +9409,15 @@ local function CreateCustomTrackersPage(parent)
         hideDurCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
+        local showRechargeSwipe = GUI:CreateFormCheckbox(lowerContainer, "Show Recharge Swipe", "showRechargeSwipe", barConfig, RefreshThisBar)
+        showRechargeSwipe:SetPoint("TOPLEFT", 0, y)
+        showRechargeSwipe:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local rechargeSwipeDesc = GUI:CreateLabel(lowerContainer, "Shows radial swipe animation when spell charges are recharging.", 10, C.textMuted)
+        rechargeSwipeDesc:SetPoint("TOPLEFT", PAD, y + 4)
+        y = y - 18
+
         local durSizeSlider = GUI:CreateFormSlider(lowerContainer, "Size", 8, 24, 1, "durationSize", barConfig, RefreshThisBar)
         durSizeSlider:SetPoint("TOPLEFT", 0, y)
         durSizeSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
@@ -10031,6 +10040,7 @@ local function CreateCustomTrackersPage(parent)
                 stackOffsetY = -1,
                 bgOpacity = 0,
                 hideGCD = true,
+                showRechargeSwipe = false,
                 entries = {},
             }
             table.insert(db.customTrackers.bars, newBar)
@@ -10091,6 +10101,7 @@ local function CreateCustomTrackersPage(parent)
                         stackOffsetY = -1,
                         bgOpacity = 0,
                         hideGCD = true,
+                        showRechargeSwipe = false,
                         entries = {},
                     }
                     table.insert(db.customTrackers.bars, newBar)
