@@ -60,6 +60,15 @@ local function IsPlayerInInstance()
     return true
 end
 
+-- Helper: Get recharge edge setting from global cooldownSwipe settings
+local function GetRechargeEdgeSetting()
+    local core = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    if core and core.db and core.db.profile and core.db.profile.cooldownSwipe then
+        return core.db.profile.cooldownSwipe.showRechargeEdge
+    end
+    return false  -- Default to off
+end
+
 ---------------------------------------------------------------------------
 -- POSITIONING SYSTEM (edge-anchored based on growth direction)
 ---------------------------------------------------------------------------
@@ -756,6 +765,7 @@ local function CreateTrackerIcon(parent)
     icon.cooldown:SetDrawEdge(false)              -- NO edge glow
     icon.cooldown:SetHideCountdownNumbers(false)  -- Still show countdown numbers!
     icon.cooldown:EnableMouse(false)              -- Don't block drag events
+    if icon.cooldown.SetDrawBling then icon.cooldown:SetDrawBling(false) end  -- No ready flash
 
     -- Duration text (on icon, not cooldown - more control)
     icon.durationText = icon:CreateFontString(nil, "OVERLAY")
@@ -1398,7 +1408,8 @@ function CustomTrackers:StartCooldownPolling(bar)
                             pcall(icon.cooldown.SetSwipeColor, icon.cooldown, 0, 0, 0, 0)
                             pcall(icon.cooldown.SetDrawSwipe, icon.cooldown, false)
                         end
-                        pcall(icon.cooldown.SetDrawEdge, icon.cooldown, rechargeActive)
+                        local showEdge = rechargeActive and GetRechargeEdgeSetting()
+                        pcall(icon.cooldown.SetDrawEdge, icon.cooldown, showEdge)
 
                         -- EXPLICIT show/hide (critical for cooldown visibility)
                         if rechargeActive then

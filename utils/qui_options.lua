@@ -9409,15 +9409,6 @@ local function CreateCustomTrackersPage(parent)
         hideDurCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
-        local showRechargeSwipe = GUI:CreateFormCheckbox(lowerContainer, "Show Recharge Swipe", "showRechargeSwipe", barConfig, RefreshThisBar)
-        showRechargeSwipe:SetPoint("TOPLEFT", 0, y)
-        showRechargeSwipe:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        y = y - FORM_ROW
-
-        local rechargeSwipeDesc = GUI:CreateLabel(lowerContainer, "Shows radial swipe animation when spell charges are recharging.", 10, C.textMuted)
-        rechargeSwipeDesc:SetPoint("TOPLEFT", PAD, y + 4)
-        y = y - 18
-
         local durSizeSlider = GUI:CreateFormSlider(lowerContainer, "Size", 8, 24, 1, "durationSize", barConfig, RefreshThisBar)
         durSizeSlider:SetPoint("TOPLEFT", 0, y)
         durSizeSlider:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
@@ -9614,37 +9605,22 @@ local function CreateCustomTrackersPage(parent)
         end
 
         -----------------------------------------------------------------------
-        -- SPEC-SPECIFIC SPELLS SECTION (moved to end - advanced feature)
+        -- ADVANCED SETTINGS SECTION
         -----------------------------------------------------------------------
-        local specHeader = GUI:CreateSectionHeader(lowerContainer, "Spec-Specific Spells")
-        specHeader:SetPoint("TOPLEFT", 0, y)
-        y = y - specHeader.gap + 10
+        local advancedHeader = GUI:CreateSectionHeader(lowerContainer, "Advanced Settings")
+        advancedHeader:SetPoint("TOPLEFT", 0, y)
+        y = y - advancedHeader.gap
 
-        local specHint = GUI:CreateLabel(lowerContainer, "When enabled, the spell list for this bar is saved separately for each spec. The bar's layout settings remain shared.", 11, C.textMuted)
-        specHint:SetPoint("TOPLEFT", 0, y)
-        specHint:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
-        specHint:SetJustifyH("LEFT")
-        specHint:SetWordWrap(true)
-        specHint:SetHeight(30)
-        y = y - 38
+        -- Show Recharge Swipe checkbox
+        local showRechargeSwipe = GUI:CreateFormCheckbox(lowerContainer, "Show Recharge Swipe", "showRechargeSwipe", barConfig, RefreshThisBar)
+        showRechargeSwipe:SetPoint("TOPLEFT", 0, y)
+        showRechargeSwipe:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
 
-        -- Build specs list for copy dropdown
-        local allSpecs = {}
-        if trackerModule and trackerModule.GetAllClassSpecs then
-            allSpecs = trackerModule.GetAllClassSpecs()
-        else
-            local _, className = UnitClass("player")
-            local numSpecs = GetNumSpecializations()
-            for i = 1, numSpecs do
-                local specID, specName = GetSpecializationInfo(i)
-                if specID and specName then
-                    table.insert(allSpecs, {
-                        key = className .. "-" .. specID,
-                        name = className:sub(1, 1):upper() .. className:sub(2):lower() .. " - " .. specName,
-                    })
-                end
-            end
-        end
+        -- Recharge swipe description (below toggle)
+        local rechargeSwipeDesc = GUI:CreateLabel(lowerContainer, "DO NOT turn on unless you know what you're doing. Shows GCD and radial swipe animations when spells are recharging.", 10, C.textMuted)
+        rechargeSwipeDesc:SetPoint("TOPLEFT", 0, y + 4)
+        y = y - 18
 
         -- Enable Spec-Specific Spells checkbox
         local specEnableCheck = GUI:CreateFormCheckbox(lowerContainer, "Enable Spec-Specific Spells", "specSpecificSpells", barConfig, function()
@@ -9666,6 +9642,33 @@ local function CreateCustomTrackersPage(parent)
         specEnableCheck:SetPoint("TOPLEFT", 0, y)
         specEnableCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
+
+        -- Spec-specific description (below toggle)
+        local specHint = GUI:CreateLabel(lowerContainer, "When enabled, the spell list for this bar is saved separately for each spec. The bar's layout settings remain shared.", 10, C.textMuted)
+        specHint:SetPoint("TOPLEFT", 0, y + 4)
+        specHint:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        specHint:SetJustifyH("LEFT")
+        specHint:SetWordWrap(true)
+        specHint:SetHeight(26)
+        y = y - 34
+
+        -- Build specs list for copy dropdown
+        local allSpecs = {}
+        if trackerModule and trackerModule.GetAllClassSpecs then
+            allSpecs = trackerModule.GetAllClassSpecs()
+        else
+            local _, className = UnitClass("player")
+            local numSpecs = GetNumSpecializations()
+            for i = 1, numSpecs do
+                local specID, specName = GetSpecializationInfo(i)
+                if specID and specName then
+                    table.insert(allSpecs, {
+                        key = className .. "-" .. specID,
+                        name = className:sub(1, 1):upper() .. className:sub(2):lower() .. " - " .. specName,
+                    })
+                end
+            end
+        end
 
         -- Info label (shows currently editing spec)
         specInfoLabel = GUI:CreateLabel(lowerContainer, "", 11, C.accent)
