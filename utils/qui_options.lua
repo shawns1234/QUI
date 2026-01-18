@@ -2831,6 +2831,14 @@ local function CreateGeneralQoLPage(parent)
         showAbilityIconCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
         y = y - FORM_ROW
 
+        local fontSizeSlider = GUI:CreateFormSlider(tabContent, "Text Font Size", 8, 24, 1, "vigorFontSize", sr, function()
+            sr.speedFontSize = sr.vigorFontSize  -- Keep both in sync
+            RefreshSkyriding()
+        end)
+        fontSizeSlider:SetPoint("TOPLEFT", PADDING, y)
+        fontSizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
         tabContent:SetHeight(math.abs(y) + 50)
     end
 
