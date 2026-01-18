@@ -2873,6 +2873,8 @@ local defaults = {
                     hideNonUsable = false,
                     showOnlyOnCooldown = false,
                     showOnlyWhenActive = false,
+                    showOnlyWhenOffCooldown = false,
+                    showOnlyInCombat = false,
                     -- Active state (buff/cast/channel display)
                     showActiveState = true,
                     activeGlowEnabled = true,

@@ -1299,6 +1299,8 @@ function CustomTrackers:StartCooldownPolling(bar)
         local hideNonUsable = config.hideNonUsable
         local showOnlyOnCooldown = config.showOnlyOnCooldown
         local showOnlyWhenActive = config.showOnlyWhenActive
+        local showOnlyWhenOffCooldown = config.showOnlyWhenOffCooldown
+        local showOnlyInCombat = config.showOnlyInCombat
         local dynamicLayout = config.dynamicLayout == true
         local showActiveState = config.showActiveState ~= false  -- Default true
         local visibilityChanged = false
@@ -1396,15 +1398,22 @@ function CustomTrackers:StartCooldownPolling(bar)
                 -- Base visibility (Hide Non-Usable)
                 local baseVisible = isUsable or (not hideNonUsable)
 
+                -- Combat visibility check (can combine with other options)
+                local inCombat = UnitAffectingCombat("player")
+                local combatVisible = (not showOnlyInCombat) or inCombat
+
                 -- Dynamic layout visibility: icons truly hide and the bar collapses.
                 -- Static layout: icons may use alpha=0 to preserve fixed slots.
-                local layoutVisible = baseVisible
-                if baseVisible then
+                local layoutVisible = baseVisible and combatVisible
+                if layoutVisible then
                     if showOnlyWhenActive then
                         layoutVisible = isActive
                     elseif showOnlyOnCooldown then
                         -- Show during cooldown OR while active (active overrides cooldown visuals)
                         layoutVisible = isActive or isOnCD
+                    elseif showOnlyWhenOffCooldown then
+                        -- Show only when ready (not on cooldown and not active)
+                        layoutVisible = not isOnCD and not isActive
                     end
                 end
 
@@ -1434,8 +1443,10 @@ function CustomTrackers:StartCooldownPolling(bar)
                     end
                 end
 
-                -- Apply visual state only if icon should render (baseVisible + (dynamicLayout? layoutVisible : baseVisible))
-                local shouldRender = dynamicLayout and layoutVisible or baseVisible
+                -- Apply visual state only if icon should render
+                -- Dynamic layout: use layoutVisible (already accounts for all visibility options)
+                -- Static layout: use baseVisible but apply alpha-based hiding for special modes
+                local shouldRender = dynamicLayout and layoutVisible or (baseVisible and combatVisible)
                 if shouldRender then
                     if isActive then
                         -- Active state: saturated + glow + full alpha
@@ -1466,6 +1477,22 @@ function CustomTrackers:StartCooldownPolling(bar)
                             else
                                 icon:SetAlpha(0)
                                 icon.tex:SetDesaturated(false)
+                            end
+                        end
+                    elseif showOnlyWhenOffCooldown then
+                        StopActiveGlow(icon)
+                        if dynamicLayout then
+                            -- Dynamic layout shows only when off cooldown
+                            icon:SetAlpha(1)
+                            icon.tex:SetDesaturated(false)
+                        else
+                            -- Static layout: alpha-based visibility (preserves position)
+                            if not isOnCD then
+                                icon:SetAlpha(1)
+                                icon.tex:SetDesaturated(false)
+                            else
+                                icon:SetAlpha(0)
+                                icon.tex:SetDesaturated(true)
                             end
                         end
                     else

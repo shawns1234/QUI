@@ -9455,19 +9455,24 @@ local function CreateCustomTrackersPage(parent)
         y = y - FORM_ROW
 
         -----------------------------------------------------------------------
-        -- COOLDOWN VISIBILITY SECTION (moved after Buff Active per plan)
+        -- ICON VISIBILITY SECTION (moved after Buff Active per plan)
         -----------------------------------------------------------------------
-        local cooldownOnlyHeader = GUI:CreateSectionHeader(lowerContainer, "Cooldown Visibility")
+        local cooldownOnlyHeader = GUI:CreateSectionHeader(lowerContainer, "Icon Visibility")
         cooldownOnlyHeader:SetPoint("TOPLEFT", 0, y)
-        y = y - cooldownOnlyHeader.gap + 12
+        y = y - cooldownOnlyHeader.gap + 10
 
-        local cooldownOnlyDesc = GUI:CreateLabel(lowerContainer, "When enabled, icons are invisible when ready to be used. It then appears desaturated when on cooldown. Position is preserved. Recommend using on a NEW separate custom bar to prevent gaps.", 11, C.textMuted)
+        local cooldownOnlyDesc = GUI:CreateLabel(lowerContainer, "Control when icons are visible. The first three options are mutually exclusive. 'Show Only In Combat' can be combined with any other option.", 11, C.textMuted)
         cooldownOnlyDesc:SetPoint("TOPLEFT", 0, y)
         cooldownOnlyDesc:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
         cooldownOnlyDesc:SetJustifyH("LEFT")
         cooldownOnlyDesc:SetWordWrap(true)
-        cooldownOnlyDesc:SetHeight(50)
-        y = y - 60
+        cooldownOnlyDesc:SetHeight(30)
+        y = y - 38
+
+        local showOnlyInCombatCheck = GUI:CreateFormCheckbox(lowerContainer, "Show Only In Combat", "showOnlyInCombat", barConfig, nil)
+        showOnlyInCombatCheck:SetPoint("TOPLEFT", 0, y)
+        showOnlyInCombatCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
 
         local showOnlyOnCooldownCheck = GUI:CreateFormCheckbox(lowerContainer, "Show Only On Cooldown", "showOnlyOnCooldown", barConfig, nil)
         showOnlyOnCooldownCheck:SetPoint("TOPLEFT", 0, y)
@@ -9479,12 +9484,22 @@ local function CreateCustomTrackersPage(parent)
         showOnlyWhenActiveCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
-        -- Mutual exclusion handlers for cooldown visibility checkboxes
+        local showOnlyWhenOffCooldownCheck = GUI:CreateFormCheckbox(lowerContainer, "Show Only When Off Cooldown", "showOnlyWhenOffCooldown", barConfig, nil)
+        showOnlyWhenOffCooldownCheck:SetPoint("TOPLEFT", 0, y)
+        showOnlyWhenOffCooldownCheck:SetPoint("RIGHT", lowerContainer, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        -- Mutual exclusion handlers for cooldown/active visibility checkboxes
+        -- showOnlyOnCooldown, showOnlyWhenActive, showOnlyWhenOffCooldown are mutually exclusive
+        -- showOnlyInCombat can be combined with any of them
         if showOnlyOnCooldownCheck.track then
             showOnlyOnCooldownCheck.track:SetScript("OnClick", function()
                 local newVal = not showOnlyOnCooldownCheck.GetValue()
                 showOnlyOnCooldownCheck.SetValue(newVal, true)
-                if newVal then showOnlyWhenActiveCheck.SetValue(false, true) end
+                if newVal then
+                    showOnlyWhenActiveCheck.SetValue(false, true)
+                    showOnlyWhenOffCooldownCheck.SetValue(false, true)
+                end
                 RefreshThisBar()
             end)
         end
@@ -9492,7 +9507,28 @@ local function CreateCustomTrackersPage(parent)
             showOnlyWhenActiveCheck.track:SetScript("OnClick", function()
                 local newVal = not showOnlyWhenActiveCheck.GetValue()
                 showOnlyWhenActiveCheck.SetValue(newVal, true)
-                if newVal then showOnlyOnCooldownCheck.SetValue(false, true) end
+                if newVal then
+                    showOnlyOnCooldownCheck.SetValue(false, true)
+                    showOnlyWhenOffCooldownCheck.SetValue(false, true)
+                end
+                RefreshThisBar()
+            end)
+        end
+        if showOnlyWhenOffCooldownCheck.track then
+            showOnlyWhenOffCooldownCheck.track:SetScript("OnClick", function()
+                local newVal = not showOnlyWhenOffCooldownCheck.GetValue()
+                showOnlyWhenOffCooldownCheck.SetValue(newVal, true)
+                if newVal then
+                    showOnlyOnCooldownCheck.SetValue(false, true)
+                    showOnlyWhenActiveCheck.SetValue(false, true)
+                end
+                RefreshThisBar()
+            end)
+        end
+        if showOnlyInCombatCheck.track then
+            showOnlyInCombatCheck.track:SetScript("OnClick", function()
+                local newVal = not showOnlyInCombatCheck.GetValue()
+                showOnlyInCombatCheck.SetValue(newVal, true)
                 RefreshThisBar()
             end)
         end
@@ -9502,7 +9538,7 @@ local function CreateCustomTrackersPage(parent)
         -----------------------------------------------------------------------
         local specHeader = GUI:CreateSectionHeader(lowerContainer, "Spec-Specific Spells")
         specHeader:SetPoint("TOPLEFT", 0, y)
-        y = y - specHeader.gap
+        y = y - specHeader.gap + 10
 
         local specHint = GUI:CreateLabel(lowerContainer, "When enabled, the spell list for this bar is saved separately for each spec. The bar's layout settings remain shared.", 11, C.textMuted)
         specHint:SetPoint("TOPLEFT", 0, y)
