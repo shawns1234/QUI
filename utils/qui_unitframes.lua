@@ -3329,7 +3329,8 @@ function QUI_UF:RefreshFrame(unitKey)
                     frame.healthText:Show()
                     -- In preview mode, set preview text; otherwise update with real data
                     if self.previewMode[bossKey] then
-                        frame.healthText:SetText("100%")
+                        -- Use same mock format as ShowPreview: "75.0K - X%"
+                        frame.healthText:SetText("75.0K - " .. (75 - (i * 5)) .. "%")
                     else
                         UpdateHealth(frame)
                     end
@@ -3356,7 +3357,8 @@ function QUI_UF:RefreshFrame(unitKey)
                     frame.powerText:Show()
                     -- In preview mode, set preview text; otherwise update with real data
                     if self.previewMode[bossKey] then
-                        frame.powerText:SetText("100%")
+                        -- Use same mock value as ShowPreview
+                        frame.powerText:SetText("60%")
                     else
                         UpdatePowerText(frame)
                     end
