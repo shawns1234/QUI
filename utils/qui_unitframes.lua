@@ -1113,6 +1113,34 @@ local function UpdateLeaderIcon(frame)
 end
 
 ---------------------------------------------------------------------------
+-- UPDATE: Health text color (independent of name visibility)
+---------------------------------------------------------------------------
+local function UpdateHealthTextColor(frame)
+    if not frame or not frame.healthText or not frame.unit then return end
+
+    local settings = GetUnitSettings(frame.unitKey)
+    if not settings then return end
+
+    local general = GetGeneralSettings()
+
+    if general and general.masterColorHealthText then
+        local r, g, b = GetUnitClassColor(frame.unit)
+        frame.healthText:SetTextColor(r, g, b, 1)
+    elseif settings.healthTextUseClassColor then
+        local r, g, b = GetUnitClassColor(frame.unit)
+        frame.healthText:SetTextColor(r, g, b, 1)
+    elseif settings.healthTextColor then
+        local c = settings.healthTextColor
+        frame.healthText:SetTextColor(c[1] or 1, c[2] or 1, c[3] or 1, c[4] or 1)
+    elseif general and general.classColorText then
+        local r, g, b = GetUnitClassColor(frame.unit)
+        frame.healthText:SetTextColor(r, g, b, 1)
+    else
+        frame.healthText:SetTextColor(1, 1, 1, 1)
+    end
+end
+
+---------------------------------------------------------------------------
 -- UPDATE: Name text (with truncation and inline ToT support)
 ---------------------------------------------------------------------------
 local function UpdateName(frame)
@@ -1205,30 +1233,6 @@ local function UpdateName(frame)
         frame.nameText:SetTextColor(1, 1, 1, 1)
     end
 
-    -- Apply health text color (master override OR per-unit setting)
-    if frame.healthText then
-        if general and general.masterColorHealthText then
-            -- MASTER OVERRIDE: Apply class/reaction color to ALL frames
-            local r, g, b = GetUnitClassColor(unit)
-            frame.healthText:SetTextColor(r, g, b, 1)
-        elseif settings.healthTextUseClassColor then
-            -- Per-unit setting: Use class/reaction color
-            local r, g, b = GetUnitClassColor(unit)
-            frame.healthText:SetTextColor(r, g, b, 1)
-        elseif settings.healthTextColor then
-            -- Per-unit setting: Use custom color
-            local c = settings.healthTextColor
-            frame.healthText:SetTextColor(c[1] or 1, c[2] or 1, c[3] or 1, c[4] or 1)
-        elseif general and general.classColorText then
-            -- Backwards compat: Legacy global toggle (deprecated)
-            local r, g, b = GetUnitClassColor(unit)
-            frame.healthText:SetTextColor(r, g, b, 1)
-        else
-            -- Default: White text
-            frame.healthText:SetTextColor(1, 1, 1, 1)
-        end
-    end
-
     frame.nameText:Show()
 end
 
@@ -1258,6 +1262,7 @@ local function UpdateFrame(frame)
     UpdatePower(frame)
     UpdatePowerText(frame)
     UpdateName(frame)
+    UpdateHealthTextColor(frame)
     UpdateIndicators(frame)
     UpdateStance(frame)
     UpdateTargetMarker(frame)
