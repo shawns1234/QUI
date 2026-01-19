@@ -1384,7 +1384,7 @@ local defaults = {
                 -- Portrait
                 showPortrait = false,
                 portraitSide = "LEFT",
-                portraitScale = 1.0,
+                portraitSize = 40,
                 portraitBorderSize = 1,
                 portraitBorderUseClassColor = false,
                 portraitBorderColor = { 0, 0, 0, 1 },
@@ -1572,7 +1572,7 @@ local defaults = {
                 -- Portrait
                 showPortrait = false,
                 portraitSide = "RIGHT",
-                portraitScale = 1.0,
+                portraitSize = 40,
                 portraitBorderSize = 1,
                 portraitBorderUseClassColor = false,
                 portraitBorderColor = { 0, 0, 0, 1 },
@@ -1925,7 +1925,7 @@ local defaults = {
                 -- Portrait
                 showPortrait = false,
                 portraitSide = "RIGHT",
-                portraitScale = 1.0,
+                portraitSize = 30,
                 portraitBorderSize = 1,
                 portraitBorderUseClassColor = false,
                 portraitBorderColor = { 0, 0, 0, 1 },

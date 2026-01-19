@@ -11775,7 +11775,15 @@ local function CreateUnitFramesPage(parent)
             if unitDB.portraitSide == nil then
                 unitDB.portraitSide = (unitKey == "player") and "LEFT" or "RIGHT"
             end
-            if unitDB.portraitScale == nil then unitDB.portraitScale = 1.0 end
+            -- Migrate from portraitScale to portraitSize (pixels)
+            if unitDB.portraitSize == nil then
+                if unitDB.portraitScale then
+                    local frameHeight = unitDB.height or 40
+                    unitDB.portraitSize = math.floor(frameHeight * unitDB.portraitScale)
+                else
+                    unitDB.portraitSize = 40
+                end
+            end
             if unitDB.portraitBorderSize == nil then unitDB.portraitBorderSize = 1 end
 
             -- Show Portrait checkbox
@@ -11794,10 +11802,10 @@ local function CreateUnitFramesPage(parent)
             sideDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
 
-            -- Portrait Scale slider
-            local scaleSlider = GUI:CreateFormSlider(tabContent, "Portrait Scale", 0.5, 4.0, 0.1, "portraitScale", unitDB, RefreshUnit)
-            scaleSlider:SetPoint("TOPLEFT", PAD, y)
-            scaleSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            -- Portrait Size slider (pixels)
+            local sizeSlider = GUI:CreateFormSlider(tabContent, "Portrait Size (Pixels)", 20, 150, 1, "portraitSize", unitDB, RefreshUnit)
+            sizeSlider:SetPoint("TOPLEFT", PAD, y)
+            sizeSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             y = y - FORM_ROW
 
             -- Portrait Border Size slider

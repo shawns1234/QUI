@@ -1733,7 +1733,7 @@ local function CreateUnitFrame(unit, unitKey)
     -- Portrait (optional, side-attached)
     if settings.showPortrait then
         local portrait = CreateFrame("Button", nil, frame, "SecureUnitButtonTemplate, BackdropTemplate")
-        local portraitSize = height * (settings.portraitScale or 1.0)
+        local portraitSize = Scale(settings.portraitSize or 40)
         local portraitBorderSize = Scale(settings.portraitBorderSize or 1)
         portrait:SetSize(portraitSize, portraitSize)
 
@@ -3540,7 +3540,7 @@ function QUI_UF:RefreshFrame(unitKey)
 
     -- Update portrait (create dynamically if needed)
     if settings.showPortrait then
-        local portraitSize = Scale(settings.height or 40) * (settings.portraitScale or 1.0)
+        local portraitSize = Scale(settings.portraitSize or 40)
         local portraitBorderSize = Scale(settings.portraitBorderSize or 1)
         local portraitGap = Scale(settings.portraitGap or 0)
         local portraitOffsetX = Scale(settings.portraitOffsetX or 0)
