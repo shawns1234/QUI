@@ -416,6 +416,46 @@ local function QueueIconForSkinning(icon, size, aspectRatioCrop, zoom, borderSiz
 end
 
 ---------------------------------------------------------------------------
+-- HELPER: Setup elevated stack text overlay (renders above glow effects)
+---------------------------------------------------------------------------
+local function SetupElevatedStackText(icon, originalFS, generalFont, stackSize, generalOutline, stackTextColor, stackAnchor, stackOffsetX, stackOffsetY)
+    -- Create elevated overlay frame (once per icon)
+    if not icon.quiStackOverlay then
+        icon.quiStackOverlay = CreateFrame("Frame", nil, icon)
+        icon.quiStackOverlay:SetAllPoints(icon)
+    end
+    icon.quiStackOverlay:SetFrameLevel(icon:GetFrameLevel() + 10)
+
+    -- Create our fontstring in the overlay (once per icon)
+    if not icon.quiStackText then
+        icon.quiStackText = icon.quiStackOverlay:CreateFontString(nil, "OVERLAY")
+        icon.quiStackText:SetDrawLayer("OVERLAY", 7)
+    end
+
+    -- Style our elevated fontstring
+    icon.quiStackText:SetFont(generalFont, stackSize, generalOutline)
+    icon.quiStackText:SetTextColor(stackTextColor[1], stackTextColor[2], stackTextColor[3], stackTextColor[4] or 1)
+    icon.quiStackText:ClearAllPoints()
+    icon.quiStackText:SetPoint(stackAnchor, icon, stackAnchor, stackOffsetX, stackOffsetY)
+
+    -- Hook original fontstring to sync text (once)
+    if originalFS and not originalFS.quiStackHooked then
+        originalFS.quiStackHooked = true
+        hooksecurefunc(originalFS, "SetText", function(self, text)
+            if icon.quiStackText then
+                icon.quiStackText:SetText(text or "")
+            end
+        end)
+    end
+
+    -- Initial sync and hide original
+    if originalFS then
+        icon.quiStackText:SetText(originalFS:GetText() or "")
+        originalFS:SetAlpha(0)
+    end
+end
+
+---------------------------------------------------------------------------
 -- HELPER: Apply text sizes and offsets
 ---------------------------------------------------------------------------
 local function ApplyIconTextSizes(icon, durationSize, stackSize, durationOffsetX, durationOffsetY, stackOffsetX, stackOffsetY, durationTextColor, durationAnchor, stackTextColor, stackAnchor)
@@ -468,47 +508,38 @@ local function ApplyIconTextSizes(icon, durationSize, stackSize, durationOffsetX
         end
     end
 
-    -- Stack text - always apply position with offset and color
+    -- Stack text - use elevated overlay to render above glow effects
     if stackSize and stackSize > 0 then
+        local foundFS = nil
+
+        -- Find the original fontstring from various Blizzard locations
         local chargeFrame = icon.ChargeCount
         if chargeFrame then
-            local fs = chargeFrame.Current or chargeFrame.Count or chargeFrame.count
-            if fs and fs.SetFont then
-                pcall(function()
-                    fs:SetFont(generalFont, stackSize, generalOutline)
-                    fs:SetTextColor(stackTextColor[1], stackTextColor[2], stackTextColor[3], stackTextColor[4] or 1)
-                    fs:ClearAllPoints()
-                    fs:SetPoint(stackAnchor, icon, stackAnchor, stackOffsetX, stackOffsetY)
-                    fs:SetDrawLayer("OVERLAY", 7)
-                end)
-            end
+            foundFS = chargeFrame.Current or chargeFrame.Count or chargeFrame.count
         end
 
-        local countText = icon.Count or icon.count
-        if countText and countText.SetFont then
-            pcall(function()
-                countText:SetFont(generalFont, stackSize, generalOutline)
-                countText:SetTextColor(stackTextColor[1], stackTextColor[2], stackTextColor[3], stackTextColor[4] or 1)
-                countText:ClearAllPoints()
-                countText:SetPoint(stackAnchor, icon, stackAnchor, stackOffsetX, stackOffsetY)
-                countText:SetDrawLayer("OVERLAY", 7)
-            end)
+        if not foundFS then
+            foundFS = icon.Count or icon.count
         end
 
-        if icon.GetChildren then
+        if not foundFS and icon.GetChildren then
             pcall(function()
                 for _, child in ipairs({ icon:GetChildren() }) do
                     if child then
                         local fs = child.Current or child.Count or child.count
                         if fs and fs.SetFont then
-                            fs:SetFont(generalFont, stackSize, generalOutline)
-                            fs:SetTextColor(stackTextColor[1], stackTextColor[2], stackTextColor[3], stackTextColor[4] or 1)
-                            fs:ClearAllPoints()
-                            fs:SetPoint(stackAnchor, icon, stackAnchor, stackOffsetX, stackOffsetY)
-                            fs:SetDrawLayer("OVERLAY", 7)
+                            foundFS = fs
+                            break
                         end
                     end
                 end
+            end)
+        end
+
+        -- Set up elevated stack text if we found an original fontstring
+        if foundFS and foundFS.SetFont then
+            pcall(function()
+                SetupElevatedStackText(icon, foundFS, generalFont, stackSize, generalOutline, stackTextColor, stackAnchor, stackOffsetX, stackOffsetY)
             end)
         end
     end
