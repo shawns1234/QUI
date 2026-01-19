@@ -442,6 +442,46 @@ local function CreateGeneralQoLPage(parent)
             scaleSlider:SetPoint("TOPLEFT", PADDING, y)
             scaleSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
             y = y - FORM_ROW
+
+            -- Description text explaining scale options
+            local scaleDesc = GUI:CreateLabel(tabContent,
+                "1080p, 1440p, and 4K are pixel-perfect scales that prevent blurry edges. 1440p+ is a larger, more readable alternative. Auto calculates the ideal scale for your display.",
+                11, C.textMuted)
+            scaleDesc:SetPoint("TOPLEFT", PADDING, y)
+            scaleDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - 28
+
+            -- Quick preset buttons
+            local presetLabel = GUI:CreateLabel(tabContent, "Quick Presets:", 12, C.text)
+            presetLabel:SetPoint("TOPLEFT", PADDING, y)
+
+            local function ApplyPreset(val)
+                scaleSlider:SetValue(val)
+            end
+
+            local function AutoScale()
+                local _, height = GetPhysicalScreenSize()
+                local scale = 768 / height
+                scale = math.max(0.3, math.min(2.0, scale))
+                ApplyPreset(scale)
+            end
+
+            local btn1080 = GUI:CreateButton(tabContent, "1080p", 70, 26, function() ApplyPreset(0.7111111) end)
+            btn1080:SetPoint("LEFT", presetLabel, "RIGHT", 10, 0)
+
+            local btn1440 = GUI:CreateButton(tabContent, "1440p", 70, 26, function() ApplyPreset(0.5333333) end)
+            btn1440:SetPoint("LEFT", btn1080, "RIGHT", 6, 0)
+
+            local btn1440plus = GUI:CreateButton(tabContent, "1440p+", 70, 26, function() ApplyPreset(0.64) end)
+            btn1440plus:SetPoint("LEFT", btn1440, "RIGHT", 6, 0)
+
+            local btn4k = GUI:CreateButton(tabContent, "4K", 55, 26, function() ApplyPreset(0.3555556) end)
+            btn4k:SetPoint("LEFT", btn1440plus, "RIGHT", 6, 0)
+
+            local btnAuto = GUI:CreateButton(tabContent, "Auto", 55, 26, AutoScale)
+            btnAuto:SetPoint("LEFT", btn4k, "RIGHT", 6, 0)
+
+            y = y - FORM_ROW
         end
 
         y = y - 10
