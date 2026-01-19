@@ -1035,6 +1035,17 @@ local function CreateGeneralQoLPage(parent)
         autoGossipCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
         y = y - FORM_ROW
 
+        local autoDeleteCheck = GUI:CreateFormCheckbox(tabContent, "Auto-Fill Delete Confirmation", "autoDeleteConfirm", db.general, nil)
+        autoDeleteCheck:SetPoint("TOPLEFT", PADDING, y)
+        autoDeleteCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local autoDeleteDesc = GUI:CreateLabel(tabContent, "Automatically fills in DELETE when destroying high-quality items.", 11, C.textMuted)
+        autoDeleteDesc:SetPoint("TOPLEFT", PADDING, y + 4)
+        autoDeleteDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        autoDeleteDesc:SetJustifyH("LEFT")
+        y = y - 16
+
         y = y - 10
 
         -- Consumable Check Section

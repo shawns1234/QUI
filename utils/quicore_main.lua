@@ -418,6 +418,7 @@ local defaults = {
             fastAutoLoot = true,
             autoSelectGossip = true,  -- Auto-select single gossip options
             autoCombatLog = false,  -- Auto start/stop combat logging in M+ (opt-in)
+            autoDeleteConfirm = true,  -- Auto-fill DELETE confirmation text
             -- Quick Salvage settings
             quickSalvage = {
                 enabled = false,  -- Opt-in, OFF by default
