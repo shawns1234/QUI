@@ -454,7 +454,7 @@ local function CreateGeneralQoLPage(parent)
                 if name then msg = msg .. " (" .. name .. ")" end
                 DEFAULT_CHAT_FRAME:AddMessage(msg)
                 if QUICore and QUICore.UIMult then QUICore:UIMult() end
-                scaleSlider:SetValue(val, true)
+                scaleSlider.SetValue(val, true)
             end
 
             local function AutoScale()
