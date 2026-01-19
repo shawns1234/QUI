@@ -3312,7 +3312,7 @@ function GUI:CreateMainFrame()
     -- Version text (mint green, to the left of close button)
     local version = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     SetFont(version, 11, "", C.accentLight)  -- Same mint as title
-    version:SetText("Version 1.94")
+    version:SetText("Version 1.95")
     version:SetPoint("TOPRIGHT", -30, -10)
 
     -- Panel Scale (compact inline: label + editbox + slider)
