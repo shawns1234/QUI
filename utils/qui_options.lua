@@ -13990,7 +13990,7 @@ local function CreateHUDLayeringPage(parent)
                 primaryPowerBar = 7, secondaryPowerBar = 6,
                 playerFrame = 4, targetFrame = 4, totFrame = 3, petFrame = 3, focusFrame = 4, bossFrames = 4,
                 playerCastbar = 5, targetCastbar = 5,
-                playerIndicators = 5,  -- Player frame indicator icons (rested, combat, stance)
+                playerIndicators = 6,  -- Player frame indicator icons (rested, combat, stance)
                 customBars = 5,
                 skyridingHUD = 5,
             }
