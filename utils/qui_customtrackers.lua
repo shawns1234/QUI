@@ -1332,6 +1332,7 @@ function CustomTrackers:StartCooldownPolling(bar)
         local showOnlyInCombat = config.showOnlyInCombat
         local dynamicLayout = config.dynamicLayout == true
         local showActiveState = config.showActiveState ~= false  -- Default true
+        local stackColor = config.stackColor or {1, 1, 1, 1}
         local visibilityChanged = false
 
         -- PERFORMANCE: Iterate activeIcons (pre-filtered on spec/talent change)
@@ -1614,7 +1615,7 @@ function CustomTrackers:StartCooldownPolling(bar)
                     if isSecret then
                         -- Secret value: pass directly to SetText (it handles secrets)
                         icon.stackText:SetText(count)
-                        icon.stackText:SetTextColor(1, 1, 1, 1)
+                        icon.stackText:SetTextColor(stackColor[1], stackColor[2], stackColor[3], stackColor[4] or 1)
                         if not config.hideStackText then
                             icon.stackText:Show()
                         else
@@ -1622,7 +1623,7 @@ function CustomTrackers:StartCooldownPolling(bar)
                         end
                     elseif count > 1 then
                         icon.stackText:SetText(count)
-                        icon.stackText:SetTextColor(1, 1, 1, 1)
+                        icon.stackText:SetTextColor(stackColor[1], stackColor[2], stackColor[3], stackColor[4] or 1)
                         if not config.hideStackText then
                             icon.stackText:Show()
                         else
@@ -1632,9 +1633,9 @@ function CustomTrackers:StartCooldownPolling(bar)
                         icon.stackText:SetText("")
                         icon.stackText:Hide()
                     else
-                        -- Show 0 in dim color when depleted
+                        -- Show 0 in dimmed user color when depleted
                         icon.stackText:SetText("0")
-                        icon.stackText:SetTextColor(0.5, 0.5, 0.5, 1)
+                        icon.stackText:SetTextColor(stackColor[1] * 0.5, stackColor[2] * 0.5, stackColor[3] * 0.5, stackColor[4] or 1)
                         if not config.hideStackText then
                             icon.stackText:Show()
                         else

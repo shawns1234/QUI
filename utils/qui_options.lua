@@ -444,7 +444,7 @@ local function CreateGeneralQoLPage(parent)
             y = y - FORM_ROW
 
             -- Quick preset buttons
-            local presetLabel = GUI:CreateLabel(tabContent, "Quick Presets:", 12, C.text)
+            local presetLabel = GUI:CreateLabel(tabContent, "Quick UI Scale Presets:", 12, C.text)
             presetLabel:SetPoint("TOPLEFT", PADDING, y)
 
             local function ApplyPreset(val, name)
@@ -464,42 +464,70 @@ local function CreateGeneralQoLPage(parent)
                 ApplyPreset(scale, "Auto")
             end
 
-            local btn1080 = GUI:CreateButton(tabContent, "1080p", 70, 26, function() ApplyPreset(0.7111111, "1080p") end)
-            btn1080:SetPoint("LEFT", presetLabel, "RIGHT", 10, 0)
+            -- Button container aligned with slider track (180px) to editbox right edge
+            local buttonContainer = CreateFrame("Frame", nil, tabContent)
+            buttonContainer:SetPoint("LEFT", scaleSlider, "LEFT", 180, 0)
+            buttonContainer:SetPoint("RIGHT", scaleSlider, "RIGHT", 0, 0)
+            buttonContainer:SetPoint("TOP", presetLabel, "TOP", 0, 0)
+            buttonContainer:SetHeight(26)
 
-            local btn1440 = GUI:CreateButton(tabContent, "1440p", 70, 26, function() ApplyPreset(0.5333333, "1440p") end)
-            btn1440:SetPoint("LEFT", btn1080, "RIGHT", 6, 0)
+            local BUTTON_GAP = 6
+            local NUM_BUTTONS = 5
+            local buttons = {}
 
-            local btn1440plus = GUI:CreateButton(tabContent, "1440p+", 70, 26, function() ApplyPreset(0.64, "1440p+") end)
-            btn1440plus:SetPoint("LEFT", btn1440, "RIGHT", 6, 0)
+            -- Create buttons with placeholder width (will be set dynamically)
+            buttons[1] = GUI:CreateButton(buttonContainer, "1080p", 50, 26, function() ApplyPreset(0.7111111, "1080p") end)
+            buttons[2] = GUI:CreateButton(buttonContainer, "1440p", 50, 26, function() ApplyPreset(0.5333333, "1440p") end)
+            buttons[3] = GUI:CreateButton(buttonContainer, "1440p+", 50, 26, function() ApplyPreset(0.64, "1440p+") end)
+            buttons[4] = GUI:CreateButton(buttonContainer, "4K", 50, 26, function() ApplyPreset(0.3555556, "4K") end)
+            buttons[5] = GUI:CreateButton(buttonContainer, "Auto", 50, 26, AutoScale)
 
-            local btn4k = GUI:CreateButton(tabContent, "4K", 55, 26, function() ApplyPreset(0.3555556, "4K") end)
-            btn4k:SetPoint("LEFT", btn1440plus, "RIGHT", 6, 0)
+            -- Dynamically size and position buttons when container width is known
+            buttonContainer:SetScript("OnSizeChanged", function(self, width)
+                if width and width > 0 then
+                    local buttonWidth = (width - (NUM_BUTTONS - 1) * BUTTON_GAP) / NUM_BUTTONS
+                    for i, btn in ipairs(buttons) do
+                        btn:SetWidth(buttonWidth)
+                        btn:ClearAllPoints()
+                        if i == 1 then
+                            btn:SetPoint("LEFT", self, "LEFT", 0, 0)
+                        else
+                            btn:SetPoint("LEFT", buttons[i-1], "RIGHT", BUTTON_GAP, 0)
+                        end
+                    end
+                end
+            end)
 
-            local btnAuto = GUI:CreateButton(tabContent, "Auto", 55, 26, AutoScale)
-            btnAuto:SetPoint("LEFT", btn4k, "RIGHT", 6, 0)
+            -- Tooltip data for preset buttons
+            local tooltipData = {
+                { title = "1080p", desc = "Scale: 0.7111111\nPixel-perfect for 1920×1080" },
+                { title = "1440p", desc = "Scale: 0.5333333\nPixel-perfect for 2560×1440" },
+                { title = "1440p+", desc = "Scale: 0.64\nQuazii's personal setting — larger and more readable.\nRequires manual adjustment for pixel perfection." },
+                { title = "4K", desc = "Scale: 0.3555556\nPixel-perfect for 3840×2160" },
+                { title = "Auto", desc = "Computes pixel-perfect scale based on your resolution.\nFormula: 768 ÷ screen height" },
+            }
 
-            y = y - FORM_ROW
+            -- Add tooltips to buttons
+            for i, btn in ipairs(buttons) do
+                local data = tooltipData[i]
+                btn:HookScript("OnEnter", function(self)
+                    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                    GameTooltip:AddLine(data.title, 1, 1, 1)
+                    GameTooltip:AddLine(data.desc, 0.8, 0.8, 0.8, true)
+                    GameTooltip:Show()
+                end)
+                btn:HookScript("OnLeave", function()
+                    GameTooltip:Hide()
+                end)
+            end
 
-            -- Preset explanations with colored labels
-            local desc1080 = GUI:CreateLabel(tabContent, "1080p: 0.7111111 — pixel-perfect for 1920×1080", 11, C.accent)
-            desc1080:SetPoint("TOPLEFT", PADDING, y)
-            y = y - 16
+            y = y - FORM_ROW - 6
 
-            local desc1440 = GUI:CreateLabel(tabContent, "1440p: 0.5333333 — pixel-perfect for 2560×1440", 11, C.accent)
-            desc1440:SetPoint("TOPLEFT", PADDING, y)
-            y = y - 16
-
-            local desc1440plus = GUI:CreateLabel(tabContent, "1440p+: 0.64 — QuaziiUI default, larger and more readable (not pixel-perfect)", 11, C.accent)
-            desc1440plus:SetPoint("TOPLEFT", PADDING, y)
-            y = y - 16
-
-            local desc4k = GUI:CreateLabel(tabContent, "4K: 0.3555556 — pixel-perfect for 3840×2160", 11, C.accent)
-            desc4k:SetPoint("TOPLEFT", PADDING, y)
-            y = y - 16
-
-            local descAuto = GUI:CreateLabel(tabContent, "Auto: Calculates 768 ÷ your screen height", 11, C.accent)
-            descAuto:SetPoint("TOPLEFT", PADDING, y)
+            -- Single summary line (cleaner than 5 separate description lines)
+            local presetSummary = GUI:CreateLabel(tabContent,
+                "Hover over any preset for details. 1440p+ is Quazii's personal setting.",
+                11, C.textMuted)
+            presetSummary:SetPoint("TOPLEFT", PADDING, y)
             y = y - 20
 
             -- Big picture advice
@@ -508,10 +536,9 @@ local function CreateGeneralQoLPage(parent)
                 11, C.textMuted)
             bigPicture:SetPoint("TOPLEFT", PADDING, y)
             bigPicture:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            bigPicture:SetJustifyH("LEFT")
             y = y - 36
         end
-
-        y = y - 10
 
         -- Default Font Section
         GUI:SetSearchSection("Default Font Settings")

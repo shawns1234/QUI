@@ -308,13 +308,8 @@ local function TruncateName(name, maxLength)
         end
     end
 
-    -- Fallback to byte truncation (pcall protects against secret values in M+)
-    local lenOk, nameLen = pcall(function() return #name end)
-    if lenOk and nameLen and nameLen > maxLength then
-        local subOk, truncated = pcall(string.sub, name, 1, maxLength)
-        if subOk and truncated then return truncated end
-    end
-    return name
+    -- Fallback: byte-based truncation (works with secret values in M+/dungeons)
+    return string.format("%." .. maxLength .. "s", name)
 end
 
 ---------------------------------------------------------------------------

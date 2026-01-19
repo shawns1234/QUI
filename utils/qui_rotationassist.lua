@@ -35,6 +35,9 @@ local spellToKeybind = {}
 local lastKeybindCacheTime = 0
 local KEYBIND_CACHE_INTERVAL = 1.0
 
+-- GCD spell ID (standard global cooldown reference)
+local GCD_SPELL_ID = 61304
+
 -- Forward declarations
 local CreateIconFrame, RefreshIconFrame, UpdateIconDisplay, UpdateVisibility
 
@@ -110,6 +113,37 @@ local function GetKeybindForSpell(spellID)
     end
 
     return nil
+end
+
+--------------------------------------------------------------------------------
+-- GCD Cooldown Helpers (handles Midnight 12.0+ secret values)
+--------------------------------------------------------------------------------
+
+local function ReadSpellCooldown(spellID)
+    if C_Spell and C_Spell.GetSpellCooldown then
+        local a, b, c, d = C_Spell.GetSpellCooldown(spellID)
+        if type(a) == "table" then
+            -- Midnight 12.0+ returns table
+            local start = a.startTime or a.start
+            local duration = a.duration
+            local modRate = a.modRate
+            return start, duration, modRate
+        else
+            -- 11.x returns tuple: start, duration, enable, modRate
+            return a, b, d
+        end
+    end
+    return nil, nil, nil
+end
+
+local function IsCooldownActive(start, duration)
+    if not start or not duration then return false end
+    local ok, result = pcall(function()
+        return duration > 0 and start > 0
+    end)
+    -- If comparison threw error = secret value = cooldown IS active
+    if not ok then return true end
+    return result
 end
 
 --------------------------------------------------------------------------------
@@ -247,27 +281,8 @@ UpdateIconDisplay = function(spellID)
     end
     iconFrame.icon:SetVertexColor(color[1], color[2], color[3], 1)
 
-    -- Update cooldown swipe (handle secret values from Midnight API)
-    if db.cooldownSwipeEnabled then
-        local cooldownInfo = C_Spell.GetSpellCooldown(spellID)
-        if cooldownInfo and cooldownInfo.startTime and cooldownInfo.duration then
-            -- Use pcall to safely check duration > 0 (may be secret value)
-            local ok, hasDuration = pcall(function()
-                return cooldownInfo.duration > 0
-            end)
-            if ok and hasDuration then
-                -- Pass values directly to SetCooldown - it handles secret values gracefully
-                iconFrame.cooldown:SetCooldown(cooldownInfo.startTime, cooldownInfo.duration)
-            else
-                iconFrame.cooldown:Clear()
-            end
-        else
-            iconFrame.cooldown:Clear()
-        end
-        iconFrame.cooldown:Show()
-    else
-        iconFrame.cooldown:Hide()
-    end
+    -- GCD cooldown swipe is handled separately by UpdateGCDCooldown()
+    -- (triggered by SPELL_UPDATE_COOLDOWN events for responsiveness)
 
     -- Update keybind text
     if db.showKeybind then
@@ -276,6 +291,36 @@ UpdateIconDisplay = function(spellID)
         iconFrame.keybindText:Show()
     else
         iconFrame.keybindText:Hide()
+    end
+end
+
+--------------------------------------------------------------------------------
+-- GCD Cooldown Update (event-driven for responsiveness)
+--------------------------------------------------------------------------------
+
+local function UpdateGCDCooldown()
+    if not iconFrame or not iconFrame.cooldown then return end
+
+    local db = GetDB()
+    if not db or not db.cooldownSwipeEnabled then
+        iconFrame.cooldown:Hide()
+        return
+    end
+
+    -- Only show GCD swipe when the icon itself is visible
+    if not iconFrame:IsShown() then return end
+
+    local start, duration, modRate = ReadSpellCooldown(GCD_SPELL_ID)
+
+    if IsCooldownActive(start, duration) then
+        iconFrame.cooldown:Show()
+        if modRate then
+            iconFrame.cooldown:SetCooldown(start, duration, modRate)
+        else
+            iconFrame.cooldown:SetCooldown(start, duration)
+        end
+    else
+        iconFrame.cooldown:Clear()
     end
 end
 
@@ -440,6 +485,12 @@ RefreshIconFrame = function()
     iconFrame.cooldown:SetPoint("TOPLEFT", inset, -inset)
     iconFrame.cooldown:SetPoint("BOTTOMRIGHT", -inset, inset)
 
+    -- Update cooldown swipe visibility based on setting
+    iconFrame.cooldown:SetDrawSwipe(db.cooldownSwipeEnabled)
+    if not db.cooldownSwipeEnabled then
+        iconFrame.cooldown:Hide()
+    end
+
     -- Lock/unlock state
     iconFrame:EnableMouse(not db.isLocked or true) -- Always enable for visibility, but drag only when unlocked
 
@@ -482,6 +533,8 @@ eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+eventFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+eventFrame:RegisterEvent("ACTIONBAR_UPDATE_COOLDOWN")
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
@@ -518,6 +571,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         -- Force spell update on target change
         lastSpellID = nil
         DoUpdate()  -- Immediate update on target change
+    elseif event == "SPELL_UPDATE_COOLDOWN" or event == "ACTIONBAR_UPDATE_COOLDOWN" then
+        UpdateGCDCooldown()
     end
 end)
 
