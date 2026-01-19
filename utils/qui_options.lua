@@ -443,45 +443,72 @@ local function CreateGeneralQoLPage(parent)
             scaleSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
             y = y - FORM_ROW
 
-            -- Description text explaining scale options
-            local scaleDesc = GUI:CreateLabel(tabContent,
-                "1080p, 1440p, and 4K are pixel-perfect scales that prevent blurry edges. 1440p+ is a larger, more readable alternative. Auto calculates the ideal scale for your display.",
-                11, C.textMuted)
-            scaleDesc:SetPoint("TOPLEFT", PADDING, y)
-            scaleDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
-            y = y - 28
-
             -- Quick preset buttons
             local presetLabel = GUI:CreateLabel(tabContent, "Quick Presets:", 12, C.text)
             presetLabel:SetPoint("TOPLEFT", PADDING, y)
 
-            local function ApplyPreset(val)
-                scaleSlider:SetValue(val)
+            local function ApplyPreset(val, name)
+                db.general.uiScale = val
+                pcall(function() UIParent:SetScale(val) end)
+                local msg = "|cff34D399[QuaziiUI]|r UI scale set to " .. val
+                if name then msg = msg .. " (" .. name .. ")" end
+                DEFAULT_CHAT_FRAME:AddMessage(msg)
+                if QUICore and QUICore.UIMult then QUICore:UIMult() end
+                scaleSlider:SetValue(val, true)
             end
 
             local function AutoScale()
                 local _, height = GetPhysicalScreenSize()
                 local scale = 768 / height
                 scale = math.max(0.3, math.min(2.0, scale))
-                ApplyPreset(scale)
+                ApplyPreset(scale, "Auto")
             end
 
-            local btn1080 = GUI:CreateButton(tabContent, "1080p", 70, 26, function() ApplyPreset(0.7111111) end)
+            local btn1080 = GUI:CreateButton(tabContent, "1080p", 70, 26, function() ApplyPreset(0.7111111, "1080p") end)
             btn1080:SetPoint("LEFT", presetLabel, "RIGHT", 10, 0)
 
-            local btn1440 = GUI:CreateButton(tabContent, "1440p", 70, 26, function() ApplyPreset(0.5333333) end)
+            local btn1440 = GUI:CreateButton(tabContent, "1440p", 70, 26, function() ApplyPreset(0.5333333, "1440p") end)
             btn1440:SetPoint("LEFT", btn1080, "RIGHT", 6, 0)
 
-            local btn1440plus = GUI:CreateButton(tabContent, "1440p+", 70, 26, function() ApplyPreset(0.64) end)
+            local btn1440plus = GUI:CreateButton(tabContent, "1440p+", 70, 26, function() ApplyPreset(0.64, "1440p+") end)
             btn1440plus:SetPoint("LEFT", btn1440, "RIGHT", 6, 0)
 
-            local btn4k = GUI:CreateButton(tabContent, "4K", 55, 26, function() ApplyPreset(0.3555556) end)
+            local btn4k = GUI:CreateButton(tabContent, "4K", 55, 26, function() ApplyPreset(0.3555556, "4K") end)
             btn4k:SetPoint("LEFT", btn1440plus, "RIGHT", 6, 0)
 
             local btnAuto = GUI:CreateButton(tabContent, "Auto", 55, 26, AutoScale)
             btnAuto:SetPoint("LEFT", btn4k, "RIGHT", 6, 0)
 
             y = y - FORM_ROW
+
+            -- Preset explanations with colored labels
+            local desc1080 = GUI:CreateLabel(tabContent, "1080p: 0.7111111 — pixel-perfect for 1920×1080", 11, C.accent)
+            desc1080:SetPoint("TOPLEFT", PADDING, y)
+            y = y - 16
+
+            local desc1440 = GUI:CreateLabel(tabContent, "1440p: 0.5333333 — pixel-perfect for 2560×1440", 11, C.accent)
+            desc1440:SetPoint("TOPLEFT", PADDING, y)
+            y = y - 16
+
+            local desc1440plus = GUI:CreateLabel(tabContent, "1440p+: 0.64 — QuaziiUI default, larger and more readable (not pixel-perfect)", 11, C.accent)
+            desc1440plus:SetPoint("TOPLEFT", PADDING, y)
+            y = y - 16
+
+            local desc4k = GUI:CreateLabel(tabContent, "4K: 0.3555556 — pixel-perfect for 3840×2160", 11, C.accent)
+            desc4k:SetPoint("TOPLEFT", PADDING, y)
+            y = y - 16
+
+            local descAuto = GUI:CreateLabel(tabContent, "Auto: Calculates 768 ÷ your screen height", 11, C.accent)
+            descAuto:SetPoint("TOPLEFT", PADDING, y)
+            y = y - 20
+
+            -- Big picture advice
+            local bigPicture = GUI:CreateLabel(tabContent,
+                "UI scale is highly personal—it depends on your monitor size, resolution, and preference. If you already have a scale you like from years of playing WoW, stick with it. These presets are just common values people tend to use.",
+                11, C.textMuted)
+            bigPicture:SetPoint("TOPLEFT", PADDING, y)
+            bigPicture:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - 36
         end
 
         y = y - 10
