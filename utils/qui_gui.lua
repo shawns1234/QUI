@@ -2299,6 +2299,8 @@ function GUI:CreateFormSlider(parent, label, min, max, step, dbKey, dbTable, onC
 
     options = options or {}
     local deferOnDrag = options.deferOnDrag or false
+    local precision = options.precision
+    local formatStr = precision and string.format("%%.%df", precision) or (step < 1 and "%.2f" or "%d")
 
     -- Label on left (off-white text)
     local text = container:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -2422,15 +2424,22 @@ function GUI:CreateFormSlider(parent, label, min, max, step, dbKey, dbTable, onC
 
     local function UpdateVisual(val)
         val = math.max(container.min, math.min(container.max, val))
-        val = math.floor(val / container.step + 0.5) * container.step
+        if not precision then
+            val = math.floor(val / container.step + 0.5) * container.step
+        end
         slider:SetValue(val)
-        editBox:SetText(string.format(container.step < 1 and "%.2f" or "%d", val))
+        editBox:SetText(string.format(formatStr, val))
         UpdateTrackFill(val)
     end
 
     local function SetValue(val, skipOnChange)
         val = math.max(container.min, math.min(container.max, val))
-        val = math.floor(val / container.step + 0.5) * container.step
+        if precision then
+            local factor = 10 ^ precision
+            val = math.floor(val * factor + 0.5) / factor
+        else
+            val = math.floor(val / container.step + 0.5) * container.step
+        end
         container.value = val
         UpdateVisual(val)
         if dbTable and dbKey then dbTable[dbKey] = val end
@@ -2450,7 +2459,7 @@ function GUI:CreateFormSlider(parent, label, min, max, step, dbKey, dbTable, onC
         if userInput and container.isEnabled == false then return end
 
         value = math.floor(value / container.step + 0.5) * container.step
-        editBox:SetText(string.format(container.step < 1 and "%.2f" or "%d", value))
+        editBox:SetText(string.format(formatStr, value))
         UpdateTrackFill(value)
         if dbTable and dbKey then dbTable[dbKey] = value end
         if userInput then
@@ -2483,7 +2492,7 @@ function GUI:CreateFormSlider(parent, label, min, max, step, dbKey, dbTable, onC
         self:ClearFocus()
     end)
     editBox:SetScript("OnEscapePressed", function(self)
-        self:SetText(string.format(container.step < 1 and "%.2f" or "%d", GetValue()))
+        self:SetText(string.format(formatStr, GetValue()))
         self:ClearFocus()
     end)
 

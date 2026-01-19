@@ -438,7 +438,7 @@ local function CreateGeneralQoLPage(parent)
                 "uiScale", db.general, function(val)
                     pcall(function() UIParent:SetScale(val) end)
                     if QUICore and QUICore.UIMult then QUICore:UIMult() end
-                end, { deferOnDrag = true })
+                end, { deferOnDrag = true, precision = 7 })
             scaleSlider:SetPoint("TOPLEFT", PADDING, y)
             scaleSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
             y = y - FORM_ROW
