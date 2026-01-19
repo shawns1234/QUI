@@ -446,7 +446,8 @@ local function GetSecondaryResourceValue(resource)
     if resource == "STAGGER" then
         local stagger = UnitStagger("player") or 0
         local maxHealth = UnitHealthMax("player") or 1
-        return maxHealth, stagger, stagger, "number"
+        local staggerPercent = (stagger / maxHealth) * 100
+        return 100, staggerPercent, staggerPercent, "percent"
     end
 
     if resource == "SOUL" then
@@ -2360,7 +2361,15 @@ function QUICore:UpdateSecondaryPowerBar()
 
 
     -- Update text (safe: uses only displayValue)
-    bar.TextValue:SetText(tostring(displayValue or 0))
+    if valueType == "percent" and cfg.showPercent then
+        bar.TextValue:SetText(string.format("%.0f%%", displayValue or 0))
+    elseif valueType == "percent" then
+        -- Stagger with showPercent off: show raw stagger amount
+        local stagger = UnitStagger("player") or 0
+        bar.TextValue:SetText(tostring(math.floor(stagger)))
+    else
+        bar.TextValue:SetText(tostring(displayValue or 0))
+    end
     
     -- Hide fragmented bars
     for _, fragmentBar in ipairs(bar.FragmentedPowerBars) do
