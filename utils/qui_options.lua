@@ -3453,7 +3453,7 @@ local function CreateAutohidesPage(parent)
             if db.loot.showTransmogMarker == nil then db.loot.showTransmogMarker = true end
 
             if not db.lootRoll then db.lootRoll = {} end
-            if db.lootRoll.enabled == nil then db.lootRoll.enabled = true end
+            if db.lootRoll.enabled == nil then db.lootRoll.enabled = false end  -- #125: disabled until fixed
             if db.lootRoll.growDirection == nil then db.lootRoll.growDirection = "DOWN" end
             if db.lootRoll.spacing == nil then db.lootRoll.spacing = 4 end
 
@@ -3510,55 +3510,14 @@ local function CreateAutohidesPage(parent)
             rollHeader:SetPoint("TOPLEFT", PAD, y)
             y = y - rollHeader.gap
 
-            local rollDesc = GUI:CreateLabel(tabContent, "Custom Need/Greed/Pass roll frames for group loot.", 11, C.textMuted)
+            -- #125: Temporarily disabled due to bugs with multiple loot items
+            local rollDesc = GUI:CreateLabel(tabContent, "|cffff6666TEMPORARILY DISABLED|r - Custom roll frames are disabled while we fix issues with raid loot. Blizzard default frames will be used.", 11, C.textMuted)
             rollDesc:SetPoint("TOPLEFT", PAD, y)
             rollDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             rollDesc:SetJustifyH("LEFT")
             rollDesc:SetWordWrap(true)
-            rollDesc:SetHeight(20)
-            y = y - 28
-
-            local rollCheck = GUI:CreateFormCheckbox(tabContent, "Skin Roll Frames", "enabled", lootRollDB, function()
-                GUI:ShowConfirmation({
-                    title = "Reload UI?",
-                    message = "Skinning changes require a reload to take effect.",
-                    acceptText = "Reload",
-                    cancelText = "Later",
-                    onAccept = function() QuaziiUI:SafeReload() end,
-                })
-            end)
-            rollCheck:SetPoint("TOPLEFT", PAD, y)
-            rollCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            y = y - FORM_ROW
-
-            local growDropdown = GUI:CreateFormDropdown(tabContent, "Growth Direction", {
-                { value = "DOWN", text = "Down" },
-                { value = "UP", text = "Up" },
-            }, "growDirection", lootRollDB)
-            growDropdown:SetPoint("TOPLEFT", PAD, y)
-            growDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            y = y - FORM_ROW
-
-            local spacingSlider = GUI:CreateFormSlider(tabContent, "Spacing", 0, 20, 1, "spacing", lootRollDB)
-            spacingSlider:SetPoint("TOPLEFT", PAD, y)
-            spacingSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            y = y - FORM_ROW
-
-            -- Toggle loot movers button
-            local lootMoverBtn = GUI:CreateButton(tabContent, "Toggle Movers", 140, 28, function()
-                local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
-                if QUICore and QUICore.Loot then
-                    QUICore.Loot:ToggleMovers()
-                end
-            end)
-            lootMoverBtn:SetPoint("TOPLEFT", PAD, y)
-            y = y - 40
-
-            local lootMoverInfo = GUI:CreateLabel(tabContent, "Drag the mover frames to reposition loot and roll frames.", 10, C.textMuted)
-            lootMoverInfo:SetPoint("TOPLEFT", PAD, y)
-            lootMoverInfo:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
-            lootMoverInfo:SetJustifyH("LEFT")
-            y = y - 25
+            rollDesc:SetHeight(40)
+            y = y - 50
 
             y = y - 10  -- Extra padding before next section
 

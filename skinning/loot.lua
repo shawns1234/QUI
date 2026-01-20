@@ -980,6 +980,11 @@ end
 function Loot:Initialize()
     local db = GetDB()
 
+    -- #125: Force disable loot roll frames until fixed - overrides saved settings
+    if db.lootRoll then
+        db.lootRoll.enabled = false
+    end
+
     -- Create frames
     if not lootFrame then
         lootFrame = CreateLootWindow()
