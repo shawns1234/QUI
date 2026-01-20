@@ -529,9 +529,11 @@ end
             WorldMapFrame.BlackoutFrame:EnableMouse(false)
 
             -- Hook the BlackoutFrame to keep it hidden if Blizzard tries to show it
+            -- IMPORTANT: Skip during combat to avoid taint propagation to SetPassThroughButtons
             if not WorldMapFrame.BlackoutFrame._QUI_BlackoutHooked then
                 WorldMapFrame.BlackoutFrame._QUI_BlackoutHooked = true
                 hooksecurefunc(WorldMapFrame.BlackoutFrame, "Show", function(self)
+                    if InCombatLockdown() then return end  -- Avoid taint during combat
                     local s = GetSettings()
                     if s and s.hideWorldMapBlackout then
                         self:SetAlpha(0)
@@ -541,6 +543,7 @@ end
 
                 -- Also hook SetAlpha to prevent alpha changes
                 hooksecurefunc(WorldMapFrame.BlackoutFrame, "SetAlpha", function(self, alpha)
+                    if InCombatLockdown() then return end  -- Avoid taint during combat
                     local s = GetSettings()
                     if s and s.hideWorldMapBlackout and alpha > 0 then
                         self:SetAlpha(0)
