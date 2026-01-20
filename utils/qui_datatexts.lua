@@ -711,7 +711,8 @@ Datatexts:Register("volume", {
             -- Footer hints
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine("Scroll to adjust volume", 0.5, 0.5, 0.5)
-            GameTooltip:AddLine("Left-Click to toggle mute", 0.5, 0.5, 0.5)
+            GameTooltip:AddLine("Left-Click to open audio settings", 0.5, 0.5, 0.5)
+            GameTooltip:AddLine("Right-Click to toggle mute", 0.5, 0.5, 0.5)
 
             GameTooltip:Show()
         end)
@@ -734,10 +735,14 @@ Datatexts:Register("volume", {
             end
         end)
 
-        -- Click handler for mute toggle
-        frame:RegisterForClicks("LeftButtonUp")
+        -- Click handler: Left = audio settings, Right = mute toggle
+        frame:RegisterForClicks("AnyUp")
         frame:SetScript("OnClick", function(self, button)
             if button == "LeftButton" then
+                if Settings and Settings.OpenToCategory and Settings.AUDIO_CATEGORY_ID then
+                    Settings.OpenToCategory(Settings.AUDIO_CATEGORY_ID)
+                end
+            elseif button == "RightButton" then
                 ToggleMute()
                 Update()
                 -- Update tooltip if shown
@@ -3078,6 +3083,126 @@ Datatexts:Register("playerspec", {
             end
         end)
 
+        Update()
+        return frame
+    end,
+
+    OnDisable = function(frame)
+        frame:UnregisterAllEvents()
+    end,
+})
+
+-- Experience datatext
+Datatexts:Register("experience", {
+    displayName = "Experience",
+    category = "Character",
+    description = "Displays XP percentage to next level with detailed tooltip",
+
+    OnEnable = function(slotFrame, settings)
+        local frame = CreateFrame("Button", nil, slotFrame)
+        frame:SetAllPoints()
+        frame:EnableMouse(true)
+
+        local text = slotFrame.text
+        if not text then
+            text = slotFrame:CreateFontString(nil, "OVERLAY")
+            text:SetPoint("CENTER")
+            slotFrame.text = text
+        end
+
+        local function Update()
+            local level = UnitLevel("player")
+            local maxLevel = GetMaxLevelForPlayerExpansion and GetMaxLevelForPlayerExpansion() or MAX_PLAYER_LEVEL or 80
+
+            -- Check if at max level
+            if level >= maxLevel then
+                local label = GetLabel("XP: ", "X: ", slotFrame.shortLabel, slotFrame.noLabel)
+                local r, g, b = GetValueColor()
+                text:SetFormattedText("%s|cff%02x%02x%02xMax|r", label, r, g, b)
+                return
+            end
+
+            local currXP = UnitXP("player")
+            local maxXP = UnitXPMax("player")
+
+            if maxXP == 0 then maxXP = 1 end  -- Avoid division by zero
+            local percent = floor((currXP / maxXP) * 100 + 0.5)
+
+            local label = GetLabel("XP: ", "X: ", slotFrame.shortLabel, slotFrame.noLabel)
+            local r, g, b = GetValueColor()
+            text:SetFormattedText("%s|cff%02x%02x%02x%d%%|r", label, r, g, b, percent)
+        end
+
+        -- Tooltip on hover
+        frame:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:ClearLines()
+            GameTooltip:AddLine("Experience", 1, 1, 1)
+            GameTooltip:AddLine(" ")
+
+            local level = UnitLevel("player")
+            local maxLevel = GetMaxLevelForPlayerExpansion and GetMaxLevelForPlayerExpansion() or MAX_PLAYER_LEVEL or 80
+
+            if level >= maxLevel then
+                GameTooltip:AddLine("Maximum level reached!", 0.5, 1, 0.5)
+            else
+                local currXP = UnitXP("player")
+                local maxXP = UnitXPMax("player")
+                local remaining = maxXP - currXP
+
+                -- Format numbers with commas
+                local function FormatNumber(n)
+                    local s = tostring(floor(n))
+                    local pos = #s % 3
+                    if pos == 0 then pos = 3 end
+                    return s:sub(1, pos) .. s:sub(pos + 1):gsub("(%d%d%d)", ",%1")
+                end
+
+                GameTooltip:AddDoubleLine("Current XP:", FormatNumber(currXP) .. " / " .. FormatNumber(maxXP), 0.7, 0.7, 0.7, 1, 1, 1)
+                GameTooltip:AddDoubleLine("Remaining:", FormatNumber(remaining) .. " to level " .. (level + 1), 0.7, 0.7, 0.7, 1, 1, 1)
+
+                -- Rested XP
+                local exhaustionThreshold = GetXPExhaustion()
+                if exhaustionThreshold and exhaustionThreshold > 0 then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddDoubleLine("Rested XP:", FormatNumber(exhaustionThreshold), 0.2, 0.6, 1, 0.2, 0.6, 1)
+
+                    -- Calculate rested bonus as percentage of remaining
+                    local restedPercent = floor((exhaustionThreshold / maxXP) * 100 + 0.5)
+                    GameTooltip:AddDoubleLine("Rested Bonus:", restedPercent .. "% of level", 0.2, 0.6, 1, 0.2, 0.6, 1)
+                end
+
+                -- Rest state
+                local exhaustionStateID, exhaustionStateName = GetRestState()
+                if exhaustionStateName then
+                    GameTooltip:AddLine(" ")
+                    if exhaustionStateID == 1 then
+                        GameTooltip:AddLine("Rested (150% XP from kills)", 0.2, 0.6, 1)
+                    else
+                        GameTooltip:AddLine("Normal XP rate", 0.7, 0.7, 0.7)
+                    end
+                end
+            end
+
+            GameTooltip:Show()
+        end)
+
+        frame:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        -- Click handler (no action for now)
+        frame:RegisterForClicks("AnyUp")
+
+        -- Update on XP events
+        frame:RegisterEvent("PLAYER_XP_UPDATE")
+        frame:RegisterEvent("PLAYER_LEVEL_UP")
+        frame:RegisterEvent("UPDATE_EXHAUSTION")
+        frame:SetScript("OnEvent", function()
+            Update()
+        end)
+
+        frame.Update = Update
         Update()
         return frame
     end,
