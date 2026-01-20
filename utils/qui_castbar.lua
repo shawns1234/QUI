@@ -67,6 +67,23 @@ local function GetDB()
 end
 
 ---------------------------------------------------------------------------
+-- SECRET VALUE HANDLING (Midnight 12.0+)
+-- CRITICAL: tostring() on secret values THROWS ERROR
+-- Use _G.ToPlain (WoW API) or pcall(tonumber) instead
+---------------------------------------------------------------------------
+-- Convert value to plain number (handles secret values from Midnight API)
+-- Simpler approach: trust type check, don't over-validate
+local function SafeToNumber(v)
+    if v == nil then return nil end
+    -- If already a number, return it directly (trust type check)
+    if type(v) == "number" then return v end
+    -- Try tonumber for non-number types
+    local ok, n = pcall(tonumber, v)
+    if ok and type(n) == "number" then return n end
+    return nil
+end
+
+---------------------------------------------------------------------------
 -- CONSTANTS
 ---------------------------------------------------------------------------
 QUI_Castbar.STAGE_COLORS = {
@@ -1229,47 +1246,60 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
             -- Handle timer-driven mode (non-player units with secret timing)
             if self.timerDriven and not isPlayer then
                 -- Engine is driving the animation via SetTimerDuration
-                -- Just update time text by reading from the StatusBar
+                -- Just update time text by reading remaining time
 
-                -- Read progress from StatusBar and convert secret values to plain numbers
-                local remaining = 0
-                if self.statusBar and self.statusBar.GetValue and self.statusBar.GetMinMaxValues then
-                    local okV, value = pcall(self.statusBar.GetValue, self.statusBar)
-                    local okMM, minV, maxV = pcall(self.statusBar.GetMinMaxValues, self.statusBar)
+                local remaining = nil
 
-                    -- Convert secret values to plain numbers using ToPlain() if available
-                    -- Then validate with pcall arithmetic
-                    local function toPlainNumber(v)
-                        if v == nil then return nil end
-                        -- Try ToPlain first (Midnight 12.0+)
-                        if type(ToPlain) == "function" then
-                            local ok, pv = pcall(ToPlain, v)
-                            if ok then v = pv end
+                -- Method 1: Try duration object GetRemainingDuration first
+                if self.durationObj then
+                    local getter = self.durationObj.GetRemainingDuration or self.durationObj.GetRemaining
+                    if getter then
+                        local okRem, rem = pcall(getter, self.durationObj)
+                        if okRem and rem ~= nil then
+                            remaining = SafeToNumber(rem)
                         end
-                        -- Validate with arithmetic test
-                        local ok = pcall(function() return v + 0 end)
-                        return ok and v or nil
-                    end
-
-                    value = toPlainNumber(value)
-                    minV = toPlainNumber(minV)
-                    maxV = toPlainNumber(maxV)
-
-                    if value and minV and maxV then
-                        -- Determine remaining time based on bar direction
-                        local channelFillForward = castSettings and castSettings.channelFillForward
-                        local shouldDrain = self.isChanneled and not channelFillForward
-                        if shouldDrain then
-                            remaining = value - minV
-                        else
-                            remaining = maxV - value
-                        end
-                        if remaining < 0 then remaining = 0 end
                     end
                 end
 
-                -- Update time text (throttled)
-                UpdateThrottledText(self, elapsed, self.timeText, remaining)
+                -- Method 2: Fall back to StatusBar extraction
+                if remaining == nil and self.statusBar and self.statusBar.GetValue and self.statusBar.GetMinMaxValues then
+                    local okV, value = pcall(self.statusBar.GetValue, self.statusBar)
+                    local okMM, minV, maxV = pcall(self.statusBar.GetMinMaxValues, self.statusBar)
+
+                    if okV and okMM then
+                        value = SafeToNumber(value)
+                        minV = SafeToNumber(minV) or 0
+                        maxV = SafeToNumber(maxV)
+
+                        if value and maxV and maxV > minV then
+                            local span = maxV - minV
+
+                            -- Detect countdown vs countup
+                            -- If value is closer to max, bar is counting down
+                            local assumeCountdown = self._assumeCountdown
+                            if assumeCountdown == nil then
+                                local distMin = math.abs(value - minV)
+                                local distMax = math.abs(maxV - value)
+                                assumeCountdown = (distMax < distMin)
+                                self._assumeCountdown = assumeCountdown
+                            end
+
+                            if assumeCountdown then
+                                remaining = value - minV
+                            else
+                                remaining = maxV - value
+                            end
+
+                            if remaining < 0 then remaining = 0 end
+                            if remaining > span then remaining = span end
+                        end
+                    end
+                end
+
+                -- Update time text (throttled) - only if we have valid remaining
+                if remaining ~= nil then
+                    UpdateThrottledText(self, elapsed, self.timeText, remaining)
+                end
                 return
             end
 
@@ -1463,6 +1493,7 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
             self.notInterruptible = notInterruptible
             self.timerDriven = useTimerDriven
             self.durationObj = durationObj
+            self._assumeCountdown = nil  -- Reset countdown detection for new cast
 
             if useTimerDriven then
                 -- Engine-driven animation for non-player units with secret timing
