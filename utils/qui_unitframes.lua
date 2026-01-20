@@ -501,9 +501,16 @@ local function GetHealthBarColor(unit, settings)
     -- Get global settings from MAIN profile (not quiUnitFrames sub-table)
     local general = GetGeneralSettings()
 
-    -- Check per-unit useClassColor setting first (for pets, etc.)
-    -- This allows individual frames to opt into class coloring
-    if settings and settings.useClassColor then
+    -- Determine if class color should be used
+    -- Per-unit setting takes precedence; global is fallback only if per-unit is nil
+    local useClassColor = false
+    if settings and settings.useClassColor ~= nil then
+        useClassColor = settings.useClassColor
+    else
+        useClassColor = general and general.defaultUseClassColor
+    end
+
+    if useClassColor then
         local isPlayer = UnitIsPlayer(unit)
         if type(isPlayer) == "boolean" and isPlayer then
             -- Unit is a player - use their class color
@@ -527,20 +534,6 @@ local function GetHealthBarColor(unit, settings)
                     if color then
                         return color.r, color.g, color.b, 1
                     end
-                end
-            end
-        end
-    end
-
-    -- Check GLOBAL defaultUseClassColor (from Colors tab) as fallback for players
-    if general and general.defaultUseClassColor then
-        local isPlayer = UnitIsPlayer(unit)
-        if type(isPlayer) == "boolean" and isPlayer then
-            local _, class = UnitClass(unit)
-            if type(class) == "string" then
-                local color = RAID_CLASS_COLORS[class]
-                if color then
-                    return color.r, color.g, color.b, 1
                 end
             end
         end
