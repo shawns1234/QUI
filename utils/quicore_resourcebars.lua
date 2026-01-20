@@ -487,14 +487,14 @@ local function GetSecondaryResourceValue(resource)
         if class == "WARLOCK" then
             local spec = GetSpecialization()
 
-            -- Destruction: use FRAGMENTS (0–50) directly for bar + text
+            -- Destruction: fragments for bar fill, divided by 10 for display
             if spec == 3 then
-                local current = UnitPower("player", resource, true)          -- 0–50
-                local max     = UnitPowerMax("player", resource, true)       -- 0–50
-                if max <= 0 then return nil, nil, nil, nil end
+                local fragments = UnitPower("player", resource, true)        -- 0–50
+                local maxFragments = UnitPowerMax("player", resource, true)  -- 50
+                if maxFragments <= 0 then return nil, nil, nil, nil end
 
-                -- bar fill = fragments, text = fragments (34, 45, etc.)
-                return max, current, current, "number"
+                -- bar fill = fragments (0-50), display = decimal shards (0.0-5.0)
+                return maxFragments, fragments, fragments / 10, "shards"
             end
         end
 
@@ -2372,7 +2372,10 @@ function QUICore:UpdateSecondaryPowerBar()
 
 
     -- Update text (safe: uses only displayValue)
-    if valueType == "percent" and cfg.showPercent then
+    if valueType == "shards" then
+        -- Destruction Warlock: show decimal shards (e.g., 3.4)
+        bar.TextValue:SetText(string.format("%.1f", displayValue or 0))
+    elseif valueType == "percent" and cfg.showPercent then
         bar.TextValue:SetText(string.format("%.0f%%", displayValue or 0))
     elseif valueType == "percent" then
         -- Stagger with showPercent off: show raw stagger amount
@@ -2429,21 +2432,9 @@ end
         self:UpdateSecondaryPowerBarTicks(bar, resource, max)
     end
 
-        -- Handle fake decimal
+    -- Hide legacy decimal overlay (no longer used - decimals now rendered via string.format)
     if bar.SoulShardDecimal then
-        local _, class = UnitClass("player")
-        local spec = GetSpecialization()
-
-        if resource == Enum.PowerType.SoulShards
-            and class == "WARLOCK"
-            and spec == 3
-        then
-            bar.SoulShardDecimal:ClearAllPoints()
-            bar.SoulShardDecimal:SetPoint("CENTER", bar.TextValue, "CENTER", 0, 0)
-            bar.SoulShardDecimal:Show()
-        else
-            bar.SoulShardDecimal:Hide()
-        end
+        bar.SoulShardDecimal:Hide()
     end
 
 

@@ -127,6 +127,29 @@ local function GetFontPath()
 end
 
 ---------------------------------------------------------------------------
+-- Cooldown Font Helper
+---------------------------------------------------------------------------
+local function ApplyCooldownFont(cooldown, fontSize)
+    if not cooldown then return end
+    local fontPath = GetFontPath()
+
+    -- Method 1: Direct text property
+    if cooldown.text then
+        cooldown.text:SetFont(fontPath, fontSize, "OUTLINE")
+    end
+
+    -- Method 2: Iterate through cooldown regions
+    local ok, regions = pcall(function() return { cooldown:GetRegions() } end)
+    if ok and regions then
+        for _, region in ipairs(regions) do
+            if region and region.GetObjectType and region:GetObjectType() == "FontString" then
+                region:SetFont(fontPath, fontSize, "OUTLINE")
+            end
+        end
+    end
+end
+
+---------------------------------------------------------------------------
 -- Frame Creation
 ---------------------------------------------------------------------------
 local function CreateSkyridingFrame()
@@ -324,6 +347,11 @@ local function CreateSkyridingFrame()
     abilityIconCooldown:SetAllPoints(abilityIcon.texture)
     abilityIconCooldown:SetDrawEdge(true)
     abilityIconCooldown:SetHideCountdownNumbers(false)
+
+    -- Apply QuaziiUI font to cooldown text (deferred to ensure template is initialized)
+    C_Timer.After(0, function()
+        ApplyCooldownFont(abilityIconCooldown, 12)
+    end)
 
     abilityIcon:Hide()  -- Hidden until skyriding
 
@@ -926,6 +954,11 @@ local function ApplySettings()
     local fontPath = GetFontPath()
     vigorText:SetFont(fontPath, vigorFontSize, "OUTLINE")
     speedText:SetFont(fontPath, speedFontSize, "OUTLINE")
+
+    -- Refresh ability icon cooldown font
+    if abilityIconCooldown then
+        ApplyCooldownFont(abilityIconCooldown, vigorFontSize)
+    end
 
     -- Update segment markers
     local _, max = GetVigorInfo()

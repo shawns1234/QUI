@@ -4461,8 +4461,13 @@ end
         
 function QUI:GetGlobalFont()
     local LSM = LibStub("LibSharedMedia-3.0")
-    -- For now, return Quazii font. Will be configurable in General Tab (Feature #3)
-    local fontName = "Quazii"
+    local fontName = "Quazii"  -- Default fallback
+
+    -- Read font from user settings
+    if QUICore and QUICore.db and QUICore.db.profile and QUICore.db.profile.general then
+        fontName = QUICore.db.profile.general.font or fontName
+    end
+
     return LSM:Fetch("font", fontName) or [[Interface\AddOns\QuaziiUI\assets\Quazii.ttf]]
 end
 
