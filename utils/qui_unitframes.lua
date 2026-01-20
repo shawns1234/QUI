@@ -291,74 +291,50 @@ local function GetTextAnchorInfo(anchor)
 end
 
 ---------------------------------------------------------------------------
--- HELPER: Get UTF-8 name length (characters, not bytes)
----------------------------------------------------------------------------
-local function UTF8NameLength(name)
-    if not name then return 0 end
-
-    local len = 0
-    local i = 1
-    local byte = string.byte
-
-    local lenOk, nameLen = pcall(function() return #name end)
-
-    if lenOk and nameLen then
-        while i <= nameLen do
-            local b = byte(name, i)
-            if b < 0x80 then
-                i = i + 1          -- 1-byte sequence (ASCII)
-            elseif b < 0xE0 then
-                i = i + 2          -- 2-byte sequence (umlauts, accents)
-            elseif b < 0xF0 then
-                i = i + 3          -- 3-byte sequence
-            else
-                i = i + 4          -- 4-byte sequence
-            end
-            len = len + 1
-        end
-        return len
-    end
-    return 0
-end
-
----------------------------------------------------------------------------
 -- HELPER: Truncate name to max length (UTF-8 safe)
 ---------------------------------------------------------------------------
 local function TruncateName(name, maxLength)
     if not name or type(name) ~= "string" then return name end
     if not maxLength or maxLength <= 0 then return name end
 
-    -- Check utf8 name length first to return early if already short enough
-    local lenOk, utf8NameLen = pcall(UTF8NameLength, name)
-    if lenOk and utf8NameLen and utf8NameLen <= maxLength then
+    -- If name is secret return shortened name, but not utf-8 safe
+    if IsSecretValue(name) then
+        return string.format("%." .. maxLength .. "s", name)
+    end
+
+    -- ok to get length and shorten utf-8 safe if too long
+    local lenOk, nameLen = pcall(function() return #name end)
+    if not lenOk then
+        -- if get length somehow still fails return
+        return string.format("%." .. maxLength .. "s", name)
+    end
+
+    -- short enough
+    if nameLen <= maxLength then
         return name
     end
 
-    -- Check and use byte length for truncate (walks bytes to find character boundaries)
-    local lenOk, nameLen = pcall(function() return #name end)
-    if lenOk and nameLen and nameLen > maxLength then
-        local byte = string.byte
-        local i = 1   -- byte index
-        local c = 0   -- character count
-
-        while i <= nameLen and c < maxLength do
-            c = c + 1
-            local b = byte(name, i)
-            if b < 0x80 then
-                i = i + 1          -- 1-byte sequence
-            elseif b < 0xE0 then
-                i = i + 2          -- 2-byte sequence
-            elseif b < 0xF0 then
-                i = i + 3          -- 3-byte sequence
-            else
-                i = i + 4          -- 4-byte sequence
-            end
+    -- UTF-8 safe truncation
+    local byte = string.byte
+    local i = 1   -- byte index
+    local c = 0   -- character count
+    while i <= nameLen and c < maxLength do
+        c = c + 1
+        local b = byte(name, i)
+        if b < 0x80 then
+            i = i + 1          -- 1-byte sequence
+        elseif b < 0xE0 then
+            i = i + 2          -- 2-byte sequence
+        elseif b < 0xF0 then
+            i = i + 3          -- 3-byte sequence
+        else
+            i = i + 4          -- 4-byte sequence
         end
+    end
 
-        local subOk, truncated = pcall(string.sub, name, 1, i - 1)
-        if subOk and truncated then
-            return truncated
-        end
+    local subOk, truncated = pcall(string.sub, name, 1, i - 1)
+    if subOk and truncated then
+        return truncated
     end
 
     -- Last resort fallback (works with secret values in M+/dungeons)
