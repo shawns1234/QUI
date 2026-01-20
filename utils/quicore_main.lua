@@ -933,7 +933,7 @@ local defaults = {
             attachTo      = "EssentialCooldownViewer",
             height        = 8,
             borderSize    = 1,
-            offsetY       = -204,     -- Snapped above Primary bar
+            offsetY       = 0,        -- User adjustment when locked to primary (0 = no offset)
             offsetX       = 0,
             width         = 326,      -- Matches Primary bar width
             useRawPixels  = true,
@@ -955,7 +955,7 @@ local defaults = {
             tickColor     = { 0, 0, 0, 1 },  -- Color of tick marks (default black)
             lockedToEssential = false,  -- Auto-resize width when Essential CDM changes
             lockedToUtility   = false,  -- Auto-resize width when Utility CDM changes
-            lockedToPrimary   = false,  -- Position above + match Primary bar width
+            lockedToPrimary   = true,   -- Position above + match Primary bar width
             snapGap       = 5,        -- Gap when snapped
             orientation   = "AUTO",   -- Bar orientation
             showFragmentedPowerBarText = false,  -- Show text on fragmented power bars

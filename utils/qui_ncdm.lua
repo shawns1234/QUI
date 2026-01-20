@@ -438,19 +438,27 @@ local function SetupElevatedStackText(icon, originalFS, generalFont, stackSize, 
     icon.quiStackText:ClearAllPoints()
     icon.quiStackText:SetPoint(stackAnchor, icon, stackAnchor, stackOffsetX, stackOffsetY)
 
-    -- Hook original fontstring to sync text (once)
+    -- Hook original fontstring to sync text and control visibility (once)
     if originalFS and not originalFS.quiStackHooked then
         originalFS.quiStackHooked = true
         hooksecurefunc(originalFS, "SetText", function(self, text)
             if icon.quiStackText then
                 icon.quiStackText:SetText(text or "")
+                -- Only show for 2+ charges
+                local num = tonumber(text)
+                if num and num >= 2 then
+                    icon.quiStackText:Show()
+                else
+                    icon.quiStackText:Hide()
+                end
             end
         end)
     end
 
-    -- Initial sync and hide original
+    -- Start hidden - don't trust initial fontstring data
+    -- Let Blizzard's SetText calls trigger proper display
     if originalFS then
-        icon.quiStackText:SetText(originalFS:GetText() or "")
+        icon.quiStackText:Hide()
         originalFS:SetAlpha(0)
     end
 end

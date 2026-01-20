@@ -2065,6 +2065,17 @@ function QUICore:UpdateSecondaryPowerBar()
                 end
 
                 lockedToPrimaryHandled = true
+            else
+                -- Primary bar not yet laid out (GetCenter returns nil on first frame)
+                -- Defer update to allow layout to complete
+                if not bar._lockedToPrimaryDeferred then
+                    bar._lockedToPrimaryDeferred = true
+                    C_Timer.After(0.1, function()
+                        bar._lockedToPrimaryDeferred = nil
+                        self:UpdateSecondaryPowerBar()
+                    end)
+                    return
+                end
             end
         elseif cfg.standaloneMode and cachedPrimaryDimensions.centerX then
             -- Primary is hidden but Secondary is Standalone - use cached dimensions
