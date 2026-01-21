@@ -270,10 +270,10 @@ local function GetBuffIconFrames()
         return (a.layoutIndex or 0) < (b.layoutIndex or 0)
     end)
 
-    -- Only keep visible icons
+    -- Only keep visible icons that have been fully initialized (have cooldownID)
     local visible = {}
     for _, icon in ipairs(all) do
-        if icon:IsShown() then
+        if icon:IsShown() and icon.cooldownID then
             table.insert(visible, icon)
         end
     end
@@ -715,6 +715,7 @@ local function ApplyBarStyle(frame, settings)
         frame:SetWidth(frameWidth)
         if statusBar then
             statusBar:SetHeight(frameHeight)
+            statusBar:SetWidth(frameWidth)
             -- Set StatusBar orientation
             if statusBar.SetOrientation then
                 statusBar:SetOrientation(isVertical and "VERTICAL" or "HORIZONTAL")
@@ -1189,10 +1190,10 @@ end
 ---------------------------------------------------------------------------
 
 local barState = {
-    lastCount          = 0,
-    lastBarWidth       = nil,
-    lastBarHeight      = nil,
-    lastSpacing        = nil,
+    lastCount      = 0,
+    lastBarWidth   = nil,
+    lastBarHeight  = nil,
+    lastSpacing    = nil,
 }
 
 LayoutBuffBars = function()
@@ -1241,6 +1242,21 @@ LayoutBuffBars = function()
     -- Vertical bar support
     local orientation = stylingEnabled and settings.orientation or "horizontal"
     local isVertical = (orientation == "vertical")
+
+    -- CRITICAL: Tell Blizzard's GridLayoutFrameMixin which layout direction to use
+    -- When isHorizontal=true, Blizzard positions bars up/down (Y-axis)
+    -- When isHorizontal=false, Blizzard positions bars left/right (X-axis)
+    -- This prevents Blizzard's Layout() from overriding QUI's positioning with wrong axis
+    -- FEAT-007: Remove combat lockdown check - setting frame properties is safe during combat
+    BuffBarCooldownViewer.isHorizontal = not isVertical
+    -- Also update direction flags to match QUI's growth direction
+    if isVertical then
+        BuffBarCooldownViewer.layoutFramesGoingRight = growFromBottom  -- growUp becomes growRight
+        BuffBarCooldownViewer.layoutFramesGoingUp = false
+    else
+        BuffBarCooldownViewer.layoutFramesGoingRight = true
+        BuffBarCooldownViewer.layoutFramesGoingUp = growFromBottom
+    end
 
     -- For vertical bars, swap dimensions (height setting becomes width)
     local effectiveBarWidth, effectiveBarHeight
@@ -1330,12 +1346,17 @@ LayoutBuffBars = function()
     -- Update container height for vertical bars (don't touch width - let bars overflow like horizontal does)
     -- Horizontal mode doesn't resize container, so vertical shouldn't resize width either
     -- Only set height to match rotated bar dimensions
-    if isVertical and not InCombatLockdown() then
+    -- FEAT-007: Remove combat lockdown check - SetSize on non-protected frames is safe during combat
+    -- This ensures container height stays correct when Blizzard's Layout() resizes it incorrectly
+    if isVertical then
         SuppressLayout()
 
         -- Only set HEIGHT, leave width alone so RIGHT edge stays fixed
         local currentWidth = BuffBarCooldownViewer:GetWidth()
         BuffBarCooldownViewer:SetSize(currentWidth, roundPixel(effectiveBarHeight))
+
+        -- Also ensure isHorizontal flag stays correct for subsequent Layout() calls
+        BuffBarCooldownViewer.isHorizontal = false
 
         UnsuppressLayout()
     end
@@ -1403,11 +1424,12 @@ local function CheckBarChanges()
     local settings = GetTrackedBarSettings()
 
     -- Build hash including count AND settings (including vertical bar settings)
-    local hash = string.format("%d_%s_%s_%d_%s_%s_%d_%s_%d_%d_%s_%s_%s_%s_%s",
+    local hash = string.format("%d_%s_%s_%d_%d_%s_%s_%d_%s_%d_%d_%s_%s_%s_%s_%s",
         count,
         tostring(settings.enabled),
         tostring(settings.hideIcon),
         settings.barHeight or 24,
+        settings.barWidth or 200,
         settings.texture or "Quazii v5",
         tostring(settings.useClassColor),
         settings.borderSize or 1,
@@ -1489,6 +1511,23 @@ local function Initialize()
     if initialized then return end
     initialized = true
 
+    -- CRITICAL: Set isHorizontal IMMEDIATELY at login, before combat can start
+    -- This prevents Blizzard's Layout() from using wrong axis if first buff appears during combat
+    if BuffBarCooldownViewer and not InCombatLockdown() then
+        local settings = GetTrackedBarSettings()
+        local isVertical = (settings.orientation == "vertical")
+        local growFromBottom = (settings.growUp ~= false)
+
+        BuffBarCooldownViewer.isHorizontal = not isVertical
+        if isVertical then
+            BuffBarCooldownViewer.layoutFramesGoingRight = growFromBottom
+            BuffBarCooldownViewer.layoutFramesGoingUp = false
+        else
+            BuffBarCooldownViewer.layoutFramesGoingRight = true
+            BuffBarCooldownViewer.layoutFramesGoingUp = growFromBottom
+        end
+    end
+
     -- Force populate buff icons first (teaches the viewer what spells to show)
     ForcePopulateBuffIcons()
 
@@ -1551,9 +1590,27 @@ local function Initialize()
 
     if BuffBarCooldownViewer and BuffBarCooldownViewer.Layout then
         hooksecurefunc(BuffBarCooldownViewer, "Layout", function()
-            if IsLayoutSuppressed() then return end  -- Skip during Edit Mode interactions
+            if IsLayoutSuppressed() then return end
             if isBarLayoutRunning then return end
-            LayoutBuffBars()  -- Direct call
+            LayoutBuffBars()
+        end)
+    end
+
+    -- FEAT-007: Hook RefreshLayout to correct isHorizontal after Blizzard sets it
+    -- Blizzard's RefreshLayout() sets isHorizontal based on IsHorizontal() (always true for BuffBar)
+    -- then calls Layout(). We hook RefreshLayout to fix isHorizontal right before Layout() runs.
+    -- Using hooksecurefunc is safer than replacing methods - avoids breaking Blizzard's code paths.
+    if BuffBarCooldownViewer and BuffBarCooldownViewer.RefreshLayout then
+        hooksecurefunc(BuffBarCooldownViewer, "RefreshLayout", function(self)
+            local settings = GetTrackedBarSettings()
+            if settings.enabled and settings.orientation == "vertical" then
+                -- Blizzard just set isHorizontal=true, we need to fix it
+                -- But RefreshLayout already called Layout(), so we just ensure
+                -- the flag is correct for any subsequent Layout() calls
+                self.isHorizontal = false
+                self.layoutFramesGoingRight = settings.growUp ~= false  -- growUp becomes growRight
+                self.layoutFramesGoingUp = false
+            end
         end)
     end
 
@@ -1658,6 +1715,23 @@ function QUI_BuffBar.Refresh()
     barState.lastCount = 0
     lastIconHash = ""  -- Force hash recalculation
     lastBarHash = ""
+
+    -- Update isHorizontal when settings change (e.g., orientation toggle)
+    -- Must be done outside combat to take effect
+    if BuffBarCooldownViewer and not InCombatLockdown() then
+        local settings = GetTrackedBarSettings()
+        local isVertical = (settings.orientation == "vertical")
+        local growFromBottom = (settings.growUp ~= false)
+
+        BuffBarCooldownViewer.isHorizontal = not isVertical
+        if isVertical then
+            BuffBarCooldownViewer.layoutFramesGoingRight = growFromBottom
+            BuffBarCooldownViewer.layoutFramesGoingUp = false
+        else
+            BuffBarCooldownViewer.layoutFramesGoingRight = true
+            BuffBarCooldownViewer.layoutFramesGoingUp = growFromBottom
+        end
+    end
 
     LayoutBuffIcons()
     LayoutBuffBars()
