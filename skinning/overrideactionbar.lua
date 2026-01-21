@@ -258,6 +258,14 @@ local function SkinOverrideActionBar()
     end
 
     bar.quiSkinned = true
+
+    -- BUG-005: Reset MicroMenu to normal position after skinning
+    -- Blizzard's UpdateMicroButtons() positions MicroMenu using hardcoded offsets (x=648+)
+    -- based on the default bar size. After QUI resizes the bar to ~332px, those offsets
+    -- place MicroMenu outside the visible bar area. Reset it to its normal container.
+    if MicroMenu and MicroMenu.ResetMicroMenuPosition then
+        MicroMenu:ResetMicroMenuPosition()
+    end
 end
 
 -- Refresh colors
@@ -321,6 +329,17 @@ local function SetupOverrideBarHooks()
     -- If already visible, skin now
     if bar:IsShown() then
         C_Timer.After(0.15, SkinOverrideActionBar)
+    end
+
+    -- BUG-005: Hook UpdateMicroButtons to reset MicroMenu position persistently
+    -- Blizzard calls this in OnShow and UpdateSkin, which can re-position MicroMenu
+    -- after QUI's initial skinning. This hook ensures MicroMenu stays in normal position.
+    if bar.UpdateMicroButtons then
+        hooksecurefunc(bar, "UpdateMicroButtons", function()
+            if bar.quiSkinned and MicroMenu and MicroMenu.ResetMicroMenuPosition then
+                MicroMenu:ResetMicroMenuPosition()
+            end
+        end)
     end
 
     bar.quiHooked = true
