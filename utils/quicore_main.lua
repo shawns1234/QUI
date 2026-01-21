@@ -2625,7 +2625,7 @@ local defaults = {
         
         -- QUI Autohides
         uiHider = {
-            hideObjectiveTrackerAlways = true,  -- Hide Objective Tracker always
+            hideObjectiveTrackerAlways = false,  -- Hide Objective Tracker always
             hideObjectiveTrackerInstanceTypes = {
                 mythicPlus = true,
                 mythicDungeon = false,
