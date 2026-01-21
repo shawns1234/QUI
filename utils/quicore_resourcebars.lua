@@ -2074,8 +2074,8 @@ function QUICore:UpdateSecondaryPowerBar()
                         bar._lockedToPrimaryDeferred = nil
                         self:UpdateSecondaryPowerBar()
                     end)
-                    return
                 end
+                return  -- Always return when GetCenter fails, prevents race condition fall-through
             end
         elseif cfg.standaloneMode and cachedPrimaryDimensions.centerX then
             -- Primary is hidden but Secondary is Standalone - use cached dimensions
