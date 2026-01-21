@@ -1352,13 +1352,17 @@ local function GetCDMFrames()
         table.insert(frames, _G.BuffBarCooldownViewer)
     end
 
-    -- QuaziiUI power bars (exclude if standalone mode is enabled)
+    -- QuaziiUI power bars (exclude if standalone mode is enabled, unless hideWhenMounted overrides)
     if QUICore then
         local db = QUICore.db and QUICore.db.profile
-        if QUICore.powerBar and not (db and db.powerBar and db.powerBar.standaloneMode) then
+        local vis = db and db.cdmVisibility
+        local hideWhenMountedEnabled = vis and vis.hideWhenMounted
+
+        -- Include power bars if: hideWhenMounted is enabled (overrides all), OR not in standalone mode
+        if QUICore.powerBar and (hideWhenMountedEnabled or not (db and db.powerBar and db.powerBar.standaloneMode)) then
             table.insert(frames, QUICore.powerBar)
         end
-        if QUICore.secondaryPowerBar and not (db and db.secondaryPowerBar and db.secondaryPowerBar.standaloneMode) then
+        if QUICore.secondaryPowerBar and (hideWhenMountedEnabled or not (db and db.secondaryPowerBar and db.secondaryPowerBar.standaloneMode)) then
             table.insert(frames, QUICore.secondaryPowerBar)
         end
     end
