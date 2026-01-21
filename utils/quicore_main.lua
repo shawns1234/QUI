@@ -662,7 +662,7 @@ local defaults = {
                     stackTextColor = {1, 1, 1, 1},
                     stackAnchor = "BOTTOMRIGHT",
                 },
-                anchorBelowEssential = true,
+                anchorBelowEssential = false,
                 anchorGap = 0,
                 customEntries = {
                     enabled = true,
