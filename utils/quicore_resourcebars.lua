@@ -156,7 +156,9 @@ local druidUtilityForms = {
     [2]  = true,  -- Tree of Life (Resto talent)
     [3]  = true,  -- Travel (ground)
     [4]  = true,  -- Aquatic
-    [27] = true,  -- Swift Travel/Flight
+    [27] = true,  -- Swift Flight Form
+    [29] = true,  -- Flight Form
+    [36] = true,  -- Treant (cosmetic)
 }
 
 -- Druid spec primary resources
