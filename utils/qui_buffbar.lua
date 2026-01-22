@@ -370,12 +370,16 @@ local function DisableAtlasBorder(tex)
     if tex.SetAtlas and not tex._quiAtlasDisabled then
         tex._quiAtlasDisabled = true
         hooksecurefunc(tex, "SetAtlas", function(self)
-            -- Must also clear the atlas, not just texture/alpha
-            pcall(function()
-                self:SetAtlas(nil)
-                self:SetTexture(nil)
-                self:SetAlpha(0)
-                self:Hide()
+            C_Timer.After(0, function()
+                -- Safety check in case texture was released before timer fires
+                if not self or (self.IsForbidden and self:IsForbidden()) then return end
+                -- Must also clear the atlas, not just texture/alpha
+                pcall(function()
+                    self:SetAtlas(nil)
+                    self:SetTexture(nil)
+                    self:SetAlpha(0)
+                    self:Hide()
+                end)
             end)
         end)
     end
