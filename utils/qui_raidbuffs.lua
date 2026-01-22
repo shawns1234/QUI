@@ -202,10 +202,14 @@ end
 
 -- Safe aura field access for Midnight Beta
 -- In 12.x Beta, aura data fields can be "secret values" that error on access
+-- BUG-006: Also validate the value can be used in comparisons
 local function SafeGetAuraField(auraData, fieldName)
     local success, value = pcall(function() return auraData[fieldName] end)
-    if success then return value end
-    return nil
+    if not success then return nil end
+    -- Validate the value can be used in comparisons (secret values fail == operations)
+    local compareOk = pcall(function() return value == value end)
+    if not compareOk then return nil end
+    return value
 end
 
 local function ScanGroupClasses()
