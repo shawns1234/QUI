@@ -6,6 +6,8 @@ local ADDON_NAME, ns = ...
 local QUICore = ns.Addon
 local LSM = LibStub("LibSharedMedia-3.0")
 
+local tinsert, tremove = tinsert, tremove
+
 -- Module reference
 local Loot = {}
 QUICore.Loot = Loot
@@ -24,7 +26,7 @@ end
 
 -- Constants
 local MAX_LOOT_SLOTS = 10
-local MAX_ROLL_FRAMES = 4
+local MAX_ROLL_FRAMES = 8  -- Increased from 4 to handle more simultaneous raid drops
 local SLOT_HEIGHT = 32
 local SLOT_WIDTH = 230
 local SLOT_SPACING = 2
@@ -53,6 +55,11 @@ local lootFrame = nil
 local rollFramePool = {}
 local activeRolls = {}
 local rollAnchor = nil
+local waitingRolls = {}  -- Queue for rolls when all frames are busy
+
+-- Forward declarations (needed for mutual references)
+local ProcessRollQueue
+local StartRoll
 
 ---=================================================================================
 --- UTILITY FUNCTIONS
@@ -373,10 +380,8 @@ local function CreateRollButton(parent, rollType, rollValue, texture)
             frame.rollID = nil
             frame.timer:SetScript("OnUpdate", nil)
             activeRolls[rollID] = nil
-            -- Defer repositioning since RepositionAllRolls is defined later
-            C_Timer.After(0, function()
-                if RepositionAllRolls then RepositionAllRolls() end
-            end)
+            -- Defer repositioning and queue processing
+            C_Timer.After(0, ProcessRollQueue)
         end
     end)
 
@@ -545,15 +550,35 @@ local function RepositionAllRolls()
     end
 end
 
-local function StartRoll(rollID, rollTime, lootHandle)
+-- Process the waiting queue when a roll frame becomes available
+ProcessRollQueue = function()
+    RepositionAllRolls()
+    if #waitingRolls > 0 then
+        local nextRoll = tremove(waitingRolls, 1)
+        -- Validate the roll is still valid before starting
+        local texture = GetLootRollItemInfo(nextRoll.rollID)
+        if texture then
+            StartRoll(nextRoll.rollID, nextRoll.rollTime)
+        elseif #waitingRolls > 0 then
+            -- Roll was cancelled/expired, try next in queue
+            ProcessRollQueue()
+        end
+    end
+end
+
+StartRoll = function(rollID, rollTime, lootHandle)
     local db = GetDB()
     if not db.lootRoll or not db.lootRoll.enabled then return end
 
-    local frame = GetAvailableRollFrame()
-    if not frame then return end
-
     local texture, name, count, quality, bop, canNeed, canGreed, canDE, reason, deReason, _, _, canTransmog = GetLootRollItemInfo(rollID)
     if not texture then return end
+
+    local frame = GetAvailableRollFrame()
+    if not frame then
+        -- All frames busy - queue this roll for later
+        tinsert(waitingRolls, { rollID = rollID, rollTime = rollTime })
+        return
+    end
 
     -- Reset frame state from previous roll
     frame:SetAlpha(1)
@@ -639,13 +664,23 @@ local function StartRoll(rollID, rollTime, lootHandle)
 end
 
 local function CancelRoll(rollID)
+    -- Check if roll is in the waiting queue and remove it
+    for i = #waitingRolls, 1, -1 do
+        if waitingRolls[i].rollID == rollID then
+            tremove(waitingRolls, i)
+            return
+        end
+    end
+
+    -- Check active rolls
     local frame = activeRolls[rollID]
     if frame then
         frame:Hide()
         frame.rollID = nil
         frame.timer:SetScript("OnUpdate", nil)
         activeRolls[rollID] = nil
-        RepositionAllRolls()
+        -- Use C_Timer to defer repositioning and queue processing
+        C_Timer.After(0, ProcessRollQueue)
     end
 end
 
@@ -979,11 +1014,6 @@ end
 
 function Loot:Initialize()
     local db = GetDB()
-
-    -- #125: Force disable loot roll frames until fixed - overrides saved settings
-    if db.lootRoll then
-        db.lootRoll.enabled = false
-    end
 
     -- Create frames
     if not lootFrame then
