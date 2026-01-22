@@ -353,7 +353,9 @@ local function SetupCharacterFrameSkinning()
                 -- Check if character pane customization will handle extension
                 local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
                 local charSettings = QUICore and QUICore.db and QUICore.db.profile and QUICore.db.profile.character
+                -- Default to true if setting not found (matches qui_character.lua defaults)
                 local charPaneEnabled = charSettings and charSettings.enabled
+                if charPaneEnabled == nil then charPaneEnabled = true end
 
                 if not charPaneEnabled then
                     -- Character pane disabled - skinning handles bg at normal size
@@ -366,7 +368,9 @@ local function SetupCharacterFrameSkinning()
         if PaperDollFrame:IsShown() then
             local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
             local charSettings = QUICore and QUICore.db and QUICore.db.profile and QUICore.db.profile.character
+            -- Default to true if setting not found (matches qui_character.lua defaults)
             local charPaneEnabled = charSettings and charSettings.enabled
+            if charPaneEnabled == nil then charPaneEnabled = true end
             if not charPaneEnabled then
                 SetCharacterFrameBgExtended(false)
             end

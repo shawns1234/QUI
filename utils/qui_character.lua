@@ -2756,6 +2756,13 @@ local function HookCharacterFrame()
                 local scaleMultiplier = settings.panelScale or 1.0
                 CharacterFrame:SetScale(BASE_SCALE * scaleMultiplier)
 
+                -- Ensure layout is applied (creates statsPanel if needed)
+                -- This handles the case where Currency/Rep tab was opened first
+                if not layoutApplied then
+                    ApplyCharacterPaneLayout()
+                    InitializeCharacterOverlays()
+                end
+
                 -- Handle background based on skinning state
                 if IsSkinningHandlingBackground() then
                     -- Skinning module handles background - extend for stats panel
