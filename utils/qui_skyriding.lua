@@ -530,6 +530,7 @@ local function UpdateSecondWind()
 
         -- Position segment markers for Second Wind
         local segmentWidth = barWidth / max
+        local thickness = Scale(settings.segmentThickness or 1)
         local softColor = {
             color[1] * 0.25,
             color[2] * 0.25,
@@ -542,8 +543,8 @@ local function UpdateSecondWind()
             if i < max then
                 local xPos = i * segmentWidth
                 marker:ClearAllPoints()
-                marker:SetPoint("LEFT", secondWindMiniBar, "LEFT", xPos - 0.5, 0)
-                marker:SetWidth(1)
+                marker:SetPoint("LEFT", secondWindMiniBar, "LEFT", Scale(xPos - (thickness / 2)), 0)
+                marker:SetWidth(math.max(Scale(1), thickness))
                 marker:SetHeight(swHeight)
                 marker:SetVertexColor(softColor[1], softColor[2], softColor[3], softColor[4])
                 marker:Show()
