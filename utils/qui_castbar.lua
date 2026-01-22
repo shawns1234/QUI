@@ -1502,7 +1502,7 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
                     -- Determine direction: 0=fill (casts), 1=drain (channels that should drain)
                     local channelFillForward = castSettings and castSettings.channelFillForward
                     local direction = (isChanneled and not channelFillForward) and 1 or 0
-                    local ok = pcall(self.statusBar.SetTimerDuration, self.statusBar, durationObj, direction)
+                    local ok = pcall(self.statusBar.SetTimerDuration, self.statusBar, durationObj, 0, direction)
                     if not ok then
                         -- Fallback: try without direction parameter
                         pcall(self.statusBar.SetTimerDuration, self.statusBar, durationObj)
