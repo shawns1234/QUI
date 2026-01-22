@@ -15,12 +15,12 @@ local function GetSettings()
         QUICore.db.profile.uiHider = {
             hideObjectiveTrackerAlways = false,
             hideObjectiveTrackerInstanceTypes = {
-                mythicPlus = true,
+                mythicPlus = false,
                 mythicDungeon = false,
                 normalDungeon = false,
                 heroicDungeon = false,
                 followerDungeon = false,
-                raid = true,
+                raid = false,
                 pvp = false,
                 arena = false,
             },
@@ -80,14 +80,14 @@ local function GetSettings()
         end
         uiHider.hideObjectiveTrackerInInstances = nil  -- Remove old key
     elseif not uiHider.hideObjectiveTrackerInstanceTypes then
-        -- Fresh install: default M+ and raids enabled
+        -- Fresh install: all instance types disabled by default
         uiHider.hideObjectiveTrackerInstanceTypes = {
-            mythicPlus = true,
+            mythicPlus = false,
             mythicDungeon = false,
             normalDungeon = false,
             heroicDungeon = false,
             followerDungeon = false,
-            raid = true,
+            raid = false,
             pvp = false,
             arena = false,
         }

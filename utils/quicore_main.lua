@@ -2627,12 +2627,12 @@ local defaults = {
         uiHider = {
             hideObjectiveTrackerAlways = false,  -- Hide Objective Tracker always
             hideObjectiveTrackerInstanceTypes = {
-                mythicPlus = true,
+                mythicPlus = false,
                 mythicDungeon = false,
                 normalDungeon = false,
                 heroicDungeon = false,
                 followerDungeon = false,
-                raid = true,
+                raid = false,
                 pvp = false,
                 arena = false,
             },

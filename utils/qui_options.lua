@@ -3001,12 +3001,12 @@ local function CreateAutohidesPage(parent)
             -- Ensure instance types table exists
             if not db.uiHider.hideObjectiveTrackerInstanceTypes then
                 db.uiHider.hideObjectiveTrackerInstanceTypes = {
-                    mythicPlus = true,
+                    mythicPlus = false,
                     mythicDungeon = false,
                     normalDungeon = false,
                     heroicDungeon = false,
                     followerDungeon = false,
-                    raid = true,
+                    raid = false,
                     pvp = false,
                     arena = false,
                 }
