@@ -520,8 +520,13 @@ local function HookExtraButtonPositioning()
     local extraSettings = GetExtraButtonDB("extraActionButton")
     local zoneSettings = GetExtraButtonDB("zoneAbility")
     local quiManagingFrames = (extraSettings and extraSettings.enabled) or (zoneSettings and zoneSettings.enabled)
+    -- BUG-008: Use C_Timer.After(0) and combat check to avoid taint propagation to secure frame manager
     if quiManagingFrames and UIParentBottomManagedFrameContainer and ExtraAbilityContainer then
-        UIParentBottomManagedFrameContainer.showingFrames[ExtraAbilityContainer] = nil
+        C_Timer.After(0, function()
+            if not InCombatLockdown() and UIParentBottomManagedFrameContainer.showingFrames then
+                UIParentBottomManagedFrameContainer.showingFrames[ExtraAbilityContainer] = nil
+            end
+        end)
     end
 end
 
