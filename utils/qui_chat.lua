@@ -290,7 +290,8 @@ end
 
 -- Check if message contains protected/secure content
 local function IsMessageProtected(message)
-    if not message then return false end
+    -- BUG-009: Secret values are truthy but can't be indexed - check type first
+    if not message or type(message) ~= "string" then return false end
     -- Secret values use |K...|k pattern
     if message:find("|K") then return true end
     return false
@@ -298,7 +299,8 @@ end
 
 -- Strip textures, icons, and hyperlink formatting from message
 local function CleanMessage(message)
-    if not message then return "" end
+    -- BUG-009: Secret values are truthy but can't be indexed - check type first
+    if not message or type(message) ~= "string" then return "" end
 
     local cleaned = message
     -- Remove texture escapes |T...|t
