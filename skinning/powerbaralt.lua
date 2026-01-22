@@ -77,9 +77,21 @@ local function UpdateBar(self)
 
     if barInfo then
         local powerName, powerTooltip = GetUnitPowerBarStrings("player")
-        local power = UnitPower("player", ALTERNATE_POWER_INDEX) or 0
-        local maxPower = UnitPowerMax("player", ALTERNATE_POWER_INDEX) or 0
-        local perc = (maxPower > 0 and floor(power / maxPower * 100)) or 0
+        local power = UnitPower("player", ALTERNATE_POWER_INDEX)
+        local maxPower = UnitPowerMax("player", ALTERNATE_POWER_INDEX)
+
+        -- Calculate percentage safely (handles secret values from Midnight API)
+        -- BUG-004: UnitPower can return secret values that pass nil checks but fail arithmetic
+        local perc = 0
+        local calcOk, calcResult = pcall(function()
+            if power and maxPower and maxPower > 0 then
+                return floor(power / maxPower * 100)
+            end
+            return 0
+        end)
+        if calcOk and calcResult then
+            perc = calcResult
+        end
 
         self.powerName = powerName
         self.powerTooltip = powerTooltip
@@ -87,10 +99,11 @@ local function UpdateBar(self)
         self.powerMaxValue = maxPower
         self.powerPercent = perc
 
-        self:SetMinMaxValues(barInfo.minPower or 0, maxPower)
-        self:SetValue(power)
+        -- StatusBar handles secret values natively in SetMinMaxValues/SetValue
+        self:SetMinMaxValues(barInfo.minPower or 0, maxPower or 0)
+        self:SetValue(power or 0)
 
-        -- Update text
+        -- Update text (perc is guaranteed safe from pcall)
         if powerName then
             self.text:SetText(string.format("%s: %d%%", powerName, perc))
         else
