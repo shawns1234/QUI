@@ -945,10 +945,16 @@ end
 -- Update empty slot visibility for a single button
 local function UpdateEmptySlotVisibility(button, settings)
     if not settings then return end
+
+    -- Get the bar's current fade alpha (respects mouseover hide)
+    local barKey = GetBarKeyFromButton(button)
+    local fadeState = barKey and ActionBars.fadeState and ActionBars.fadeState[barKey]
+    local targetAlpha = fadeState and fadeState.currentAlpha or 1
+
     if not settings.hideEmptySlots then
-        -- Restore visibility if setting is off
+        -- Restore visibility if setting is off (respect fade state)
         if button._quiHiddenEmpty then
-            button:SetAlpha(1)
+            button:SetAlpha(targetAlpha)
             button._quiHiddenEmpty = nil
         end
         return
@@ -958,7 +964,7 @@ local function UpdateEmptySlotVisibility(button, settings)
     if button.action then
         local hasAction = SafeHasAction(button.action)
         if hasAction then
-            button:SetAlpha(1)
+            button:SetAlpha(targetAlpha)
             button._quiHiddenEmpty = nil
         else
             button:SetAlpha(0)
