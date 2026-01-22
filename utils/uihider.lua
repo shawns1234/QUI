@@ -251,27 +251,33 @@ local function ApplyHideSettings()
             CompactRaidFrameManager:Hide()
             CompactRaidFrameManager:EnableMouse(false)  -- Prevent hidden frame from blocking clicks
             -- Hook Show() to prevent it from reappearing when joining groups, etc.
+            -- BUG-008: Wrap in C_Timer.After(0) to break taint chain from secure Blizzard code
             if not CompactRaidFrameManager._QUI_ShowHooked then
                 CompactRaidFrameManager._QUI_ShowHooked = true
                 hooksecurefunc(CompactRaidFrameManager, "Show", function(self)
-                    if InCombatLockdown() then return end  -- Can't modify protected frames in combat
-                    local s = GetSettings()
-                    if s and s.hideRaidFrameManager then
-                        self:Hide()
-                        self:EnableMouse(false)  -- Prevent hidden frame from blocking clicks
-                    end
+                    C_Timer.After(0, function()
+                        if InCombatLockdown() then return end
+                        local s = GetSettings()
+                        if s and s.hideRaidFrameManager then
+                            self:Hide()
+                            self:EnableMouse(false)
+                        end
+                    end)
                 end)
             end
             -- Hook SetShown() to catch permission-change visibility updates
+            -- BUG-008: Wrap in C_Timer.After(0) to break taint chain from secure Blizzard code
             if not CompactRaidFrameManager._QUI_SetShownHooked then
                 CompactRaidFrameManager._QUI_SetShownHooked = true
                 hooksecurefunc(CompactRaidFrameManager, "SetShown", function(self, shown)
-                    if InCombatLockdown() then return end  -- Can't modify protected frames in combat
-                    local s = GetSettings()
-                    if s and s.hideRaidFrameManager and shown then
-                        self:Hide()
-                        self:EnableMouse(false)  -- Prevent hidden frame from blocking clicks
-                    end
+                    C_Timer.After(0, function()
+                        if InCombatLockdown() then return end
+                        local s = GetSettings()
+                        if s and s.hideRaidFrameManager and shown then
+                            self:Hide()
+                            self:EnableMouse(false)
+                        end
+                    end)
                 end)
             end
         else
@@ -585,12 +591,15 @@ eventFrame:SetScript("OnEvent", function(self, event, addon)
     end
 
     -- Handle raid permission/role changes - re-hide CompactRaidFrameManager
+    -- BUG-008: Wrap in C_Timer.After(0) to break taint chain from secure event context
     if event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ROLES_ASSIGNED" then
         if settings and settings.hideRaidFrameManager and CompactRaidFrameManager then
-            if not InCombatLockdown() then
-                CompactRaidFrameManager:Hide()
-                CompactRaidFrameManager:EnableMouse(false)  -- Prevent hidden frame from blocking clicks
-            end
+            C_Timer.After(0, function()
+                if not InCombatLockdown() then
+                    CompactRaidFrameManager:Hide()
+                    CompactRaidFrameManager:EnableMouse(false)
+                end
+            end)
         end
         return
     end
