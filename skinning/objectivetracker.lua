@@ -342,9 +342,17 @@ local function HidePOIButtonGlows()
             for template, blocks in pairs(tracker.usedBlocks) do
                 if type(blocks) == "table" then
                     for id, block in pairs(blocks) do
-                        -- Hide Blizzard's native glow
+                        -- Permanently hide Blizzard's native glow (BUG-003)
                         if block.poiButton and block.poiButton.Glow then
                             block.poiButton.Glow:Hide()
+                            block.poiButton.Glow:SetAlpha(0)
+                            -- Hook Show to prevent Blizzard from re-showing
+                            if not block.poiButton.Glow.quiHooked then
+                                hooksecurefunc(block.poiButton.Glow, "Show", function(self)
+                                    self:Hide()
+                                end)
+                                block.poiButton.Glow.quiHooked = true
+                            end
                         end
                         -- Stop any LibCustomGlow effects (cleanup)
                         if LCG and LCG.PixelGlow_Stop and block.poiButton then
