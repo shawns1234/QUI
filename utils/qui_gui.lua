@@ -2307,6 +2307,7 @@ function GUI:CreateFormSlider(parent, label, min, max, step, dbKey, dbTable, onC
     SetFont(text, 12, "", C.text)
     text:SetText(label or "Setting")
     text:SetPoint("LEFT", 0, 0)
+    container.label = text
 
     -- Track container (for the filled + unfilled portions)
     local trackContainer = CreateFrame("Frame", nil, container)

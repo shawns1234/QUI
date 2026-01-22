@@ -5641,6 +5641,7 @@ local function CreateCDMSetupPage(parent)
         if trackedData.enabled == nil then trackedData.enabled = true end
         if trackedData.hideIcon == nil then trackedData.hideIcon = false end
         if trackedData.barHeight == nil then trackedData.barHeight = 24 end
+        if trackedData.barWidth == nil then trackedData.barWidth = 200 end
         if trackedData.texture == nil then trackedData.texture = "Quazii v5" end
         if trackedData.useClassColor == nil then trackedData.useClassColor = true end
         if trackedData.barColor == nil then trackedData.barColor = {0.204, 0.827, 0.6, 1} end
@@ -5652,6 +5653,11 @@ local function CreateCDMSetupPage(parent)
         if trackedData.spacing == nil then trackedData.spacing = 4 end
         if trackedData.growUp == nil then trackedData.growUp = true end
         if trackedData.hideText == nil then trackedData.hideText = false end
+        -- Vertical bar settings
+        if trackedData.orientation == nil then trackedData.orientation = "horizontal" end
+        if trackedData.fillDirection == nil then trackedData.fillDirection = "up" end
+        if trackedData.iconPosition == nil then trackedData.iconPosition = "top" end
+        if trackedData.showTextOnVertical == nil then trackedData.showTextOnVertical = false end
 
         y = y - 10 -- Extra spacing before new section
 
@@ -5698,14 +5704,108 @@ local function CreateCDMSetupPage(parent)
         textureDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
-        -- Growth Direction
-        local growthDropdown = GUI:CreateFormDropdown(tabContent, "Growth Direction", {
-            {value = true, text = "Up"},
-            {value = false, text = "Down"},
+        -- Forward reference for orientation change callback
+        local updateVerticalStates
+
+        -- Bar Orientation
+        local orientationDropdown = GUI:CreateFormDropdown(tabContent, "Bar Orientation", {
+            {value = "horizontal", text = "Horizontal"},
+            {value = "vertical", text = "Vertical"},
+        }, "orientation", trackedData, function()
+            RefreshBuff()
+            if updateVerticalStates then updateVerticalStates() end
+            GUI:ShowConfirmation({
+                title = "Reload Required",
+                message = "Changing bar orientation requires a UI reload to take full effect.",
+                acceptText = "Reload Now",
+                cancelText = "Later",
+                isDestructive = false,
+                onAccept = function()
+                    QuaziiUI:SafeReload()
+                end,
+            })
+        end)
+        orientationDropdown:SetPoint("TOPLEFT", PAD, y)
+        orientationDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        -- Stack Direction (renamed from Growth Direction, context-dependent)
+        local growthDropdown = GUI:CreateFormDropdown(tabContent, "Stack Direction", {
+            {value = true, text = "Up / Right"},
+            {value = false, text = "Down / Left"},
         }, "growUp", trackedData, RefreshBuff)
         growthDropdown:SetPoint("TOPLEFT", PAD, y)
         growthDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
+
+        local stackTip = GUI:CreateLabel(tabContent, "Up/Down for horizontal bars, Right/Left for vertical bars.", 11, C.textMuted)
+        stackTip:SetPoint("TOPLEFT", PAD, y)
+        stackTip:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        stackTip:SetJustifyH("LEFT")
+        y = y - 20
+
+        -- Fill Direction (Vertical only)
+        local fillDropdown = GUI:CreateFormDropdown(tabContent, "Fill Direction (Vertical)", {
+            {value = "up", text = "Fill Up"},
+            {value = "down", text = "Fill Down"},
+        }, "fillDirection", trackedData, RefreshBuff)
+        fillDropdown:SetPoint("TOPLEFT", PAD, y)
+        fillDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local fillTip = GUI:CreateLabel(tabContent, "Direction the progress bar fills as buff duration decreases.", 11, C.textMuted)
+        fillTip:SetPoint("TOPLEFT", PAD, y)
+        fillTip:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        fillTip:SetJustifyH("LEFT")
+        y = y - 20
+
+        -- Icon Position (Vertical only)
+        local iconPosDropdown = GUI:CreateFormDropdown(tabContent, "Icon Position (Vertical)", {
+            {value = "top", text = "Top"},
+            {value = "bottom", text = "Bottom"},
+        }, "iconPosition", trackedData, RefreshBuff)
+        iconPosDropdown:SetPoint("TOPLEFT", PAD, y)
+        iconPosDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local iconPosTip = GUI:CreateLabel(tabContent, "Where the spell icon appears on vertical bars.", 11, C.textMuted)
+        iconPosTip:SetPoint("TOPLEFT", PAD, y)
+        iconPosTip:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        iconPosTip:SetJustifyH("LEFT")
+        y = y - 20
+
+        -- Show Text (Vertical only)
+        local showTextCheck = GUI:CreateFormCheckbox(tabContent, "Show Text (Vertical)", "showTextOnVertical", trackedData, RefreshBuff)
+        showTextCheck:SetPoint("TOPLEFT", PAD, y)
+        showTextCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        y = y - FORM_ROW
+
+        local textTip = GUI:CreateLabel(tabContent, "Text hidden by default on vertical bars. Enable for bars 48+ pixels wide.", 11, C.textMuted)
+        textTip:SetPoint("TOPLEFT", PAD, y)
+        textTip:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        textTip:SetJustifyH("LEFT")
+        y = y - 20
+
+        -- UX: Dim vertical-only options when horizontal, swap height/width labels
+        -- Assign to forward reference so orientation dropdown onChange can call it
+        updateVerticalStates = function()
+            local isVertical = trackedData.orientation == "vertical"
+            local alpha = isVertical and 1.0 or 0.4
+            fillDropdown:SetAlpha(alpha)
+            iconPosDropdown:SetAlpha(alpha)
+            showTextCheck:SetAlpha(alpha)
+            -- Swap height/width labels based on orientation
+            if heightSlider.label and widthSlider.label then
+                if isVertical then
+                    heightSlider.label:SetText("Bar Width")
+                    widthSlider.label:SetText("Bar Length")
+                else
+                    heightSlider.label:SetText("Bar Height")
+                    widthSlider.label:SetText("Bar Width")
+                end
+            end
+        end
+        updateVerticalStates()  -- Initial state
 
         -- Use Class Color
         local classColorCheck = GUI:CreateFormCheckbox(tabContent, "Use Class Color", "useClassColor", trackedData, RefreshBuff)
