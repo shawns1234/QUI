@@ -43,12 +43,9 @@ end
 -- Get LibCustomGlow for quest icon glows
 local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
 
--- Style quest POI icon with QUI glow effect
+-- Style quest POI icon (glow removed - was causing indefinite glow bug BUG-003)
 local function StyleQuestPOIIcon(button)
     if not button or button.quiStyled then return end
-
-    -- Get QUI colors for glow
-    local sr, sg, sb = GetColors()
 
     -- Style the POI button
     if button.NormalTexture then
@@ -61,9 +58,9 @@ local function StyleQuestPOIIcon(button)
         button.HighlightTexture:SetAlpha(0.3)
     end
 
-    -- Apply pixel glow using LibCustomGlow
-    if LCG and button:IsShown() then
-        LCG.PixelGlow_Start(button, {sr, sg, sb, 1}, 8, 0.25, nil, 2, 1, 1, false, "_QUIQuestGlow")
+    -- Stop any existing LibCustomGlow effects (cleanup from previous versions)
+    if LCG and LCG.PixelGlow_Stop then
+        LCG.PixelGlow_Stop(button, "_QUIQuestGlow")
     end
 
     button.quiStyled = true
@@ -345,8 +342,26 @@ local function HidePOIButtonGlows()
             for template, blocks in pairs(tracker.usedBlocks) do
                 if type(blocks) == "table" then
                     for id, block in pairs(blocks) do
+                        -- Permanently hide Blizzard's native glow (BUG-003)
                         if block.poiButton and block.poiButton.Glow then
                             block.poiButton.Glow:Hide()
+                            block.poiButton.Glow:SetAlpha(0)
+                            -- Hook Show to prevent Blizzard from re-showing
+                            if not block.poiButton.Glow.quiHooked then
+                                hooksecurefunc(block.poiButton.Glow, "Show", function(self)
+                                    self:Hide()
+                                end)
+                                block.poiButton.Glow.quiHooked = true
+                            end
+                        end
+                        -- Stop any LibCustomGlow effects (cleanup)
+                        if LCG and LCG.PixelGlow_Stop and block.poiButton then
+                            LCG.PixelGlow_Stop(block.poiButton, "_QUIQuestGlow")
+                        end
+                        -- Also check ItemButton which StyleQuestPOIIcon targets
+                        local itemButton = block.ItemButton or block.itemButton
+                        if LCG and LCG.PixelGlow_Stop and itemButton then
+                            LCG.PixelGlow_Stop(itemButton, "_QUIQuestGlow")
                         end
                     end
                 end
@@ -785,6 +800,7 @@ local trackingEvents = {
     "PERKS_ACTIVITIES_TRACKED_LIST_CHANGED",
     -- UI Widget tracker
     "ZONE_CHANGED_NEW_AREA",
+    "ZONE_CHANGED_INDOORS",  -- BUG-003: cleanup glows on building transitions
     -- Professions recipe tracker
     "CURRENCY_DISPLAY_UPDATE",
     "TRACKED_RECIPE_UPDATE",
