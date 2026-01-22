@@ -4665,21 +4665,47 @@ function QUICore:ApplyGlobalFont()
 
         -- Hook chat frame font size changes
         if FCF_SetChatWindowFontSize then
-            hooksecurefunc("FCF_SetChatWindowFontSize", function(chatFrame)
+            hooksecurefunc("FCF_SetChatWindowFontSize", function(chatFrame, fontSize)
                 if not QUICore.db.profile.general.applyGlobalFontToBlizzard then return end
                 local fp = GetGlobalFontPath()
-                if chatFrame then
-                    ApplyFontToFrameRecursive(chatFrame, fp)
+                if chatFrame and chatFrame.SetFont then
+                    -- Apply global font directly to ScrollingMessageFrame (not just children)
+                    local _, size, flags = chatFrame:GetFont()
+                    chatFrame:SetFont(fp, fontSize or size or 14, flags or "")
                 end
             end)
         end
+
+        -- Event handler for chat window resets (font persistence across new messages)
+        local chatFontEventFrame = CreateFrame("Frame")
+        chatFontEventFrame:RegisterEvent("UPDATE_CHAT_WINDOWS")
+        chatFontEventFrame:RegisterEvent("UPDATE_FLOATING_CHAT_WINDOWS")
+        chatFontEventFrame:SetScript("OnEvent", function()
+            if not QUICore.db or not QUICore.db.profile then return end
+            if not QUICore.db.profile.general.applyGlobalFontToBlizzard then return end
+            C_Timer.After(0.05, function()
+                local fp = GetGlobalFontPath()
+                for i = 1, NUM_CHAT_WINDOWS do
+                    local chatFrame = _G["ChatFrame" .. i]
+                    if chatFrame and chatFrame.SetFont then
+                        local _, size, flags = chatFrame:GetFont()
+                        if size then
+                            chatFrame:SetFont(fp, size, flags or "")
+                        end
+                    end
+                end
+            end)
+        end)
     end
 
-    -- Apply to existing chat frames
+    -- Apply to existing chat frames (SetFont on the frame itself for new message persistence)
     for i = 1, NUM_CHAT_WINDOWS do
         local chatFrame = _G["ChatFrame" .. i]
-        if chatFrame then
-            ApplyFontToFrameRecursive(chatFrame, fontPath)
+        if chatFrame and chatFrame.SetFont then
+            local _, size, flags = chatFrame:GetFont()
+            if size then
+                chatFrame:SetFont(fontPath, size, flags or "")
+            end
         end
     end
 
