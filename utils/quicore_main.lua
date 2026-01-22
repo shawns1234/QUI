@@ -4532,6 +4532,10 @@ function QUICore:RefreshAll()
     if self.ApplyGlobalFont then
         self:ApplyGlobalFont()
     end
+    -- Refresh skyriding HUD fonts
+    if _G.QuaziiUI_RefreshSkyriding then
+        _G.QuaziiUI_RefreshSkyriding()
+    end
 end
 
 -- ============================================================================

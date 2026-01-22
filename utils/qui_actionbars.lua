@@ -1243,8 +1243,16 @@ end
 -- Apply alpha to all buttons in a bar
 local function SetBarAlpha(barKey, alpha)
     local buttons = GetBarButtons(barKey)
+    local settings = GetGlobalSettings()
+    local hideEmptyEnabled = settings and settings.hideEmptySlots
+
     for _, button in ipairs(buttons) do
-        button:SetAlpha(alpha)
+        -- Respect hide empty slots setting - keep empty buttons hidden
+        if hideEmptyEnabled and button._quiHiddenEmpty then
+            button:SetAlpha(0)
+        else
+            button:SetAlpha(alpha)
+        end
     end
 
     local barFrame = GetBarFrame(barKey)
