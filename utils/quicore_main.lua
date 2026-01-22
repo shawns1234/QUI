@@ -723,7 +723,7 @@ local defaults = {
             showOnMouseover = false,
             fadeDuration = 0.2,
             fadeOutAlpha = 0,
-            hideWhenMounted = true,
+            hideWhenMounted = false,
         },
 
         -- Unitframes Visibility (player, target, focus, pet, tot, boss)
@@ -737,7 +737,7 @@ local defaults = {
             fadeDuration = 0.2,
             fadeOutAlpha = 0,
             alwaysShowCastbars = false,  -- When true, castbars ignore UF visibility
-            hideWhenMounted = true,
+            hideWhenMounted = false,
         },
 
         -- Custom Trackers Visibility (all custom item/spell bars)
@@ -750,7 +750,7 @@ local defaults = {
             showOnMouseover = false,
             fadeDuration = 0.2,
             fadeOutAlpha = 0,
-            hideWhenMounted = true,
+            hideWhenMounted = false,
         },
 
         viewers = {
