@@ -26,7 +26,6 @@
     <Script file="qui_gui.lua"/>
     <Script file="qui_castbar_options.lua"/>
     <Script file="qui_options.lua"/>
-    <Script file="qui_readycheck.lua"/>
     <Script file="qui_blizzard_options.lua"/>
     <Script file="qui_ncdm.lua"/>
     <Script file="qui_buffbar.lua"/>
