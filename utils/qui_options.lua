@@ -1030,7 +1030,7 @@ local function CreateGeneralQoLPage(parent)
         fastLootDesc:SetJustifyH("LEFT")
         y = y - 16
 
-        local autoGossipCheck = GUI:CreateFormCheckbox(tabContent, "Auto-Select Single Gossip Option", "autoSelectGossip", db.general, nil)
+        local autoGossipCheck = GUI:CreateFormCheckbox(tabContent, "Auto-Select Single Gossip Option", "autoSelectGossip", db.general, nil, {keywords = {"conversations", "cutscene"}})
         autoGossipCheck:SetPoint("TOPLEFT", PADDING, y)
         autoGossipCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
         y = y - FORM_ROW

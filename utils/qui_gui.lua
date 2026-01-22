@@ -2069,7 +2069,7 @@ function GUI:CreateFormToggle(parent, label, dbKey, dbTable, onChange, registryI
         local regKey = label .. "_" .. (GUI._searchContext.tabIndex or 0) .. "_" .. (GUI._searchContext.subTabIndex or 0)
         if not GUI.SettingsRegistryKeys[regKey] then
             GUI.SettingsRegistryKeys[regKey] = true
-            table.insert(GUI.SettingsRegistry, {
+            local entry = {
                 label = label,
                 widgetType = "toggle",
                 tabIndex = GUI._searchContext.tabIndex,
@@ -2080,7 +2080,12 @@ function GUI:CreateFormToggle(parent, label, dbKey, dbTable, onChange, registryI
                 widgetBuilder = function(p)
                     return GUI:CreateFormToggle(p, label, dbKey, dbTable, onChange)
                 end,
-            })
+            }
+            -- Add keywords from registryInfo if provided
+            if registryInfo and registryInfo.keywords then
+                entry.keywords = registryInfo.keywords
+            end
+            table.insert(GUI.SettingsRegistry, entry)
         end
     end
 

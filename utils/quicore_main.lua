@@ -412,11 +412,11 @@ local defaults = {
             autoRepair = "personal",      -- "off", "personal", "guild"
             autoRoleAccept = true,
             autoAcceptInvites = "all",    -- "off", "all", "friends", "guild", "both"
-            autoAcceptQuest = true,
-            autoTurnInQuest = true,
+            autoAcceptQuest = false,
+            autoTurnInQuest = false,
             questHoldShift = true,
             fastAutoLoot = true,
-            autoSelectGossip = true,  -- Auto-select single gossip options
+            autoSelectGossip = false,  -- Auto-select single gossip options
             autoCombatLog = false,  -- Auto start/stop combat logging in M+ (opt-in)
             autoDeleteConfirm = true,  -- Auto-fill DELETE confirmation text
             -- Quick Salvage settings

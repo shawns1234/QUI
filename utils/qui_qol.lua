@@ -181,9 +181,17 @@ local function OnGossipShow()
     local options = C_GossipInfo.GetOptions()
     if not options or #options == 0 then return end
 
-    if #options == 1 then
-        -- Single option: auto-select if not already clicked this session
-        local option = options[1]
+    -- Count valid options to ensure we truly have only one choice
+    local validOptions = {}
+    for _, option in pairs(options) do
+        if option.gossipOptionID then
+            table.insert(validOptions, option)
+        end
+    end
+
+    -- ONLY auto-select when there is exactly 1 option
+    if #validOptions == 1 then
+        local option = validOptions[1]
         local optionID = option.gossipOptionID
 
         if optionID and not gossipClicked[optionID] then
@@ -193,15 +201,9 @@ local function OnGossipShow()
             local optionName = option.name or "gossip"
             print(string.format("|cFF30D1FFQuaziiUI:|r %s", optionName))
         end
-    else
-        -- Multiple options: check for vendor/service flags
-        for _, option in pairs(options) do
-            if option.flags == 1 and option.gossipOptionID then
-                C_GossipInfo.SelectOption(option.gossipOptionID)
-                return
-            end
-        end
     end
+    -- If there are multiple options, do NOTHING - let the player choose
+    -- This prevents auto-skipping dialogue/cutscene choices
 end
 
 local function OnGossipClosed()
