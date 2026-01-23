@@ -500,6 +500,23 @@ local function CreateRollFrame(index)
 end
 
 local function GetAvailableRollFrame()
+    local db = GetDB()
+    local maxVisible = (db.lootRoll and db.lootRoll.maxFrames) or 4
+
+    -- Count currently visible frames
+    local visibleCount = 0
+    for i = 1, MAX_ROLL_FRAMES do
+        if rollFramePool[i] and rollFramePool[i]:IsShown() then
+            visibleCount = visibleCount + 1
+        end
+    end
+
+    -- If at max visible, return nil to trigger queue
+    if visibleCount >= maxVisible then
+        return nil
+    end
+
+    -- Find an available frame from the pool
     for i = 1, MAX_ROLL_FRAMES do
         if not rollFramePool[i] then
             rollFramePool[i] = CreateRollFrame(i)
@@ -1285,12 +1302,16 @@ function Loot:IsLootPreviewActive()
     return lootPreviewActive
 end
 
--- Preview test items
+-- Preview test items (8 total to match MAX_ROLL_FRAMES)
 local PREVIEW_ROLL_ITEMS = {
     { texture = "Interface\\Icons\\INV_Sword_39", name = "Blade of Eternal Night", quality = 4, timer = 0.85 },
-    { texture = "Interface\\Icons\\INV_Helmet_25", name = "Crown of the Fallen King", quality = 4, timer = 0.6 },
-    { texture = "Interface\\Icons\\INV_Chest_Chain_15", name = "Burnished Chestguard", quality = 3, timer = 0.4 },
-    { texture = "Interface\\Icons\\INV_Boots_Plate_08", name = "Boots of Striding", quality = 2, timer = 0.2 },
+    { texture = "Interface\\Icons\\INV_Helmet_25", name = "Crown of the Fallen King", quality = 4, timer = 0.7 },
+    { texture = "Interface\\Icons\\INV_Chest_Chain_15", name = "Burnished Chestguard", quality = 3, timer = 0.55 },
+    { texture = "Interface\\Icons\\INV_Boots_Plate_08", name = "Boots of Striding", quality = 3, timer = 0.4 },
+    { texture = "Interface\\Icons\\INV_Gauntlets_29", name = "Gauntlets of the Ancients", quality = 4, timer = 0.3 },
+    { texture = "Interface\\Icons\\INV_Belt_13", name = "Girdle of Fortitude", quality = 2, timer = 0.25 },
+    { texture = "Interface\\Icons\\INV_Misc_Cape_18", name = "Cloak of Shadows", quality = 3, timer = 0.15 },
+    { texture = "Interface\\Icons\\INV_Jewelry_Ring_36", name = "Band of Eternal Champions", quality = 4, timer = 0.1 },
 }
 
 -- Show preview for roll frame (stays until hidden)
@@ -1302,6 +1323,7 @@ function Loot:ShowRollPreview()
     local db = GetDB()
     local growDirection = (db.lootRoll and db.lootRoll.growDirection) or "DOWN"
     local spacing = (db.lootRoll and db.lootRoll.spacing) or 4
+    local maxFrames = (db.lootRoll and db.lootRoll.maxFrames) or 4
 
     -- Position anchor from saved settings
     if db.lootRoll and db.lootRoll.position and db.lootRoll.position.point then
@@ -1314,8 +1336,12 @@ function Loot:ShowRollPreview()
 
     local bgColor, borderColor, textColor = GetThemeColors()
 
-    -- Create multiple preview frames
-    for i, item in ipairs(PREVIEW_ROLL_ITEMS) do
+    -- Store current maxFrames for HideRollPreview
+    self._previewMaxFrames = maxFrames
+
+    -- Create preview frames up to maxFrames setting
+    for i = 1, maxFrames do
+        local item = PREVIEW_ROLL_ITEMS[i] or PREVIEW_ROLL_ITEMS[1]  -- Cycle through if needed
         -- Ensure frame exists in pool
         if not rollFramePool[i] then
             rollFramePool[i] = CreateRollFrame(i)
@@ -1364,7 +1390,8 @@ function Loot:ShowRollPreview()
                     rollAnchor:SetPoint(point, UIParent, relPoint, x, y + ROLL_FRAME_HEIGHT)
                 end
                 -- Reposition other frames relative to new anchor
-                for j = 2, #PREVIEW_ROLL_ITEMS do
+                local previewCount = Loot._previewMaxFrames or 4
+                for j = 2, previewCount do
                     if rollFramePool[j] then
                         rollFramePool[j]:ClearAllPoints()
                         if growDirection == "UP" then
@@ -1392,8 +1419,8 @@ end
 
 -- Hide roll preview
 function Loot:HideRollPreview()
-    -- Hide all preview frames
-    for i = 1, #PREVIEW_ROLL_ITEMS do
+    -- Hide all preview frames (up to MAX_ROLL_FRAMES since we could show that many)
+    for i = 1, MAX_ROLL_FRAMES do
         if rollFramePool[i] then
             rollFramePool[i]:Hide()
             -- Remove drag handlers from first frame
@@ -1405,6 +1432,7 @@ function Loot:HideRollPreview()
             end
         end
     end
+    self._previewMaxFrames = nil
     rollPreviewActive = false
 end
 

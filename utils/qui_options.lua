@@ -3217,9 +3217,10 @@ local function CreateAutohidesPage(parent)
             if db.loot.showTransmogMarker == nil then db.loot.showTransmogMarker = true end
 
             if not db.lootRoll then db.lootRoll = {} end
-            if db.lootRoll.enabled == nil then db.lootRoll.enabled = false end  -- #125: disabled until fixed
+            if db.lootRoll.enabled == nil then db.lootRoll.enabled = false end
             if db.lootRoll.growDirection == nil then db.lootRoll.growDirection = "DOWN" end
             if db.lootRoll.spacing == nil then db.lootRoll.spacing = 4 end
+            if db.lootRoll.maxFrames == nil then db.lootRoll.maxFrames = 4 end
 
             if not db.lootResults then db.lootResults = {} end
             if db.lootResults.enabled == nil then db.lootResults.enabled = true end
@@ -3274,14 +3275,70 @@ local function CreateAutohidesPage(parent)
             rollHeader:SetPoint("TOPLEFT", PAD, y)
             y = y - rollHeader.gap
 
-            -- #125: Temporarily disabled due to bugs with multiple loot items
-            local rollDesc = GUI:CreateLabel(tabContent, "|cffff6666TEMPORARILY DISABLED|r - Custom roll frames are disabled while we fix issues with raid loot. Blizzard default frames will be used.", 11, C.textMuted)
+            local rollDesc = GUI:CreateLabel(tabContent, "Replace Blizzard's loot roll frames with custom QUI-styled frames.", 11, C.textMuted)
             rollDesc:SetPoint("TOPLEFT", PAD, y)
             rollDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
             rollDesc:SetJustifyH("LEFT")
             rollDesc:SetWordWrap(true)
-            rollDesc:SetHeight(40)
-            y = y - 50
+            rollDesc:SetHeight(20)
+            y = y - 28
+
+            local rollCheck = GUI:CreateFormCheckbox(tabContent, "Skin Roll Frames", "enabled", lootRollDB, function()
+                GUI:ShowConfirmation({
+                    title = "Reload UI?",
+                    message = "Skinning changes require a reload to take effect.",
+                    acceptText = "Reload",
+                    cancelText = "Later",
+                    onAccept = function() QuaziiUI:SafeReload() end,
+                })
+            end)
+            rollCheck:SetPoint("TOPLEFT", PAD, y)
+            rollCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Helper to refresh roll preview live when settings change
+            local function RefreshRollPreview()
+                local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+                if QUICore and QUICore.Loot and QUICore.Loot:IsRollPreviewActive() then
+                    QUICore.Loot:HideRollPreview()
+                    QUICore.Loot:ShowRollPreview()
+                end
+            end
+
+            local growOptions = {
+                { value = "DOWN", text = "Down" },
+                { value = "UP", text = "Up" },
+            }
+            local growDropdown = GUI:CreateFormDropdown(tabContent, "Grow Direction", growOptions, "growDirection", lootRollDB, RefreshRollPreview)
+            growDropdown:SetPoint("TOPLEFT", PAD, y)
+            growDropdown:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            local maxFramesSlider = GUI:CreateFormSlider(tabContent, "Max Visible Frames", 1, 8, 1, "maxFrames", lootRollDB, RefreshRollPreview)
+            maxFramesSlider:SetPoint("TOPLEFT", PAD, y)
+            maxFramesSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            local spacingSlider = GUI:CreateFormSlider(tabContent, "Frame Spacing", 0, 20, 1, "spacing", lootRollDB, RefreshRollPreview)
+            spacingSlider:SetPoint("TOPLEFT", PAD, y)
+            spacingSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            y = y - FORM_ROW
+
+            -- Toggle movers button
+            local rollMoverBtn = GUI:CreateButton(tabContent, "Toggle Position Movers", 200, 28, function()
+                local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+                if QUICore and QUICore.Loot then
+                    QUICore.Loot:ToggleMovers()
+                end
+            end)
+            rollMoverBtn:SetPoint("TOPLEFT", PAD, y)
+            y = y - 40
+
+            local rollMoverInfo = GUI:CreateLabel(tabContent, "Drag the mover frame to reposition roll frames. Shows preview rolls.", 10, C.textMuted)
+            rollMoverInfo:SetPoint("TOPLEFT", PAD, y)
+            rollMoverInfo:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+            rollMoverInfo:SetJustifyH("LEFT")
+            y = y - 25
 
             y = y - 10  -- Extra padding before next section
 
