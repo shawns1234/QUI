@@ -846,8 +846,12 @@ local function UpdateKeybindText(button, settings)
 
     hotkey:SetFont(fontPath, settings.keybindFontSize or 11, outline)
 
-    local color = settings.keybindColor or {1, 1, 1, 1}
-    hotkey:SetTextColor(color[1], color[2], color[3], color[4] or 1)
+    local color = settings.keybindColor
+    local r = color and color[1] or 1
+    local g = color and color[2] or 1
+    local b = color and color[3] or 1
+    local a = color and color[4] or 1
+    hotkey:SetTextColor(r, g, b, a)
 
     -- Reposition with configurable anchor and offsets
     hotkey:ClearAllPoints()
@@ -881,8 +885,12 @@ local function UpdateMacroText(button, settings)
 
     name:SetFont(fontPath, settings.macroNameFontSize or 10, outline)
 
-    local color = settings.macroNameColor or {1, 1, 1, 1}
-    name:SetTextColor(color[1], color[2], color[3], color[4] or 1)
+    local color = settings.macroNameColor
+    local r = color and color[1] or 1
+    local g = color and color[2] or 1
+    local b = color and color[3] or 1
+    local a = color and color[4] or 1
+    name:SetTextColor(r, g, b, a)
 
     -- Reposition with configurable anchor and offsets
     name:ClearAllPoints()
@@ -916,8 +924,12 @@ local function UpdateCountText(button, settings)
 
     count:SetFont(fontPath, settings.countFontSize or 14, outline)
 
-    local color = settings.countColor or {1, 1, 1, 1}
-    count:SetTextColor(color[1], color[2], color[3], color[4] or 1)
+    local color = settings.countColor
+    local r = color and color[1] or 1
+    local g = color and color[2] or 1
+    local b = color and color[3] or 1
+    local a = color and color[4] or 1
+    count:SetTextColor(r, g, b, a)
 
     -- Reposition with configurable anchor and offsets
     count:ClearAllPoints()
@@ -1066,8 +1078,12 @@ local function UpdateButtonUsability(button, settings)
     if settings.rangeIndicator then
         local inRange = SafeIsActionInRange(button.action)
         if inRange == false then  -- false = out of range, nil = no range check needed
-            local c = settings.rangeColor or {0.8, 0.1, 0.1, 1}
-            icon:SetVertexColor(c[1], c[2], c[3], c[4] or 1)
+            local c = settings.rangeColor
+            local r = c and c[1] or 0.8
+            local g = c and c[2] or 0.1
+            local b = c and c[3] or 0.1
+            local a = c and c[4] or 1
+            icon:SetVertexColor(r, g, b, a)
             icon:SetDesaturated(false)
             button._quiTinted = "range"
             return
@@ -1080,8 +1096,12 @@ local function UpdateButtonUsability(button, settings)
 
         if notEnoughMana then
             -- Out of mana/resources - blue tint
-            local c = settings.manaColor or {0.5, 0.5, 1.0, 1}
-            icon:SetVertexColor(c[1], c[2], c[3], c[4] or 1)
+            local c = settings.manaColor
+            local r = c and c[1] or 0.5
+            local g = c and c[2] or 0.5
+            local b = c and c[3] or 1.0
+            local a = c and c[4] or 1
+            icon:SetVertexColor(r, g, b, a)
             icon:SetDesaturated(false)
             button._quiTinted = "mana"
             return
@@ -1091,8 +1111,12 @@ local function UpdateButtonUsability(button, settings)
                 icon:SetDesaturated(true)
                 icon:SetVertexColor(0.6, 0.6, 0.6, 1)  -- Slight brightness reduction with desaturation
             else
-                local c = settings.usabilityColor or {0.4, 0.4, 0.4, 1}
-                icon:SetVertexColor(c[1], c[2], c[3], c[4] or 1)
+                local c = settings.usabilityColor
+                local r = c and c[1] or 0.4
+                local g = c and c[2] or 0.4
+                local b = c and c[3] or 0.4
+                local a = c and c[4] or 1
+                icon:SetVertexColor(r, g, b, a)
                 icon:SetDesaturated(false)
             end
             button._quiTinted = "unusable"
