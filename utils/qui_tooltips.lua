@@ -268,6 +268,21 @@ local function SetupTooltipHook()
         end
     end)
 
+    -- Hide tooltip health bar based on settings
+    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tooltip)
+        if tooltip ~= GameTooltip then return end
+
+        local settings = GetSettings()
+        if not settings or not settings.enabled then return end
+
+        local hideBar = settings.hideHealthBar
+
+        if GameTooltipStatusBar then
+            GameTooltipStatusBar:SetShown(not hideBar)
+            GameTooltipStatusBar:SetAlpha(hideBar and 0 or 1)
+        end
+    end)
+
     -- Hook SetSpellByID to suppress CDM and Custom Tracker tooltips
     -- These icons use SetSpellByID which bypasses GameTooltip_SetDefaultAnchor
     hooksecurefunc(GameTooltip, "SetSpellByID", function(tooltip, spellID)

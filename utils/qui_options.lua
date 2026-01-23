@@ -2261,6 +2261,18 @@ local function CreateGeneralQoLPage(parent)
         classColorInfo:SetJustifyH("LEFT")
         y = y - 20
 
+        -- Hide Health Bar option
+        local hideHealthBarCheck = GUI:CreateFormCheckbox(tabContent, "Hide Tooltip Health Bar", "hideHealthBar", tooltip, RefreshTooltips)
+        hideHealthBarCheck:SetPoint("TOPLEFT", PADDING, y)
+        hideHealthBarCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        y = y - FORM_ROW
+
+        local hideHealthBarInfo = GUI:CreateLabel(tabContent, "Hides the health bar shown at the bottom of unit tooltips.", 10, C.textMuted)
+        hideHealthBarInfo:SetPoint("TOPLEFT", PADDING, y)
+        hideHealthBarInfo:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+        hideHealthBarInfo:SetJustifyH("LEFT")
+        y = y - 20
+
         -- SECTION: Tooltip Visibility
         GUI:SetSearchSection("Tooltip Visibility")
         local visHeader = GUI:CreateSectionHeader(tabContent, "Tooltip Visibility")

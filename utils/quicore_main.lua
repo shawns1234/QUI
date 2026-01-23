@@ -1141,6 +1141,7 @@ local defaults = {
                 customTrackers = "SHOW",       -- Custom Items/Spells bars
             },
             combatKey = "SHIFT",               -- NONE/SHIFT/CTRL/ALT
+            hideHealthBar = true,              -- Hide the health bar on unit tooltips
         },
 
         -- QUI Action Bars - Button Skinning and Fade System
