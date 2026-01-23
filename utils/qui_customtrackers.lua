@@ -1443,8 +1443,21 @@ function CustomTrackers:StartCooldownPolling(bar)
                         end
 
                         -- Exclude GCD from triggering desaturation
-                        if hideGCD and isOnGCD then
-                            mainCDActive = false
+                        -- Check both isOnGCD flag and duration <= 1.5s (GCD range)
+                        if hideGCD then
+                            local isJustGCD = isOnGCD
+                            if not isJustGCD then
+                                -- Fallback: check if main cooldown duration is within GCD range
+                                local gcdCheckOk, gcdCheckResult = pcall(function()
+                                    return duration and duration > 0 and duration <= 1.5
+                                end)
+                                if gcdCheckOk and gcdCheckResult then
+                                    isJustGCD = true
+                                end
+                            end
+                            if isJustGCD then
+                                mainCDActive = false
+                            end
                         end
 
                         isOnCD = mainCDActive
@@ -1460,12 +1473,39 @@ function CustomTrackers:StartCooldownPolling(bar)
                         pcall(icon.cooldown.SetDrawSwipe, icon.cooldown, false)
                         pcall(icon.cooldown.SetDrawEdge, icon.cooldown, false)
 
-                        if hideGCD and isOnGCD then
-                            -- It's just GCD - clear cooldown display, don't desaturate
-                            icon.cooldown:Clear()
-                            isOnCD = false
+                        if hideGCD then
+                            -- Check if this is just GCD (not a real cooldown)
+                            -- isOnGCD from API may not be reliable for all spells
+                            -- Also check if duration is within GCD range (1.5s base, 0.75s min with haste)
+                            local isJustGCD = isOnGCD
+                            if not isJustGCD then
+                                -- Fallback: check if duration is within GCD range
+                                -- Wrap entire comparison in pcall to handle secret values
+                                local gcdCheckOk, gcdCheckResult = pcall(function()
+                                    return duration and duration > 0 and duration <= 1.5
+                                end)
+                                if gcdCheckOk and gcdCheckResult then
+                                    isJustGCD = true
+                                end
+                            end
+
+                            if isJustGCD then
+                                -- It's just GCD - clear cooldown display, don't desaturate
+                                icon.cooldown:Clear()
+                                isOnCD = false
+                            else
+                                -- Real cooldown (> 1.5s duration)
+                                local checkSuccess, checkResult = pcall(function()
+                                    return startTime and startTime > 0 and duration and duration > 0
+                                end)
+                                if checkSuccess then
+                                    isOnCD = checkResult
+                                else
+                                    isOnCD = IsCooldownFrameActive(icon.cooldown)
+                                end
+                            end
                         else
-                            -- Check if on cooldown using multiple methods
+                            -- hideGCD is disabled, treat any cooldown as "on cooldown"
                             local checkSuccess, checkResult = pcall(function()
                                 return startTime and startTime > 0 and duration and duration > 0
                             end)
@@ -1500,8 +1540,17 @@ function CustomTrackers:StartCooldownPolling(bar)
                         -- Show during cooldown OR while active (active overrides cooldown visuals)
                         layoutVisible = isActive or isOnCD
                     elseif showOnlyWhenOffCooldown then
-                        -- Show only when ready (not on cooldown and not active)
-                        layoutVisible = not isOnCD and not isActive
+                        -- Show only when ready (not on cooldown)
+                        -- For charge spells with remaining charges, stay visible even during active state
+                        -- (you can still cast the spell if you have charges)
+                        local hasChargesRemaining = false
+                        if maxCharges > 1 then
+                            local chargeCheckOk, chargeCheckResult = pcall(function()
+                                return count and count > 0
+                            end)
+                            hasChargesRemaining = chargeCheckOk and chargeCheckResult
+                        end
+                        layoutVisible = not isOnCD and (not isActive or hasChargesRemaining)
                     end
                 end
 
