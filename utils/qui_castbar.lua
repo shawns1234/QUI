@@ -1051,7 +1051,9 @@ local function GetCastInfo(castbar, unit)
 
     if not spellName then
         spellName, text, texture, startTimeMS, endTimeMS, _, notInterruptible, _, _, channelStages = UnitChannelInfo(unit)
-        isChanneled = true
+        if spellName then
+            isChanneled = true
+        end
     end
 
     -- Get duration object for engine-driven animation (Midnight 12.0+)
@@ -1558,22 +1560,34 @@ function QUI_Castbar:SetupCastbar(castbar, unit, unitKey, castSettings)
         UNIT_SPELLCAST_START = function(self, spellID) self:Cast(spellID, false) end,
         UNIT_SPELLCAST_CHANNEL_START = function(self, spellID) self:Cast(spellID, false) end,
         
-        -- Cast end events (clear empowered state for player)
+        -- Cast end events - hide immediately without re-querying APIs
         UNIT_SPELLCAST_STOP = function(self, spellID)
             if isPlayer then ClearEmpoweredState(self) end
-            self:Cast(spellID, false)
+            self.timerDriven = false
+            self.durationObj = nil
+            self:SetScript("OnUpdate", nil)
+            self:Hide()
         end,
         UNIT_SPELLCAST_CHANNEL_STOP = function(self, spellID)
             if isPlayer then ClearEmpoweredState(self) end
-            self:Cast(spellID, false)
+            self.timerDriven = false
+            self.durationObj = nil
+            self:SetScript("OnUpdate", nil)
+            self:Hide()
         end,
         UNIT_SPELLCAST_FAILED = function(self, spellID)
             if isPlayer then ClearEmpoweredState(self) end
-            self:Cast(spellID, false)
+            self.timerDriven = false
+            self.durationObj = nil
+            self:SetScript("OnUpdate", nil)
+            self:Hide()
         end,
         UNIT_SPELLCAST_INTERRUPTED = function(self, spellID)
             if isPlayer then ClearEmpoweredState(self) end
-            self:Cast(spellID, false)
+            self.timerDriven = false
+            self.durationObj = nil
+            self:SetScript("OnUpdate", nil)
+            self:Hide()
         end,
         
         -- Interruptible state changes
@@ -2056,9 +2070,11 @@ function QUI_Castbar:CreateBossCastbar(unitFrame, unit, bossIndex)
         
         if not spellName then
             spellName, text, texture, startTimeMS, endTimeMS, _, notInterruptible = UnitChannelInfo(self.unit)
-            isChanneled = true
+            if spellName then
+                isChanneled = true
+            end
         end
-        
+
         -- If actually casting, show real cast (preview is hidden during real casts)
         if spellName and startTimeMS and endTimeMS then
             -- Use pcall to handle Midnight secret values (pass type checks but fail arithmetic)
