@@ -113,6 +113,16 @@ local function GetTooltipContext(owner)
        strmatch(name, "BT4Button") or           -- Bartender4
        strmatch(name, "DominosActionButton") or -- Dominos
        strmatch(name, "ElvUI_Bar") then         -- ElvUI
+
+        -- Check if this action button contains an item (trinket, equipment, etc)
+        local actionSlot = owner:GetAttribute("action")
+        if actionSlot then
+            local actionType, actionID = GetActionInfo(actionSlot)
+            if actionType == "item" then
+                return "items"
+            end
+        end
+
         return "abilities"
     end
 
@@ -219,6 +229,8 @@ local function SetupTooltipHook()
         -- Check visibility for this context (handles combat + modifier key logic)
         if not ShouldShowTooltip(context) then
             tooltip:Hide()
+            tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+            tooltip:ClearLines()
             return
         end
 
@@ -329,6 +341,54 @@ local function SetupTooltipHook()
             end
         end
     end)
+
+    -- Hook GameTooltip_Hide as safety net for combat tooltip issues
+    -- Runs after original function - if tooltip still visible during combat, force hide
+    hooksecurefunc("GameTooltip_Hide", function()
+        if InCombatLockdown() and GameTooltip:IsVisible() then
+            GameTooltip:Hide()
+        end
+    end)
+
+    -- Tooltip sticking monitor (throttled) - fixes Midnight 12.0+ combat tooltip issue
+    -- Only active when hideInCombat is DISABLED (when ON, the hook handles it)
+    local tooltipMonitor = CreateFrame("Frame")
+    local monitorElapsed = 0
+    tooltipMonitor:SetScript("OnUpdate", function(self, delta)
+        monitorElapsed = monitorElapsed + delta
+        if monitorElapsed < 0.1 then return end  -- 100ms throttle (10 FPS)
+        monitorElapsed = 0
+
+        if not InCombatLockdown() then return end
+
+        local settings = GetSettings()
+        if not settings or not settings.enabled then return end
+        if settings.hideInCombat then return end  -- Hook handles this case
+
+        if not GameTooltip:IsVisible() then return end
+
+        local owner = GameTooltip:GetOwner()
+        if not owner then return end
+
+        local mouseFrame = GetTopMouseFrame()
+        if not mouseFrame then return end
+
+        -- Check if mouse is over owner or child of owner
+        local isOverOwner = false
+        local checkFrame = mouseFrame
+        while checkFrame do
+            if checkFrame == owner then
+                isOverOwner = true
+                break
+            end
+            checkFrame = checkFrame:GetParent()
+        end
+
+        -- If mouse moved away from owner, hide stuck tooltip
+        if not isOverOwner then
+            GameTooltip:Hide()
+        end
+    end)
 end
 
 ---------------------------------------------------------------------------
@@ -352,11 +412,30 @@ local function OnModifierStateChanged()
 end
 
 ---------------------------------------------------------------------------
+-- Combat State Handler
+-- Hides tooltips immediately when entering combat (if hideInCombat enabled)
+---------------------------------------------------------------------------
+local function OnCombatStateChanged(inCombat)
+    local settings = GetSettings()
+    if not settings or not settings.enabled or not settings.hideInCombat then return end
+
+    if inCombat then
+        -- Entering combat - hide tooltip immediately if no combat key override
+        if not settings.combatKey or settings.combatKey == "NONE" or not IsModifierActive(settings.combatKey) then
+            GameTooltip:Hide()
+        end
+    end
+    -- Leaving combat - nothing special needed, tooltips will show normally
+end
+
+---------------------------------------------------------------------------
 -- Event Frame
 ---------------------------------------------------------------------------
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("MODIFIER_STATE_CHANGED")
+eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_LOGIN" then
@@ -388,6 +467,12 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end)
     elseif event == "MODIFIER_STATE_CHANGED" then
         OnModifierStateChanged()
+    elseif event == "PLAYER_REGEN_DISABLED" then
+        -- Entering combat
+        OnCombatStateChanged(true)
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        -- Leaving combat
+        OnCombatStateChanged(false)
     end
 end)
 
