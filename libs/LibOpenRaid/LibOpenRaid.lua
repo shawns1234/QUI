@@ -3591,8 +3591,9 @@ local createLocalCooldownTracker = function()
             local bUnitIsThePlayer = UnitIsUnit(unitId, "player")
             if (not bUnitIsThePlayer) then
                 --get the caster name and check if it's a unit in the group
-                local casterName = GetUnitName(unitId, true)
-                if (casterName) then
+                --use pcall to handle secret values from nameplate units in Midnight
+                local success, casterName = pcall(GetUnitName, unitId, true)
+                if (success and casterName) then
                     local unitInGroup = UnitInParty(unitId) or UnitInRaid(unitId)
                     if (unitInGroup) then
                         --check if the library has the spell in the list of cooldowns
