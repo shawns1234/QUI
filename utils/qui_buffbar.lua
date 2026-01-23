@@ -1209,46 +1209,84 @@ LayoutBuffBars = function()
     end
     totalSize = roundPixel(totalSize)
 
-    -- PASS 1: Clear all points
-    for _, bar in ipairs(bars) do
-        bar:ClearAllPoints()
-    end
-
-    -- PASS 2: Position and optionally style each bar
+    -- POSITION VERIFICATION: Check if bars are already in correct positions (within 2px tolerance)
+    -- This mirrors the icon layout's self-correcting behavior - if Blizzard moves a bar,
+    -- we detect it and snap it back immediately
+    local needsReposition = false
     for index, bar in ipairs(bars) do
         local offsetIndex = index - 1
 
         if isVertical then
-            -- VERTICAL BARS: Stack horizontally (left/right)
-            -- Use edge anchors (LEFT/RIGHT) like horizontal uses (TOP/BOTTOM)
-            -- Bars are centered on the perpendicular axis, matching horizontal behavior
-            local x
+            -- Check X position for vertical layout
+            local expectedX
             if growFromBottom then
-                -- Grow Right: bar 1 at LEFT edge, stacks rightward
-                x = offsetIndex * (effectiveBarWidth + spacing)
-                x = roundPixel(x)
-                bar:SetPoint("LEFT", BuffBarCooldownViewer, "LEFT", x, 0)
+                expectedX = roundPixel(offsetIndex * (effectiveBarWidth + spacing))
             else
-                -- Grow Left: bar 1 at RIGHT edge, stacks leftward
-                x = -offsetIndex * (effectiveBarWidth + spacing)
-                x = roundPixel(x)
-                bar:SetPoint("RIGHT", BuffBarCooldownViewer, "RIGHT", x, 0)
+                expectedX = roundPixel(-offsetIndex * (effectiveBarWidth + spacing))
+            end
+            local point, _, _, xOfs = bar:GetPoint(1)
+            if not point or abs((xOfs or 0) - expectedX) > 2 then
+                needsReposition = true
+                break
             end
         else
-            -- HORIZONTAL BARS: Stack vertically (up/down) - original behavior
-            local y
+            -- Check Y position for horizontal layout
+            local expectedY
             if growFromBottom then
-                y = offsetIndex * (effectiveBarHeight + spacing)
-                y = roundPixel(y)
-                bar:SetPoint("BOTTOM", BuffBarCooldownViewer, "BOTTOM", 0, y)
+                expectedY = roundPixel(offsetIndex * (effectiveBarHeight + spacing))
             else
-                y = -offsetIndex * (effectiveBarHeight + spacing)
-                y = roundPixel(y)
-                bar:SetPoint("TOP", BuffBarCooldownViewer, "TOP", 0, y)
+                expectedY = roundPixel(-offsetIndex * (effectiveBarHeight + spacing))
+            end
+            local point, _, _, _, yOfs = bar:GetPoint(1)
+            if not point or abs((yOfs or 0) - expectedY) > 2 then
+                needsReposition = true
+                break
             end
         end
+    end
 
-        -- Apply visual styling if enabled
+    if needsReposition then
+        -- PASS 1: Clear all points
+        for _, bar in ipairs(bars) do
+            bar:ClearAllPoints()
+        end
+
+        -- PASS 2: Position each bar
+        for index, bar in ipairs(bars) do
+            local offsetIndex = index - 1
+
+            if isVertical then
+                -- VERTICAL BARS: Stack horizontally (left/right)
+                local x
+                if growFromBottom then
+                    -- Grow Right: bar 1 at LEFT edge, stacks rightward
+                    x = offsetIndex * (effectiveBarWidth + spacing)
+                    x = roundPixel(x)
+                    bar:SetPoint("LEFT", BuffBarCooldownViewer, "LEFT", x, 0)
+                else
+                    -- Grow Left: bar 1 at RIGHT edge, stacks leftward
+                    x = -offsetIndex * (effectiveBarWidth + spacing)
+                    x = roundPixel(x)
+                    bar:SetPoint("RIGHT", BuffBarCooldownViewer, "RIGHT", x, 0)
+                end
+            else
+                -- HORIZONTAL BARS: Stack vertically (up/down)
+                local y
+                if growFromBottom then
+                    y = offsetIndex * (effectiveBarHeight + spacing)
+                    y = roundPixel(y)
+                    bar:SetPoint("BOTTOM", BuffBarCooldownViewer, "BOTTOM", 0, y)
+                else
+                    y = -offsetIndex * (effectiveBarHeight + spacing)
+                    y = roundPixel(y)
+                    bar:SetPoint("TOP", BuffBarCooldownViewer, "TOP", 0, y)
+                end
+            end
+        end
+    end
+
+    -- Apply visual styling and frame strata/level to each bar (always, regardless of reposition)
+    for _, bar in ipairs(bars) do
         if stylingEnabled then
             ApplyBarStyle(bar, settings)
         end
@@ -1300,12 +1338,11 @@ end
 
 ---------------------------------------------------------------------------
 -- CHANGE DETECTION (called from OnUpdate hooks on viewers)
--- Hash-based detection: only layout when count OR settings actually change
--- This prevents unnecessary layouts during rapid buff changes
+-- Icons: Hash-based detection for count/settings changes
+-- Bars: Position verification (hash removed - bars now self-correct via position checks)
 ---------------------------------------------------------------------------
 
 local lastIconHash = ""
-local lastBarHash = ""
 
 -- Build hash of icon count + settings to detect actual changes
 local function BuildIconHash(count, settings)
@@ -1351,37 +1388,11 @@ local function CheckBarChanges()
     if not BuffBarCooldownViewer then return end
     if isBarLayoutRunning then return end  -- Skip if already laying out
 
-    local bars = GetBuffBarFrames()
-    local count = #bars
-
-    -- Get tracked bar settings for hash
-    local settings = GetTrackedBarSettings()
-
-    -- Build hash including count AND settings (including vertical bar settings)
-    local hash = string.format("%d_%s_%s_%d_%d_%s_%s_%d_%s_%d_%d_%s_%s_%s_%s_%s",
-        count,
-        tostring(settings.enabled),
-        tostring(settings.hideIcon),
-        settings.barHeight or 24,
-        settings.barWidth or 200,
-        settings.texture or "Quazii v5",
-        tostring(settings.useClassColor),
-        settings.borderSize or 1,
-        tostring(settings.bgOpacity or 0.7),
-        settings.textSize or 12,
-        settings.spacing or 4,
-        tostring(settings.growUp),
-        settings.orientation or "horizontal",
-        settings.fillDirection or "up",
-        settings.iconPosition or "top",
-        tostring(settings.showTextOnVertical)
-    )
-
-    -- Check if anything changed
-    if hash ~= lastBarHash then
-        lastBarHash = hash
-        LayoutBuffBars()  -- Direct call, no deferral
-    end
+    -- Always call LayoutBuffBars - it now has internal position verification
+    -- that will skip repositioning if all bars are already in correct positions.
+    -- This ensures we catch any position drift caused by Blizzard's Layout()
+    -- even when count/settings haven't changed.
+    LayoutBuffBars()
 end
 
 ---------------------------------------------------------------------------
@@ -1638,8 +1649,7 @@ function QUI_BuffBar.Refresh()
     iconState.isInitialized = false
     iconState.lastCount = 0
     barState.lastCount = 0
-    lastIconHash = ""  -- Force hash recalculation
-    lastBarHash = ""
+    lastIconHash = ""  -- Force hash recalculation for icons
 
     -- Update isHorizontal when settings change (e.g., orientation toggle)
     -- Must be done outside combat to take effect
