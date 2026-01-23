@@ -118,112 +118,6 @@ local function GetTrackedBarSettings()
 end
 
 ---------------------------------------------------------------------------
--- HEIGHT COMPENSATION: Fixes buff bar position shift after /reload
--- CENTER-anchored frames shift when height changes; we compensate
----------------------------------------------------------------------------
-
--- Save position to database (persists across reloads)
-local function SaveBarPositionToDB()
-    local db = GetDB()
-    if not db then return end
-    if not BuffBarCooldownViewer then return end
-
-    local point, relativeTo, relPoint, x, y = BuffBarCooldownViewer:GetPoint(1)
-    if not point then return end
-
-    local width, height = BuffBarCooldownViewer:GetSize()
-    local relName = relativeTo and relativeTo:GetName() or "UIParent"
-
-    -- Store in database for persistence
-    db.buffBarSavedPosition = {
-        point = point,
-        relativeToName = relName,
-        relPoint = relPoint,
-        x = x,
-        y = y,
-        width = width,
-        height = height,
-    }
-end
-
--- Load position from database and apply dimension compensation
--- Horizontal bars: compensate Y for height changes (bars stack up/down)
--- Vertical bars: compensate X for width changes (bars stack left/right)
-local function ApplyHeightCompensationFromDB()
-    local db = GetDB()
-    if not db or not db.buffBarSavedPosition then return end
-    if not BuffBarCooldownViewer then return end
-    if InCombatLockdown() then return end
-
-    local saved = db.buffBarSavedPosition
-    local currentWidth, currentHeight = BuffBarCooldownViewer:GetSize()
-
-    if not currentHeight or currentHeight == 0 then return end
-    if not currentWidth or currentWidth == 0 then return end
-
-    -- Get tracked bar settings to check growth direction and orientation
-    local settings = GetTrackedBarSettings()
-    local growUp = (settings.growUp ~= false)  -- Default is true (upward/rightward)
-    local isVertical = (settings.orientation == "vertical")
-
-    local relativeTo = _G[saved.relativeToName] or UIParent
-    local adjustedX = saved.x
-    local adjustedY = saved.y
-    local needsAdjustment = false
-
-    if isVertical then
-        -- VERTICAL BARS: Compensate X for width changes (bars stack left/right)
-        local savedWidth = saved.width or currentWidth
-        local widthDiff = currentWidth - savedWidth  -- POSITIVE when wider
-        local xCompensation = widthDiff / 2
-
-        if math.abs(widthDiff) > 1 then
-            needsAdjustment = true
-            if growUp then
-                -- Grow Right: LEFT edge stays fixed, shift X right by half
-                adjustedX = saved.x + xCompensation
-            else
-                -- Grow Left: RIGHT edge stays fixed, shift X left
-                adjustedX = saved.x - widthDiff
-            end
-        end
-    else
-        -- HORIZONTAL BARS: Compensate Y for height changes (bars stack up/down)
-        local savedHeight = saved.height or currentHeight
-        local heightDiff = currentHeight - savedHeight  -- POSITIVE when taller
-        local yCompensation = heightDiff / 2
-
-        if math.abs(heightDiff) > 1 then
-            needsAdjustment = true
-            if growUp then
-                -- Grow Upward: BOTTOM edge stays fixed, use half compensation
-                adjustedY = saved.y + yCompensation
-            else
-                -- Grow Downward: TOP edge stays fixed
-                adjustedY = saved.y - heightDiff
-            end
-        end
-    end
-
-    if needsAdjustment then
-        BuffBarCooldownViewer:ClearAllPoints()
-        BuffBarCooldownViewer:SetPoint(saved.point, relativeTo, saved.relPoint,
-                                       adjustedX, adjustedY)
-    end
-end
-
--- Hook for edit mode exit to save position
-local function OnEditModeExitForBars()
-    -- Defer to let Blizzard finish saving the new position
-    C_Timer.After(0.15, function()
-        -- SAVE the NEW position to database (so it persists across reloads)
-        if BuffBarCooldownViewer then
-            SaveBarPositionToDB()
-        end
-    end)
-end
-
----------------------------------------------------------------------------
 -- FORWARD DECLARATIONS
 ---------------------------------------------------------------------------
 
@@ -1371,20 +1265,32 @@ LayoutBuffBars = function()
         end
     end
 
-    -- Update container height for vertical bars (don't touch width - let bars overflow like horizontal does)
-    -- Horizontal mode doesn't resize container, so vertical shouldn't resize width either
-    -- Only set height to match rotated bar dimensions
-    -- FEAT-007: Remove combat lockdown check - SetSize on non-protected frames is safe during combat
-    -- This ensures container height stays correct when Blizzard's Layout() resizes it incorrectly
+    -- Update container dimensions to prevent Blizzard's Layout() from resizing and causing drift
+    -- Both vertical and horizontal set ONE dimension fixed, letting bars overflow the other dimension
+    -- This prevents CENTER-anchor drift because container size never changes with bar count
     if isVertical then
         SuppressLayout()
 
-        -- Only set HEIGHT, leave width alone so RIGHT edge stays fixed
+        -- Only set HEIGHT, leave width alone so bars overflow horizontally
         local currentWidth = BuffBarCooldownViewer:GetWidth()
         BuffBarCooldownViewer:SetSize(currentWidth, roundPixel(effectiveBarHeight))
 
-        -- Also ensure isHorizontal flag stays correct for subsequent Layout() calls
+        -- Ensure isHorizontal flag stays correct for subsequent Layout() calls
         BuffBarCooldownViewer.isHorizontal = false
+
+        UnsuppressLayout()
+    else
+        -- HORIZONTAL BARS: Fix BOTH dimensions to single bar size
+        -- Unlike vertical (which only fixes HEIGHT), horizontal needs both because
+        -- bars anchor to BOTTOM/TOP edges - if HEIGHT changes, those edges move
+        SuppressLayout()
+
+        -- Set both dimensions to single bar size - bars overflow, edges stay fixed
+        BuffBarCooldownViewer:SetSize(roundPixel(effectiveBarWidth), roundPixel(effectiveBarHeight))
+
+        -- Ensure Blizzard's Layout() uses correct flags
+        BuffBarCooldownViewer.isHorizontal = true
+        BuffBarCooldownViewer.layoutFramesGoingUp = growFromBottom
 
         UnsuppressLayout()
     end
@@ -1642,11 +1548,6 @@ local function Initialize()
         end)
     end
 
-    -- Hook edit mode exit to save buff bar position for height compensation
-    if EditModeManagerFrame then
-        EditModeManagerFrame:HookScript("OnHide", OnEditModeExitForBars)
-    end
-
     ---------------------------------------------------------------------------
     -- EVENT-BASED UPDATES: UNIT_AURA hook for immediate buff change detection
     -- (Replaces polling as primary detection - polling becomes fallback only)
@@ -1704,10 +1605,6 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 ForcePopulateBuffIcons()
                 LayoutBuffIcons()  -- Direct calls
                 LayoutBuffBars()
-            end)
-            -- Apply height compensation after layouts complete (1.5 + 0.3 = 1.8s)
-            C_Timer.After(1.8, function()
-                ApplyHeightCompensationFromDB()
             end)
         end
     elseif event == "PLAYER_REGEN_ENABLED" then
