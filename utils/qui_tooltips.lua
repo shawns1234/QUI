@@ -21,14 +21,28 @@ local WorldFrame = WorldFrame
 ---------------------------------------------------------------------------
 -- Mouse Focus Detection
 -- Gets topmost frame under mouse cursor (API compatibility wrapper)
+-- PERFORMANCE: Cached to prevent repeated GetMouseFoci() calls with @mouseover macros
 ---------------------------------------------------------------------------
+local cachedMouseFrame = nil
+local cachedMouseFrameTime = 0
+local MOUSE_FRAME_CACHE_TTL = 0.1  -- 100ms cache
+
 local function GetTopMouseFrame()
+    local now = GetTime()
+    -- Return cached result if still valid
+    if cachedMouseFrame ~= nil and (now - cachedMouseFrameTime) < MOUSE_FRAME_CACHE_TTL then
+        return cachedMouseFrame
+    end
+
+    -- Expensive API call - cache the result
     if GetMouseFoci then
         local frames = GetMouseFoci()
-        return frames and frames[1]
+        cachedMouseFrame = frames and frames[1]
     else
-        return GetMouseFocus and GetMouseFocus()
+        cachedMouseFrame = GetMouseFocus and GetMouseFocus()
     end
+    cachedMouseFrameTime = now
+    return cachedMouseFrame
 end
 
 -- Check if a UI frame is blocking mouse from the 3D world
@@ -46,6 +60,9 @@ end
 -- State
 local cachedSettings = nil
 local originalSetDefaultAnchor = nil
+
+-- PERFORMANCE: Pending state for SetUnit debouncing (prevents spam with @mouseover macros)
+local pendingSetUnit = nil
 
 -- Frames below this alpha are considered "faded out" and tooltips will be suppressed
 local FADED_ALPHA_THRESHOLD = 0.5
@@ -242,15 +259,20 @@ local function SetupTooltipHook()
     end)
 
     -- Hook SetUnit to suppress tooltips when a UI frame blocks the mouse
+    -- PERFORMANCE: Debounced to prevent spam with @mouseover macros (max 20 calls/sec)
     hooksecurefunc(GameTooltip, "SetUnit", function(tooltip, unit)
         local settings = GetSettings()
         if not settings or not settings.enabled then return end
 
-        -- If owner is UIParent (world tooltip) and a UI frame is blocking the mouse
-        if tooltip:GetOwner() == UIParent and IsFrameBlockingMouse() then
-            tooltip:Hide()
-            return
-        end
+        -- Debounce: Only process once per 50ms to prevent CPU spikes with @mouseover macros
+        if pendingSetUnit then return end
+        pendingSetUnit = C_Timer.After(0.05, function()
+            pendingSetUnit = nil
+            -- If owner is UIParent (world tooltip) and a UI frame is blocking the mouse
+            if tooltip:GetOwner() == UIParent and IsFrameBlockingMouse() then
+                tooltip:Hide()
+            end
+        end)
     end)
 
     -- Apply class color to player names in tooltips (WoW 10.0+)
@@ -350,16 +372,16 @@ local function SetupTooltipHook()
         end
     end)
 
-    -- Tooltip sticking monitor (throttled) - fixes Midnight 12.0+ combat tooltip issue
+    -- Tooltip sticking monitor - fixes Midnight 12.0+ combat tooltip issue
+    -- PERFORMANCE: Only runs during combat (event-driven start/stop)
     -- Only active when hideInCombat is DISABLED (when ON, the hook handles it)
     local tooltipMonitor = CreateFrame("Frame")
     local monitorElapsed = 0
-    tooltipMonitor:SetScript("OnUpdate", function(self, delta)
-        monitorElapsed = monitorElapsed + delta
-        if monitorElapsed < 0.1 then return end  -- 100ms throttle (10 FPS)
-        monitorElapsed = 0
 
-        if not InCombatLockdown() then return end
+    local function TooltipMonitorOnUpdate(self, delta)
+        monitorElapsed = monitorElapsed + delta
+        if monitorElapsed < 0.25 then return end  -- 250ms throttle (4 FPS) - was 100ms
+        monitorElapsed = 0
 
         local settings = GetSettings()
         if not settings or not settings.enabled then return end
@@ -387,6 +409,20 @@ local function SetupTooltipHook()
         -- If mouse moved away from owner, hide stuck tooltip
         if not isOverOwner then
             GameTooltip:Hide()
+        end
+    end
+
+    -- Event-driven: Only run OnUpdate during combat
+    tooltipMonitor:RegisterEvent("PLAYER_REGEN_DISABLED")
+    tooltipMonitor:RegisterEvent("PLAYER_REGEN_ENABLED")
+    tooltipMonitor:SetScript("OnEvent", function(self, event)
+        if event == "PLAYER_REGEN_DISABLED" then
+            -- Entering combat - start monitoring
+            monitorElapsed = 0
+            self:SetScript("OnUpdate", TooltipMonitorOnUpdate)
+        else
+            -- Leaving combat - stop monitoring (zero CPU outside combat)
+            self:SetScript("OnUpdate", nil)
         end
     end)
 end

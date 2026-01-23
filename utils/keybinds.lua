@@ -20,6 +20,9 @@ local CACHE_UPDATE_INTERVAL = 1.0 -- Seconds between cache rebuilds
 local cachedActionButtons = {}
 local actionButtonsCached = false
 
+-- Macro name → index lookup table for O(1) lookup instead of O(138) loop
+local macroNameToIndex = {}
+
 -- Combat throttling
 local pendingRebuild = false
 
@@ -33,6 +36,23 @@ local iconKeybindCache = {}
 
 -- Debug mode for keybind tracking
 local KEYBIND_DEBUG = false
+
+-- Performance: Check if ANY keybind display feature is enabled across all viewers
+-- This gates expensive operations to prevent CPU spikes when features are disabled
+local function IsAnyKeybindFeatureEnabled()
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    if not QUICore or not QUICore.db or not QUICore.db.profile then return false end
+
+    local viewers = QUICore.db.profile.viewers
+    if not viewers then return false end
+
+    for viewerName, settings in pairs(viewers) do
+        if settings.showKeybinds or settings.showMacroNames or settings.showStackCounts then
+            return true
+        end
+    end
+    return false
+end
 
 -- Get font from general settings
 local function GetGeneralFont()
@@ -485,23 +505,20 @@ local function ProcessActionButton(button)
                 end
             end
             
-            -- If we have action text (macro name), try to find and parse that macro
+            -- If we have action text (macro name), use hash lookup (O(1) instead of O(138))
             if actionText and actionText ~= "" then
-                for i = 1, 138 do
-                    local mName = GetMacroInfo(i)
-                    if mName and mName:lower() == actionText:lower() then
-                        local macroSpells, macroSpellNames = ParseMacroForSpells(i)
-                        for spellID in pairs(macroSpells) do
-                            if not spellToKeybind[spellID] then
-                                spellToKeybind[spellID] = keybind
-                            end
+                local macroIndex = macroNameToIndex[actionText:lower()]
+                if macroIndex then
+                    local macroSpells, macroSpellNames = ParseMacroForSpells(macroIndex)
+                    for spellID in pairs(macroSpells) do
+                        if not spellToKeybind[spellID] then
+                            spellToKeybind[spellID] = keybind
                         end
-                        for spellName in pairs(macroSpellNames) do
-                            if not spellNameToKeybind[spellName] then
-                                spellNameToKeybind[spellName] = keybind
-                            end
+                    end
+                    for spellName in pairs(macroSpellNames) do
+                        if not spellNameToKeybind[spellName] then
+                            spellNameToKeybind[spellName] = keybind
                         end
-                        break
                     end
                 end
             end
@@ -689,27 +706,43 @@ end
 
 -- Scan cached action buttons and build spell-to-keybind cache (fast)
 local function RebuildCache()
+    -- PERFORMANCE: Skip entirely if no keybind features are enabled
+    -- This prevents CPU spikes from @mouseover macros when features are OFF
+    if not IsAnyKeybindFeatureEnabled() then
+        lastCacheUpdate = GetTime()  -- Mark as "fresh" to prevent repeated checks
+        return
+    end
+
     -- Skip if in combat - defer until combat ends
     if InCombatLockdown() then
         pendingRebuild = true
         return
     end
-    
+
     -- Build button cache if not done yet
     if not actionButtonsCached then
         BuildActionButtonCache()
     end
-    
+
     wipe(spellToKeybind)
     wipe(spellNameToKeybind)
     wipe(itemToKeybind)
     wipe(itemNameToKeybind)
 
+    -- Build macro name → index lookup table (O(138) once, enables O(1) lookups)
+    wipe(macroNameToIndex)
+    for i = 1, 138 do
+        local name = GetMacroInfo(i)
+        if name then
+            macroNameToIndex[name:lower()] = i
+        end
+    end
+
     -- Process cached buttons (fast - no _G iteration)
     for _, button in ipairs(cachedActionButtons) do
         pcall(ProcessActionButton, button)
     end
-    
+
     lastCacheUpdate = GetTime()
     pendingRebuild = false
 end
@@ -1015,30 +1048,37 @@ eventFrame:RegisterEvent("SPELLS_CHANGED")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED") -- Combat ended
 
 eventFrame:SetScript("OnEvent", function(self, event)
+    -- PERFORMANCE: Skip expensive processing if no keybind features are enabled
+    -- Exception: PLAYER_ENTERING_WORLD and PLAYER_REGEN_ENABLED are lightweight
+    if event ~= "PLAYER_ENTERING_WORLD" and event ~= "PLAYER_REGEN_ENABLED" then
+        if not IsAnyKeybindFeatureEnabled() then return end
+    end
+
     if event == "PLAYER_REGEN_ENABLED" then
         -- Combat ended - process pending rebuild if any
-        if pendingRebuild then
+        if pendingRebuild and IsAnyKeybindFeatureEnabled() then
             C_Timer.After(0.2, UpdateAllKeybinds)
         end
         return
     end
-    
+
     if event == "PLAYER_ENTERING_WORLD" then
-        -- Full rebuild on world enter (not throttled)
+        -- Full rebuild on world enter (only if features enabled)
         C_Timer.After(0.5, function()
+            if not IsAnyKeybindFeatureEnabled() then return end
             actionButtonsCached = false -- Force button cache rebuild
             wipe(iconKeybindCache) -- Clear position cache on world enter
             UpdateAllKeybinds()
         end)
         return
     end
-    
+
     if event == "UPDATE_BINDINGS" or event == "ACTIONBAR_SLOT_CHANGED" then
         -- Clear stored keybinds when bindings or action bar changes
         wipe(iconKeybindCache)
         ClearAllStoredKeybinds()
     end
-    
+
     -- Throttle other events
     ThrottledUpdate()
 end)
@@ -1047,11 +1087,15 @@ end)
 local function HookViewerLayout(viewerName)
     local viewer = _G[viewerName]
     if not viewer then return end
-    
+
     if viewer.Layout and not viewer._QUI_KeybindHooked then
         viewer._QUI_KeybindHooked = true
         hooksecurefunc(viewer, "Layout", function()
-            C_Timer.After(0.15, function()  -- 150ms debounce for CPU efficiency
+            -- PERFORMANCE: Skip if no keybind features are enabled
+            if not IsAnyKeybindFeatureEnabled() then return end
+            C_Timer.After(0.25, function()  -- 250ms debounce for CPU efficiency
+                -- Double-check after timer (settings may have changed)
+                if not IsAnyKeybindFeatureEnabled() then return end
                 UpdateViewerKeybinds(viewerName)
             end)
         end)
@@ -1068,19 +1112,27 @@ initFrame:SetScript("OnEvent", function(self, event, arg)
         C_Timer.After(0.5, function()
             HookViewerLayout("EssentialCooldownViewer")
             HookViewerLayout("UtilityCooldownViewer")
-            UpdateAllKeybinds()
+            -- Only do initial keybind update if features are enabled
+            if IsAnyKeybindFeatureEnabled() then
+                UpdateAllKeybinds()
+            end
         end)
     elseif event == "PLAYER_ENTERING_WORLD" then
         C_Timer.After(1.0, function()
             HookViewerLayout("EssentialCooldownViewer")
             HookViewerLayout("UtilityCooldownViewer")
-            UpdateAllKeybinds()
+            -- Only do initial keybind update if features are enabled
+            if IsAnyKeybindFeatureEnabled() then
+                UpdateAllKeybinds()
+            end
         end)
     end
 end)
 
 -- Export for NCDM integration (allows LayoutViewer to trigger keybind updates)
 _G.QuaziiUI_UpdateViewerKeybinds = function(viewerName)
+    -- PERFORMANCE: Skip if no keybind features are enabled
+    if not IsAnyKeybindFeatureEnabled() then return end
     UpdateViewerKeybinds(viewerName)
 end
 
