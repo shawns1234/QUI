@@ -604,22 +604,10 @@ eventFrame:SetScript("OnEvent", function(self, event, addon)
         return
     end
 
-    -- Refresh Objective Tracker if instance-based hiding is enabled
-    if settings and settings.hideObjectiveTrackerInstanceTypes then
-        if ObjectiveTrackerFrame then
-            local shouldHide = ShouldHideInCurrentInstance(settings.hideObjectiveTrackerInstanceTypes)
-
-            if shouldHide then
-                ObjectiveTrackerFrame:Hide()
-                ObjectiveTrackerFrame:EnableMouse(false)  -- Prevent hidden frame from blocking clicks
-            else
-                -- Only show if "always hide" is not enabled
-                if not settings.hideObjectiveTrackerAlways then
-                    ObjectiveTrackerFrame:Show()
-                    ObjectiveTrackerFrame:EnableMouse(true)  -- Restore mouse when shown
-                end
-            end
-        end
+    -- Refresh all hide settings when entering new zones/instances
+    -- This ensures hooks are properly set up for ObjectiveTrackerFrame and other elements
+    if settings then
+        ApplyHideSettings()
     end
 end)
 
