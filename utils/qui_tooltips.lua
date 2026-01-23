@@ -25,7 +25,7 @@ local WorldFrame = WorldFrame
 ---------------------------------------------------------------------------
 local cachedMouseFrame = nil
 local cachedMouseFrameTime = 0
-local MOUSE_FRAME_CACHE_TTL = 0.1  -- 100ms cache
+local MOUSE_FRAME_CACHE_TTL = 0.2  -- 200ms cache (was 100ms)
 
 local function GetTopMouseFrame()
     local now = GetTime()
@@ -61,8 +61,9 @@ end
 local cachedSettings = nil
 local originalSetDefaultAnchor = nil
 
--- PERFORMANCE: Pending state for SetUnit debouncing (prevents spam with @mouseover macros)
+-- PERFORMANCE: Pending state for debouncing (prevents spam with @mouseover macros)
 local pendingSetUnit = nil
+
 
 -- Frames below this alpha are considered "faded out" and tooltips will be suppressed
 local FADED_ALPHA_THRESHOLD = 0.5
@@ -264,9 +265,9 @@ local function SetupTooltipHook()
         local settings = GetSettings()
         if not settings or not settings.enabled then return end
 
-        -- Debounce: Only process once per 50ms to prevent CPU spikes with @mouseover macros
+        -- Debounce: Only process once per 100ms to prevent CPU spikes with @mouseover macros
         if pendingSetUnit then return end
-        pendingSetUnit = C_Timer.After(0.05, function()
+        pendingSetUnit = C_Timer.After(0.1, function()
             pendingSetUnit = nil
             -- If owner is UIParent (world tooltip) and a UI frame is blocking the mouse
             if tooltip:GetOwner() == UIParent and IsFrameBlockingMouse() then
