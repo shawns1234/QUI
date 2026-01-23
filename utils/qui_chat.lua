@@ -1057,10 +1057,37 @@ local function HookNewChatWindows()
         end)
     end
 
-    -- Hook tab clicks to update selection state colors
+    -- Hook tab clicks to update selection state colors AND editbox backdrop
     hooksecurefunc("FCF_Tab_OnClick", function(self)
+        local tabID = self:GetID()
         C_Timer.After(0.05, function()
             RefreshAllTabColors()
+
+            local chatFrame = _G["ChatFrame" .. tabID]
+            local settings = GetSettings()
+
+            if chatFrame and settings and settings.editBox and settings.editBox.positionTop then
+                -- Use ChatFrame1's backdrop as the SINGLE shared backdrop for top position mode
+                -- Parent to UIParent so it stays visible when ChatFrame1 is hidden
+                -- (WoW hides ChatFrame1 when other tabs are selected)
+                local sharedBackdrop = ChatFrame1.__quiEditBoxBackdrop
+                if sharedBackdrop then
+                    sharedBackdrop:SetParent(UIParent)
+                    sharedBackdrop:ClearAllPoints()
+                    sharedBackdrop:SetFrameLevel(ChatFrame1:GetFrameLevel() + 10)
+                    sharedBackdrop:SetPoint("BOTTOMLEFT", ChatFrame1, "TOPLEFT", -8, 0)
+                    sharedBackdrop:SetPoint("BOTTOMRIGHT", ChatFrame1, "TOPRIGHT", 8, 0)
+                    sharedBackdrop:SetHeight(24)
+
+                    -- Update ChatFrame1EditBox's reference (it's always the active editbox)
+                    ChatFrame1EditBox.__quiChatBackdrop = sharedBackdrop
+
+                    -- If editbox has focus, show the backdrop
+                    if ChatFrame1EditBox:HasFocus() then
+                        sharedBackdrop:Show()
+                    end
+                end
+            end
         end)
     end)
 end
