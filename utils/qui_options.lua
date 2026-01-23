@@ -2013,6 +2013,22 @@ local function CreateGeneralQoLPage(parent)
             enableInfo:SetJustifyH("LEFT")
             y = y - 20
 
+            -- SECTION: Intro Message
+            local introHeader = GUI:CreateSectionHeader(tabContent, "Intro Message")
+            introHeader:SetPoint("TOPLEFT", PADDING, y)
+            y = y - introHeader.gap
+
+            local introCheck = GUI:CreateFormCheckbox(tabContent, "Show Login Message", "showIntroMessage", chat, nil)
+            introCheck:SetPoint("TOPLEFT", PADDING, y)
+            introCheck:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            y = y - FORM_ROW
+
+            local introInfo = GUI:CreateLabel(tabContent, "Display the QUI reminder tips when you log in.", 10, C.textMuted)
+            introInfo:SetPoint("TOPLEFT", PADDING, y)
+            introInfo:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
+            introInfo:SetJustifyH("LEFT")
+            y = y - 20
+
             -- SECTION: Chat Background
             local glassHeader = GUI:CreateSectionHeader(tabContent, "Chat Background")
             glassHeader:SetPoint("TOPLEFT", PADDING, y)

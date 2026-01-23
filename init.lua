@@ -94,12 +94,15 @@ function QuaziiUI:OnEnable()
     
     -- Initialize QUICore (AceDB-based integration)
     if self.QUICore then
-        print("|cFF30D1FFQuazii UI|r loaded. |cFFFFFF00/qui|r to setup.")
-        print("|cFF30D1FFQUI REMINDER:|r")
-        print("|cFF34D3991.|r ENABLE |cFFFFFF00Cooldown Manager|r in Options > Gameplay Enhancement")
-        print("|cFF34D3992.|r Action Bars & Menu Bar |cFFFFFF00HIDDEN|r on mouseover |cFFFFFF00by default|r. Go to |cFFFFFF00'Actionbars'|r tab in |cFFFFFF00/qui|r to unhide.")
-        print("|cFF34D3993.|r Use |cFFFFFF00100% Icon Size|r on CDM Essential & Utility bars via |cFFFFFF00Edit Mode|r for best results.")
-        print("|cFF34D3994.|r Position your |cFFFFFF00CDM bars|r in |cFFFFFF00Edit Mode|r and click |cFFFFFF00Save|r before exiting.")
+        -- Show intro message if enabled (defaults to true)
+        if self.db.profile.chat.showIntroMessage ~= false then
+            print("|cFF30D1FFQuazii UI|r loaded. |cFFFFFF00/qui|r to setup.")
+            print("|cFF30D1FFQUI REMINDER:|r")
+            print("|cFF34D3991.|r ENABLE |cFFFFFF00Cooldown Manager|r in Options > Gameplay Enhancement")
+            print("|cFF34D3992.|r Action Bars & Menu Bar |cFFFFFF00HIDDEN|r on mouseover |cFFFFFF00by default|r. Go to |cFFFFFF00'Actionbars'|r tab in |cFFFFFF00/qui|r to unhide.")
+            print("|cFF34D3993.|r Use |cFFFFFF00100% Icon Size|r on CDM Essential & Utility bars via |cFFFFFF00Edit Mode|r for best results.")
+            print("|cFF34D3994.|r Position your |cFFFFFF00CDM bars|r in |cFFFFFF00Edit Mode|r and click |cFFFFFF00Save|r before exiting.")
+        end
     end
 end
 

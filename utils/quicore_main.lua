@@ -1123,6 +1123,8 @@ local defaults = {
             },
             -- Copy button mode: "always", "hover", "hidden", "disabled"
             copyButtonMode = "always",
+            -- Intro message on login
+            showIntroMessage = true,
         },
 
         -- Tooltip Management
