@@ -6,7 +6,7 @@
 ## AddonCompartmentFuncOnLeave: QuaziiUI_CompartmentOnLeave
 ## Notes: Installer for |cFF30D1FFQuazii|r UI
 ## Author: Quazii
-## Version: 1.99
+## Version: 1.99A
 ## DefaultState: Enabled
 ## LoadOnDemand: 0
 ## SavedVariables: QuaziiUI_DB, QuaziiUIDB

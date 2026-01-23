@@ -702,7 +702,7 @@ local defaults = {
                 textSize = 14,
                 spacing = 2,
                 growUp = true,  -- true = grow upward, false = grow downward
-                orientation = "vertical",
+                orientation = "horizontal",
                 fillDirection = "UP",
                 iconPosition = "top",
                 showTextOnVertical = false,
@@ -929,7 +929,7 @@ local defaults = {
         secondaryPowerBar = {
             enabled       = true,
             autoAttach    = false,
-            standaloneMode = true,
+            standaloneMode = false,
             attachTo      = "EssentialCooldownViewer",
             height        = 8,
             borderSize    = 1,

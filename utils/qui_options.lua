@@ -5850,6 +5850,12 @@ local function CreateCDMSetupPage(parent)
         standaloneSecondary:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
         y = y - FORM_ROW
 
+        local secondaryImptText = GUI:CreateLabel(tabContent, "IMPT: If you choose NOT to display a Primary Bar, and ONLY want a Secondary Bar, toggle this ON. Else it will not show.", 11, C.warning)
+        secondaryImptText:SetPoint("TOPLEFT", PAD, y)
+        secondaryImptText:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
+        secondaryImptText:SetJustifyH("LEFT")
+        y = y - 25
+
         local standaloneDesc = GUI:CreateLabel(tabContent, "Standalone Mode: Bar won't fade or hide with CDM visibility. Use if you don't use Essential/Utility cooldown displays.", 11, C.textMuted)
         standaloneDesc:SetPoint("TOPLEFT", PAD, y)
         standaloneDesc:SetPoint("RIGHT", tabContent, "RIGHT", -PAD, 0)
