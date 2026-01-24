@@ -11,7 +11,7 @@ if not QUICore then
     return
 end
 
-local min, max, floor, ceil = min, max, math.floor, math.ceil
+local min, max, floor, ceil, abs = min, max, math.floor, math.ceil, math.abs
 
 local _G = _G
 local UIParent = UIParent
@@ -92,18 +92,28 @@ local function UpdateScreenCache()
     cachedAspectRatio = cachedPhysicalWidth / cachedPhysicalHeight
 end
 
--- Calculate pixel-perfect scaling values
+-- Calculate pixel-perfect scaling values for crisp rendering
 local function UpdateScalingCache()
     -- Calculate effective width for multi-monitor setups
     cachedEffectiveWidth = DetectMultiMonitorSetup(cachedPhysicalWidth, cachedPhysicalHeight) or cachedScreenWidth
 
-    -- Calculate pixel size (1 UI unit = pixel size on screen)
-    -- For multi-monitor, we scale based on height but center on effective width
-    local heightScale = REFERENCE_HEIGHT / cachedPhysicalHeight
-    cachedPixelSize = heightScale / cachedUIScale
+    -- For crisp text and icons, we want 1 UI unit = 1 physical pixel when possible
+    -- Calculate the scale that would make this true
+    local idealScale = cachedPhysicalHeight / REFERENCE_HEIGHT
 
-    -- Update multiplier for snapping function
-    cachedMult = cachedPixelSize
+    -- For multi-monitor setups, we may need to adjust based on effective width
+    if cachedEffectiveWidth ~= cachedScreenWidth then
+        -- Adjust scale to account for centering on effective width
+        local widthRatio = cachedScreenWidth / cachedEffectiveWidth
+        idealScale = idealScale * widthRatio
+    end
+
+    -- Store the pixel size (how many physical pixels per UI unit)
+    cachedPixelSize = 1.0 / (cachedUIScale * idealScale)
+
+    -- For the Scale function, we want to snap to pixel boundaries
+    -- This is the size of 1 UI unit in physical pixels
+    cachedMult = 1.0 / cachedUIScale
 end
 
 -- Calculate the UI multiplier for pixel snapping
@@ -179,25 +189,33 @@ function QUICore:PixelScaleChanged(event)
     end
 end
 
--- Optimized pixel-perfect scaling function
--- Snaps value to nearest pixel boundary for crystal-clear rendering
+-- Pixel-perfect scaling function for crisp rendering
+-- Intelligently handles positioning vs sizing for optimal text/icon clarity
 function QUICore:Scale(x)
-    if cachedMult == 1 or x == 0 then
+    if x == 0 then return 0 end
+
+    -- For UI scales close to 1.0, minimal adjustment needed
+    if cachedUIScale >= 0.95 and cachedUIScale <= 1.05 then
         return x
     end
 
-    -- Use floor-based snapping for better performance than modulo
-    local pixelSize = cachedMult
-    if pixelSize > 1 then
-        -- Round to nearest pixel
-        return floor(x / pixelSize + 0.5) * pixelSize
+    -- Calculate pixel size (physical pixels per UI unit)
+    local pixelSize = 1.0 / cachedUIScale
+
+    -- For positioning (small values), snap to pixel boundaries
+    if x >= -100 and x <= 100 then
+        -- Position snapping: round to nearest pixel
+        return floor(x * pixelSize + 0.5) / pixelSize
     else
-        -- For sub-pixel scaling, use original logic but optimized
-        local remainder = x % pixelSize
-        if remainder ~= 0 then
-            return x - remainder
+        -- For sizing (larger values), use more conservative snapping
+        -- This prevents font sizes from being forced to awkward values
+        local snapped = floor(x * pixelSize + 0.5) / pixelSize
+        -- Only snap if the difference is small (prevents major size changes)
+        if abs(snapped - x) < 0.5 then
+            return snapped
+        else
+            return x
         end
-        return x
     end
 end
 
