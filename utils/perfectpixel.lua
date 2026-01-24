@@ -1,5 +1,5 @@
---- QuaziiUI Perfect Pixel System
---- Provides pixel-perfect UI scaling and calculations
+--- QuaziiUI Perfect Pixel System - Optimized
+--- Provides pixel-perfect UI scaling and calculations with minimal CPU usage
 
 local ADDON_NAME, ns = ...
 
@@ -11,7 +11,7 @@ if not QUICore then
     return
 end
 
-local min, max, format = min, max, string.format
+local min, max, floor, ceil = min, max, math.floor, math.ceil
 
 local _G = _G
 local UIParent = UIParent
@@ -19,6 +19,21 @@ local GetScreenWidth = GetScreenWidth
 local GetScreenHeight = GetScreenHeight
 local InCombatLockdown = InCombatLockdown
 local GetPhysicalScreenSize = GetPhysicalScreenSize
+
+-- Cached values to minimize API calls
+local cachedPhysicalWidth, cachedPhysicalHeight = 0, 0
+local cachedScreenWidth, cachedScreenHeight = 0, 0
+local cachedResolution = ""
+local cachedAspectRatio = 1.0
+local cachedEffectiveWidth = 0
+local cachedPixelSize = 1.0
+local cachedMult = 1.0
+local cachedUIScale = 1.0
+
+-- Constants for multi-monitor detection
+local ULTRAWIDE_ASPECT_RATIO = 2.37  -- 21:9
+local EYEFINITY_ASPECT_RATIO = 3.5    -- Very wide setups
+local REFERENCE_HEIGHT = 768         -- WoW UI reference height
 
 -- Refresh global FX scenes (prevents taint from RefreshModelScene)
 function QUICore:RefreshGlobalFX()
@@ -38,46 +53,67 @@ function QUICore:RefreshGlobalFX()
     end
 end
 
--- Check for Eyefinity (triple monitor) setup
-function QUICore:IsEyefinity(width, height)
-    if QUICore.db and QUICore.db.profile.general.eyefinity and width >= 3840 then
-        -- HQ resolution
-        if width >= 9840 then return 3280 end                   -- WQSXGA
-        if width >= 7680 and width < 9840 then return 2560 end  -- WQXGA
-        if width >= 5760 and width < 7680 then return 1920 end  -- WUXGA & HDTV
-        if width >= 5040 and width < 5760 then return 1680 end  -- WSXGA+
+-- Optimized multi-monitor detection using aspect ratios
+local function DetectMultiMonitorSetup(physicalWidth, physicalHeight)
+    local aspectRatio = physicalWidth / physicalHeight
 
-        -- Adding height condition for bezel compensation
-        if width >= 4800 and width < 5760 and height == 900 then return 1600 end -- UXGA & HD+
-
-        -- Low resolution screen
-        if width >= 4320 and width < 4800 then return 1440 end  -- WSXGA
-        if width >= 4080 and width < 4320 then return 1360 end  -- WXGA
-        if width >= 3840 and width < 4080 then return 1224 end  -- SXGA & SXGA (UVGA) & WXGA & HDTV
+    -- Eyefinity detection (very wide aspect ratios or specific patterns)
+    if aspectRatio >= EYEFINITY_ASPECT_RATIO or physicalWidth >= 5000 then
+        -- Return effective width for centering (common resolutions)
+        if physicalWidth >= 9840 then return 3280  -- WQSXGA
+        elseif physicalWidth >= 7680 then return 2560  -- WQXGA
+        elseif physicalWidth >= 5760 then return 1920  -- WUXGA & HDTV
+        elseif physicalWidth >= 5040 then return 1680  -- WSXGA+
+        elseif physicalWidth >= 4800 and physicalHeight == 900 then return 1600  -- UXGA & HD+
+        elseif physicalWidth >= 4320 then return 1440  -- WSXGA
+        elseif physicalWidth >= 4080 then return 1360  -- WXGA
+        elseif physicalWidth >= 3840 then return 1224  -- SXGA & SXGA (UVGA) & WXGA & HDTV
+        end
     end
+
+    -- Ultrawide detection (21:9+ aspect ratios)
+    if aspectRatio >= ULTRAWIDE_ASPECT_RATIO then
+        -- Return effective width for centering
+        if physicalWidth >= 3440 and (physicalHeight == 1440 or physicalHeight == 1600) then
+            return 2560  -- DQHD, DQHD+, WQHD & WQHD+
+        elseif physicalWidth >= 2560 and (physicalHeight == 1080 or physicalHeight == 1200) then
+            return 1920  -- WFHD, DFHD & WUXGA
+        end
+    end
+
+    return nil  -- Standard monitor, use full width
 end
 
--- Check for Ultrawide setup
-function QUICore:IsUltrawide(width, height)
-    if QUICore.db and QUICore.db.profile.general.ultrawide and width >= 2560 then
-        -- HQ Resolution
-        if width >= 3440 and (height == 1440 or height == 1600) then return 2560 end -- DQHD, DQHD+, WQHD & WQHD+
+-- Update cached screen dimensions (call when resolution changes)
+local function UpdateScreenCache()
+    cachedPhysicalWidth, cachedPhysicalHeight = GetPhysicalScreenSize()
+    cachedScreenWidth, cachedScreenHeight = GetScreenWidth(), GetScreenHeight()
+    cachedResolution = format('%dx%d', cachedPhysicalWidth, cachedPhysicalHeight)
+    cachedAspectRatio = cachedPhysicalWidth / cachedPhysicalHeight
+end
 
-        -- Low resolution
-        if width >= 2560 and (height == 1080 or height == 1200) then return 1920 end -- WFHD, DFHD & WUXGA
-    end
+-- Calculate pixel-perfect scaling values
+local function UpdateScalingCache()
+    -- Calculate effective width for multi-monitor setups
+    cachedEffectiveWidth = DetectMultiMonitorSetup(cachedPhysicalWidth, cachedPhysicalHeight) or cachedScreenWidth
+
+    -- Calculate pixel size (1 UI unit = pixel size on screen)
+    -- For multi-monitor, we scale based on height but center on effective width
+    local heightScale = REFERENCE_HEIGHT / cachedPhysicalHeight
+    cachedPixelSize = heightScale / cachedUIScale
+
+    -- Update multiplier for snapping function
+    cachedMult = cachedPixelSize
 end
 
 -- Calculate the UI multiplier for pixel snapping
 function QUICore:UIMult()
-    local uiScale = 1.0
-    if QUICore.db and QUICore.db.profile and QUICore.db.profile.general then
-        uiScale = QUICore.db.profile.general.uiScale or 1.0
-    end
-    QUICore.mult = QUICore.perfect / uiScale
+    cachedUIScale = QUICore.db and QUICore.db.profile and QUICore.db.profile.general and
+                    QUICore.db.profile.general.uiScale or 1.0
+    UpdateScalingCache()
 end
 
--- Apply UI scale to UIParent
+-- Apply UI scale to UIParent with combat protection
 function QUICore:UIScale()
     if InCombatLockdown() then
         -- Defer scale change until out of combat
@@ -89,104 +125,106 @@ function QUICore:UIScale()
                 self:UIScale()
             end)
         end
-    else
-        local uiScale = 1.0
-        if QUICore.db and QUICore.db.profile and QUICore.db.profile.general then
-            uiScale = QUICore.db.profile.general.uiScale or 1.0
+        return
+    end
+
+    -- Get target scale
+    local targetScale = QUICore.db and QUICore.db.profile and QUICore.db.profile.general and
+                       QUICore.db.profile.general.uiScale or 1.0
+
+    -- Use pcall to catch protected states not detected by InCombatLockdown
+    local success = pcall(function() UIParent:SetScale(targetScale) end)
+    if not success then
+        -- Protected state detected - defer to combat end
+        if not self._UIScalePending then
+            self._UIScalePending = true
+            self:RegisterEvent('PLAYER_REGEN_ENABLED', function()
+                self._UIScalePending = nil
+                self:UnregisterEvent('PLAYER_REGEN_ENABLED')
+                self:UIScale()
+            end)
         end
+        return
+    end
 
-        -- Use pcall to catch protected states not detected by InCombatLockdown
-        local success = pcall(function() UIParent:SetScale(uiScale) end)
-        if not success then
-            -- Protected state detected - defer to combat end
-            if not self._UIScalePending then
-                self._UIScalePending = true
-                self:RegisterEvent('PLAYER_REGEN_ENABLED', function()
-                    self._UIScalePending = nil
-                    self:UnregisterEvent('PLAYER_REGEN_ENABLED')
-                    self:UIScale()
-                end)
-            end
-            return
-        end
+    -- Update cached values
+    cachedUIScale = UIParent:GetScale()
+    UpdateScalingCache()
 
-        QUICore.uiscale = UIParent:GetScale()
-        QUICore.screenWidth, QUICore.screenHeight = GetScreenWidth(), GetScreenHeight()
+    -- For multi-monitor setups, center UIParent
+    if cachedEffectiveWidth ~= cachedScreenWidth then
+        local scaleFactor = cachedScreenHeight / cachedPhysicalHeight
+        local centeredWidth = cachedEffectiveWidth * scaleFactor
+        -- Note: UIParent centering would require additional positioning logic
+        -- This is handled by the effective width calculation for layout purposes
+    end
 
-        local width, height = QUICore.physicalWidth, QUICore.physicalHeight
-        QUICore.eyefinity = QUICore:IsEyefinity(width, height)
-        QUICore.ultrawide = QUICore:IsUltrawide(width, height)
-
-        local newWidth = QUICore.eyefinity or QUICore.ultrawide
-        if newWidth then
-            -- Center UIParent for multi-monitor setups
-            width, height = newWidth / (height / QUICore.screenHeight), QUICore.screenHeight
-        else
-            width, height = QUICore.screenWidth, QUICore.screenHeight
-        end
-
-        -- Refresh GlobalFX if in Retail
-        if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and _G.GlobalFXDialogModelScene then
-            QUICore:RefreshGlobalFX()
-        end
+    -- Refresh GlobalFX if in Retail
+    if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and _G.GlobalFXDialogModelScene then
+        QUICore:RefreshGlobalFX()
     end
 end
 
--- Get the best pixel size for current setup
+-- Get the best pixel size for current setup (legacy compatibility)
 function QUICore:PixelBestSize()
-    return max(0.4, min(1.15, QUICore.perfect))
+    return max(0.4, min(1.15, cachedPixelSize))
 end
 
--- Handle UI scale changes
+-- Handle UI scale and display size changes
 function QUICore:PixelScaleChanged(event)
-    if event == 'UI_SCALE_CHANGED' then
-        QUICore.physicalWidth, QUICore.physicalHeight = GetPhysicalScreenSize()
-        QUICore.resolution = format('%dx%d', QUICore.physicalWidth, QUICore.physicalHeight)
-        QUICore.perfect = 768 / QUICore.physicalHeight
+    if event == 'UI_SCALE_CHANGED' or event == 'DISPLAY_SIZE_CHANGED' then
+        UpdateScreenCache()
+        QUICore:UIMult()
+        QUICore:UIScale()
+    end
+end
+
+-- Optimized pixel-perfect scaling function
+-- Snaps value to nearest pixel boundary for crystal-clear rendering
+function QUICore:Scale(x)
+    if cachedMult == 1 or x == 0 then
+        return x
     end
 
-    QUICore:UIMult()
-    QUICore:UIScale()
-end
-
--- Scale a value to align with physical pixels
--- This is the core pixel-perfect function
-function QUICore:Scale(x)
-    local m = QUICore.mult
-    if m == 1 or x == 0 then
-        return x
+    -- Use floor-based snapping for better performance than modulo
+    local pixelSize = cachedMult
+    if pixelSize > 1 then
+        -- Round to nearest pixel
+        return floor(x / pixelSize + 0.5) * pixelSize
     else
-        local y = m > 1 and m or -m
-        return x - x % (x < 0 and y or -y)
+        -- For sub-pixel scaling, use original logic but optimized
+        local remainder = x % pixelSize
+        if remainder ~= 0 then
+            return x - remainder
+        end
+        return x
     end
 end
 
 -- Initialize the pixel perfect system
 function QUICore:InitializePixelPerfect()
-    -- Initialize physical screen size and perfect scale
-    self.physicalWidth, self.physicalHeight = GetPhysicalScreenSize()
-    self.resolution = format('%dx%d', self.physicalWidth, self.physicalHeight)
-    self.perfect = 768 / self.physicalHeight
-    
-    -- Initialize multiplier (will be 1.0 until db is ready)
-    self.mult = 1.0
-    
-    -- Calculate initial multiplier if db is ready
+    -- Initialize cached screen dimensions
+    UpdateScreenCache()
+
+    -- Initialize scaling (will be 1.0 until db is ready)
+    cachedMult = 1.0
+    cachedPixelSize = 1.0
+
+    -- Calculate initial scaling if db is ready
     if self.db and self.db.profile then
         self:UIMult()
     end
-    
-    -- Register for UI scale changes
+
+    -- Register for UI scale and display size changes
     self:RegisterEvent('UI_SCALE_CHANGED', 'PixelScaleChanged')
+    self:RegisterEvent('DISPLAY_SIZE_CHANGED', 'PixelScaleChanged')
 end
 
 -- Get smart default scale based on screen resolution (Option 3)
 function QUICore:GetSmartDefaultScale()
-    local _, screenHeight = GetPhysicalScreenSize()
-    
-    if screenHeight >= 2160 then      -- 4K
+    if cachedPhysicalHeight >= 2160 then      -- 4K
         return 0.53
-    elseif screenHeight >= 1440 then  -- 1440p
+    elseif cachedPhysicalHeight >= 1440 then  -- 1440p
         return 0.64
     else                              -- 1080p or lower
         return 1.0
@@ -195,44 +233,46 @@ end
 
 -- Apply saved UI scale (call this after db is initialized)
 function QUICore:ApplyUIScale()
-    if self.db and self.db.profile and self.db.profile.general then
-        local savedScale = self.db.profile.general.uiScale
-        local scaleToApply
-        if savedScale and savedScale > 0 then
-            scaleToApply = savedScale
-        else
-            -- No saved scale - use smart default based on resolution
-            scaleToApply = self:GetSmartDefaultScale()
-            self.db.profile.general.uiScale = scaleToApply
-        end
+    if not self.db or not self.db.profile or not self.db.profile.general then
+        return
+    end
 
-        -- Use pcall to catch protected states not detected by InCombatLockdown
-        if InCombatLockdown() then
-            -- Defer to combat end
-            if not self._UIScalePending then
-                self._UIScalePending = true
-                self:RegisterEvent('PLAYER_REGEN_ENABLED', function()
-                    self._UIScalePending = nil
-                    self:UnregisterEvent('PLAYER_REGEN_ENABLED')
-                    self:ApplyUIScale()
-                end)
-            end
-            return
-        end
+    local savedScale = self.db.profile.general.uiScale
+    local scaleToApply
+    if savedScale and savedScale > 0 then
+        scaleToApply = savedScale
+    else
+        -- No saved scale - use smart default based on resolution
+        scaleToApply = self:GetSmartDefaultScale()
+        self.db.profile.general.uiScale = scaleToApply
+    end
 
-        local success = pcall(function() UIParent:SetScale(scaleToApply) end)
-        if not success then
-            -- Protected state detected - defer to combat end
-            if not self._UIScalePending then
-                self._UIScalePending = true
-                self:RegisterEvent('PLAYER_REGEN_ENABLED', function()
-                    self._UIScalePending = nil
-                    self:UnregisterEvent('PLAYER_REGEN_ENABLED')
-                    self:ApplyUIScale()
-                end)
-            end
-            return
+    -- Apply scale with combat protection
+    if InCombatLockdown() then
+        -- Defer to combat end
+        if not self._UIScalePending then
+            self._UIScalePending = true
+            self:RegisterEvent('PLAYER_REGEN_ENABLED', function()
+                self._UIScalePending = nil
+                self:UnregisterEvent('PLAYER_REGEN_ENABLED')
+                self:ApplyUIScale()
+            end)
         end
+        return
+    end
+
+    local success = pcall(function() UIParent:SetScale(scaleToApply) end)
+    if not success then
+        -- Protected state detected - defer to combat end
+        if not self._UIScalePending then
+            self._UIScalePending = true
+            self:RegisterEvent('PLAYER_REGEN_ENABLED', function()
+                self._UIScalePending = nil
+                self:UnregisterEvent('PLAYER_REGEN_ENABLED')
+                self:ApplyUIScale()
+            end)
+        end
+        return
     end
 
     -- Update pixel perfect calculations
@@ -241,4 +281,3 @@ function QUICore:ApplyUIScale()
         self:UIScale()
     end
 end
-

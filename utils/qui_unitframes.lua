@@ -153,13 +153,45 @@ end
 
 ---------------------------------------------------------------------------
 -- HELPER: Pixel-perfect scaling (uses QUICore:Scale if available)
+-- Cached for frequently used values to reduce CPU overhead
 ---------------------------------------------------------------------------
+local scaleCache = {}
 local function Scale(x)
-    if QUICore and QUICore.Scale then
-        return QUICore:Scale(x)
+    if not x or x == 0 then return x end
+
+    -- Check cache first
+    if scaleCache[x] then
+        return scaleCache[x]
     end
-    return x
+
+    -- Calculate and cache
+    local scaled
+    if QUICore and QUICore.Scale then
+        scaled = QUICore:Scale(x)
+    else
+        scaled = x
+    end
+
+    -- Cache the result (limit cache size to prevent memory bloat)
+    if #scaleCache < 100 then
+        scaleCache[x] = scaled
+    end
+
+    return scaled
 end
+
+-- Clear scale cache when resolution changes
+local function ClearScaleCache()
+    wipe(scaleCache)
+end
+
+-- Hook into resolution change events to clear cache
+local scaleCacheEventFrame = CreateFrame("Frame")
+scaleCacheEventFrame:RegisterEvent("DISPLAY_SIZE_CHANGED")
+scaleCacheEventFrame:RegisterEvent("UI_SCALE_CHANGED")
+scaleCacheEventFrame:SetScript("OnEvent", function(self, event)
+    ClearScaleCache()
+end)
 
 ---------------------------------------------------------------------------
 -- HELPER: Unit tooltip display
