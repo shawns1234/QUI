@@ -437,7 +437,7 @@ local function CreateGeneralQoLPage(parent)
             local scaleSlider = GUI:CreateFormSlider(tabContent, "Global UI Scale", 0.3, 2.0, 0.01,
                 "uiScale", db.general, function(val)
                     pcall(function() UIParent:SetScale(val) end)
-                    if QUICore and QUICore.UIMult then QUICore:UIMult() end
+                if QUICore and QUICore.CalculatePixelMultiplier then QUICore:CalculatePixelMultiplier() end
                 end, { deferOnDrag = true, precision = 7 })
             scaleSlider:SetPoint("TOPLEFT", PADDING, y)
             scaleSlider:SetPoint("RIGHT", tabContent, "RIGHT", -PADDING, 0)
@@ -453,7 +453,7 @@ local function CreateGeneralQoLPage(parent)
                 local msg = "|cff34D399[QuaziiUI]|r UI scale set to " .. val
                 if name then msg = msg .. " (" .. name .. ")" end
                 DEFAULT_CHAT_FRAME:AddMessage(msg)
-                if QUICore and QUICore.UIMult then QUICore:UIMult() end
+                if QUICore and QUICore.CalculatePixelMultiplier then QUICore:CalculatePixelMultiplier() end
                 scaleSlider.SetValue(val, true)
             end
 

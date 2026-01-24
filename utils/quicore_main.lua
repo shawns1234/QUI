@@ -3070,8 +3070,8 @@ function QUICore:OnProfileChanged(event, db, profileKey)
                     if QUICore._pendingUIScale and not InCombatLockdown() then
                         pcall(function() UIParent:SetScale(QUICore._pendingUIScale) end)
                         QUICore._pendingUIScale = nil
-                        if QUICore.UIMult then
-                            QUICore:UIMult()
+                        if QUICore.CalculatePixelMultiplier then
+                            QUICore:CalculatePixelMultiplier()
                         end
                     end
                 end)
@@ -3091,7 +3091,7 @@ function QUICore:OnProfileChanged(event, db, profileKey)
                         if QUICore._pendingUIScale and not InCombatLockdown() then
                             pcall(function() UIParent:SetScale(QUICore._pendingUIScale) end)
                             QUICore._pendingUIScale = nil
-                            if QUICore.UIMult then
+                            if QUICore.CalculatePixelMultiplier then
                                 QUICore:UIMult()
                             end
                         end
