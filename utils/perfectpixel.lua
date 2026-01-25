@@ -1,5 +1,6 @@
 --- QuaziiUI Pixel Precision System
 --- Advanced UI scaling with intelligent pixel alignment for crystal-clear visuals
+--- Integrates Blizzard's PixelUtil for optimal performance and accuracy
 
 local ADDON_NAME, ns = ...
 
@@ -26,14 +27,22 @@ local screenWidth, screenHeight = 0, 0
 local screenResolutionString = ""
 local screenAspectRatio = 1.0
 local multiMonitorEffectiveWidth = 0
-local uiPixelRatio = 1.0
-local pixelSnapMultiplier = 1.0
+local pixelToUIUnitFactor = 1.0
 local currentUIScale = 1.0
 
 -- Multi-monitor configuration constants
 local ULTRAWIDE_RATIO_THRESHOLD = 2.37  -- 21:9 and wider
 local EYEFINITY_RATIO_THRESHOLD = 3.5    -- Very wide multi-monitor setups
 local WOW_REFERENCE_HEIGHT = 768         -- Blizzard's base UI height
+
+-- Performance optimization constants
+local SIZE_UPDATE_INTERVAL = 0.016  -- ~60 FPS update rate for slider dragging
+local lastSizeUpdate = 0
+
+-- Slider update system for performance optimization
+local sliderDragging = false
+local sliderLightweightFunc = nil
+local sliderUpdateCallCount = 0
 
 -- Update global model scenes to prevent tainting issues
 function QUICore:UpdateGlobalModelScenes()
@@ -53,7 +62,8 @@ function QUICore:UpdateGlobalModelScenes()
     end
 end
 
--- Advanced multi-monitor configuration detection
+--- Advanced multi-monitor configuration detection
+--- Analyzes physical screen dimensions to determine optimal UI centering
 local function DetermineMultiMonitorLayout(physicalWidth, physicalHeight)
     local aspectRatio = physicalWidth / physicalHeight
 
@@ -84,7 +94,7 @@ local function DetermineMultiMonitorLayout(physicalWidth, physicalHeight)
     return nil  -- Standard single monitor setup
 end
 
--- Refresh cached display metrics when resolution changes
+--- Refresh cached display metrics when resolution changes
 local function RefreshDisplayMetrics()
     screenPhysicalWidth, screenPhysicalHeight = GetPhysicalScreenSize()
     screenWidth, screenHeight = GetScreenWidth(), GetScreenHeight()
@@ -92,35 +102,29 @@ local function RefreshDisplayMetrics()
     screenAspectRatio = screenPhysicalWidth / screenPhysicalHeight
 end
 
--- Compute optimal scaling parameters for pixel-perfect rendering
+--- Compute optimal scaling parameters using PixelUtil
 local function RecalculateScalingParameters()
     -- Determine effective width for multi-monitor centering
     multiMonitorEffectiveWidth = DetermineMultiMonitorLayout(screenPhysicalWidth, screenPhysicalHeight) or screenWidth
 
-    -- Calculate ideal scaling for 1:1 pixel mapping
-    local targetScale = screenPhysicalHeight / WOW_REFERENCE_HEIGHT
+    -- Calculate PixelUtil scaling factor for current UI scale
+    pixelToUIUnitFactor = PixelUtil.GetPixelToUIUnitFactor()
 
     -- Adjust for multi-monitor centering requirements
     if multiMonitorEffectiveWidth ~= screenWidth then
         local centeringAdjustment = screenWidth / multiMonitorEffectiveWidth
-        targetScale = targetScale * centeringAdjustment
+        pixelToUIUnitFactor = pixelToUIUnitFactor * centeringAdjustment
     end
-
-    -- Store pixel density ratio (physical pixels per UI unit)
-    uiPixelRatio = 1.0 / (currentUIScale * targetScale)
-
-    -- Calculate pixel snapping multiplier for coordinate alignment
-    pixelSnapMultiplier = 1.0 / currentUIScale
 end
 
--- Update pixel scaling multiplier based on current UI scale
+--- Update pixel scaling multiplier based on current UI scale
 function QUICore:CalculatePixelMultiplier()
     currentUIScale = QUICore.db and QUICore.db.profile and QUICore.db.profile.general and
                      QUICore.db.profile.general.uiScale or 1.0
     RecalculateScalingParameters()
 end
 
--- Apply UI scaling with comprehensive combat state protection
+--- Apply UI scaling with comprehensive combat state protection
 function QUICore:ApplyUIScaling()
     if InCombatLockdown() then
         -- Queue scaling operation for after combat ends
@@ -171,12 +175,12 @@ function QUICore:ApplyUIScaling()
     end
 end
 
--- Calculate optimal pixel size for current display configuration
+--- Calculate optimal pixel size for current display configuration
 function QUICore:GetOptimalPixelSize()
-    return max(0.4, min(1.15, uiPixelRatio))
+    return max(0.4, min(1.15, pixelToUIUnitFactor))
 end
 
--- Event handler for UI scale and display resolution changes
+--- Event handler for UI scale and display resolution changes
 function QUICore:OnResolutionOrScaleChange(event)
     if event == 'UI_SCALE_CHANGED' or event == 'DISPLAY_SIZE_CHANGED' then
         RefreshDisplayMetrics()
@@ -185,44 +189,41 @@ function QUICore:OnResolutionOrScaleChange(event)
     end
 end
 
--- Intelligent pixel grid snapping for optimal visual clarity
--- Distinguishes between positioning and sizing for natural rendering
+--- Intelligent pixel grid snapping using PixelUtil for optimal visual clarity
+--- Distinguishes between positioning and sizing for natural rendering
 function QUICore:SnapToPixelGrid(value)
     if value == 0 then return 0 end
 
-    -- Skip snapping for scales near 1.0 (natural rendering)
-    if currentUIScale >= 0.95 and currentUIScale <= 1.05 then
-        return value
-    end
-
-    -- Calculate physical pixels per UI unit
-    local pixelsPerUnit = 1.0 / currentUIScale
-
-    -- Handle positioning values (coordinates) with strict pixel alignment
-    if value >= -100 and value <= 100 then
-        -- Round to nearest pixel boundary for perfect alignment
-        return floor(value * pixelsPerUnit + 0.5) / pixelsPerUnit
-    else
-        -- Handle sizing values (dimensions) with conservative snapping
-        -- Prevents font sizes and dimensions from being forced to awkward values
-        local snappedValue = floor(value * pixelsPerUnit + 0.5) / pixelsPerUnit
-        -- Only apply snapping if change is minimal to preserve intended sizes
-        if abs(snappedValue - value) < 0.5 then
-            return snappedValue
-        else
-            return value
-        end
-    end
+    -- Use PixelUtil for precise pixel alignment
+    return PixelUtil.GetNearestPixelSize(value, 1.0, value)
 end
 
--- Initialize the pixel precision system
+--- Lightweight UI scale update for slider dragging performance
+--- Only updates scaling calculations without full frame refreshes
+function QUICore:LightweightUpdateUIScale()
+    -- Frame-skip throttle to maintain 60 FPS during dragging
+    local now = GetTime()
+    if now - lastSizeUpdate < SIZE_UPDATE_INTERVAL then
+        return
+    end
+    lastSizeUpdate = now
+
+    sliderUpdateCallCount = sliderUpdateCallCount + 1
+
+    -- Update only the scale value and pixel calculations
+    -- Skip expensive operations like frame repositioning
+    currentUIScale = QUICore.db and QUICore.db.profile and QUICore.db.profile.general and
+                     QUICore.db.profile.general.uiScale or 1.0
+    RecalculateScalingParameters()
+end
+
+--- Initialize the pixel precision system
 function QUICore:InitializePixelPrecision()
     -- Cache initial display metrics
     RefreshDisplayMetrics()
 
     -- Set initial scaling values
-    pixelSnapMultiplier = 1.0
-    uiPixelRatio = 1.0
+    pixelToUIUnitFactor = 1.0
 
     -- Calculate scaling if database is available
     if self.db and self.db.profile then
@@ -234,7 +235,7 @@ function QUICore:InitializePixelPrecision()
     self:RegisterEvent('DISPLAY_SIZE_CHANGED', 'OnResolutionOrScaleChange')
 end
 
--- Determine intelligent default scale based on display resolution
+--- Determine intelligent default scale based on display resolution
 function QUICore:GetIntelligentDefaultScale()
     if screenPhysicalHeight >= 2160 then      -- 4K displays
         return 0.53
@@ -245,7 +246,7 @@ function QUICore:GetIntelligentDefaultScale()
     end
 end
 
--- Apply configured UI scale with comprehensive protection
+--- Apply configured UI scale with comprehensive protection
 function QUICore:ApplyConfiguredUIScale()
     if not self.db or not self.db.profile or not self.db.profile.general then
         return
@@ -294,6 +295,45 @@ function QUICore:ApplyConfiguredUIScale()
         self:CalculatePixelMultiplier()
         self:ApplyUIScaling()
     end
+end
+
+--- Slider drag start handler for performance optimization
+function QUICore:OnSliderDragStart(lightweightFunc, funcName)
+    sliderDragging = true
+    sliderLightweightFunc = lightweightFunc
+    sliderUpdateCallCount = 0
+
+    if QUICore.debugEnabled then
+        print("|cff00ff00[QuaziiUI Pixel]|r Drag START - lightweight: " .. (funcName or "unknown"))
+    end
+end
+
+--- Slider drag stop handler - performs full update
+function QUICore:OnSliderDragStop()
+    if QUICore.debugEnabled then
+        print("|cff00ff00[QuaziiUI Pixel]|r Drag STOP - " .. sliderUpdateCallCount .. " lightweight calls, now FULL UpdateAll()")
+    end
+
+    sliderDragging = false
+    sliderLightweightFunc = nil
+
+    -- Perform full update now that dragging has stopped
+    QUICore:ApplyConfiguredUIScale()
+end
+
+--- Throttled update system for optimal performance
+function QUICore:ThrottledUpdateAll()
+    if sliderDragging then
+        if sliderLightweightFunc then
+            -- During drag with lightweight function, call it directly
+            sliderLightweightFunc()
+        end
+        -- If no lightweight func, just skip
+        return
+    end
+
+    -- Not dragging - just call full update directly
+    QUICore:ApplyConfiguredUIScale()
 end
 
 -- Maintain backward compatibility with existing Scale function calls

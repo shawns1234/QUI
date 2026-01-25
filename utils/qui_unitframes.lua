@@ -180,6 +180,21 @@ local function Scale(x)
     return scaled
 end
 
+-- HELPER: Font scaling with conservative pixel alignment for readability
+-- Uses simple scaling factor without aggressive PixelUtil snapping
+---------------------------------------------------------------------------
+local function ScaleFont(x)
+    if not x or x == 0 then return x end
+
+    -- Use conservative scaling for fonts - just apply the UI scale factor
+    -- without PixelUtil's aggressive pixel snapping to maintain readability
+    if QUICore and QUICore.GetPixelScale then
+        return x * QUICore:GetPixelScale()
+    else
+        return x
+    end
+end
+
 -- Clear scale cache when resolution changes
 local function ClearScaleCache()
     wipe(scaleCache)
@@ -1483,7 +1498,7 @@ local function CreateBossFrame(unit, frameKey, bossIndex)
         local nameOffsetX = Scale(settings.nameOffsetX or 4)
         local nameOffsetY = Scale(settings.nameOffsetY or 0)
         local nameText = healthBar:CreateFontString(nil, "OVERLAY")
-        nameText:SetFont(GetFontPath(), settings.nameFontSize or 12, GetFontOutline())
+        nameText:SetFont(GetFontPath(), ScaleFont(settings.nameFontSize or 12), GetFontOutline())
         nameText:SetShadowOffset(0, 0)
         nameText:SetPoint(nameAnchorInfo.point, healthBar, nameAnchorInfo.point, nameOffsetX, nameOffsetY)
         nameText:SetJustifyH(nameAnchorInfo.justify)
@@ -1497,7 +1512,7 @@ local function CreateBossFrame(unit, frameKey, bossIndex)
         local healthOffsetX = Scale(settings.healthOffsetX or -4)
         local healthOffsetY = Scale(settings.healthOffsetY or 0)
         local healthText = healthBar:CreateFontString(nil, "OVERLAY")
-        healthText:SetFont(GetFontPath(), settings.healthFontSize or 11, GetFontOutline())
+        healthText:SetFont(GetFontPath(), ScaleFont(settings.healthFontSize or 11), GetFontOutline())
         healthText:SetShadowOffset(0, 0)
         healthText:SetPoint(healthAnchorInfo.point, healthBar, healthAnchorInfo.point, healthOffsetX, healthOffsetY)
         healthText:SetJustifyH(healthAnchorInfo.justify)
@@ -1508,7 +1523,7 @@ local function CreateBossFrame(unit, frameKey, bossIndex)
     -- Power text (separate from power bar, for displaying power %)
     local powerAnchorInfo = GetTextAnchorInfo(settings.powerTextAnchor or "BOTTOMRIGHT")
     local powerText = healthBar:CreateFontString(nil, "OVERLAY")
-    powerText:SetFont(GetFontPath(), settings.powerTextFontSize or 10, GetFontOutline())
+    powerText:SetFont(GetFontPath(), ScaleFont(settings.powerTextFontSize or 10), GetFontOutline())
     powerText:SetShadowOffset(0, 0)
     local pOffX = Scale(settings.powerTextOffsetX or -4)
     local pOffY = Scale(settings.powerTextOffsetY or 2)
@@ -1850,23 +1865,23 @@ local function CreateUnitFrame(unit, unitKey)
     -- Name text
     local fontPath = GetFontPath()
     local fontOutline = general and general.fontOutline or "OUTLINE"
-    local nameFontSize = settings.nameFontSize or 12
+    local nameFontSize = ScaleFont(settings.nameFontSize or 12)
     local nameAnchorInfo = GetTextAnchorInfo(settings.nameAnchor or "LEFT")
-    local nameOffsetX = settings.nameOffsetX or 4
-    local nameOffsetY = settings.nameOffsetY or 0
-    
+    local nameOffsetX = Scale(settings.nameOffsetX or 4)
+    local nameOffsetY = Scale(settings.nameOffsetY or 0)
+
     local nameText = textFrame:CreateFontString(nil, "OVERLAY")
     nameText:SetFont(fontPath, nameFontSize, fontOutline)
     nameText:SetPoint(nameAnchorInfo.point, frame, nameAnchorInfo.point, nameOffsetX, nameOffsetY)
     nameText:SetJustifyH(nameAnchorInfo.justify)
     nameText:SetTextColor(1, 1, 1, 1)
     frame.nameText = nameText
-    
+
     -- Health text
-    local healthFontSize = settings.healthFontSize or 12
+    local healthFontSize = ScaleFont(settings.healthFontSize or 12)
     local healthAnchorInfo = GetTextAnchorInfo(settings.healthAnchor or "RIGHT")
-    local healthOffsetX = settings.healthOffsetX or -4
-    local healthOffsetY = settings.healthOffsetY or 0
+    local healthOffsetX = Scale(settings.healthOffsetX or -4)
+    local healthOffsetY = Scale(settings.healthOffsetY or 0)
 
     local healthText = textFrame:CreateFontString(nil, "OVERLAY")
     healthText:SetFont(fontPath, healthFontSize, fontOutline)
@@ -1876,10 +1891,10 @@ local function CreateUnitFrame(unit, unitKey)
     frame.healthText = healthText
 
     -- Power text (separate from power bar, for displaying power %)
-    local powerTextFontSize = settings.powerTextFontSize or 12
+    local powerTextFontSize = ScaleFont(settings.powerTextFontSize or 12)
     local powerAnchorInfo = GetTextAnchorInfo(settings.powerTextAnchor or "BOTTOMRIGHT")
-    local powerTextOffsetX = settings.powerTextOffsetX or -4
-    local powerTextOffsetY = settings.powerTextOffsetY or 2
+    local powerTextOffsetX = Scale(settings.powerTextOffsetX or -4)
+    local powerTextOffsetY = Scale(settings.powerTextOffsetY or 2)
 
     local powerText = textFrame:CreateFontString(nil, "OVERLAY")
     powerText:SetFont(fontPath, powerTextFontSize, fontOutline)
@@ -3348,7 +3363,7 @@ function QUI_UF:RefreshFrame(unitKey)
                         nameText:SetShadowOffset(0, 0)
                         frame.nameText = nameText
                     end
-                    frame.nameText:SetFont(GetFontPath(), settings.nameFontSize or 11, GetFontOutline())
+                    frame.nameText:SetFont(GetFontPath(), ScaleFont(settings.nameFontSize or 11), GetFontOutline())
                     local nameAnchorInfo = GetTextAnchorInfo(settings.nameAnchor or "LEFT")
                     local nameOffsetX = Scale(settings.nameOffsetX or 4)
                     local nameOffsetY = Scale(settings.nameOffsetY or 0)
@@ -3373,7 +3388,7 @@ function QUI_UF:RefreshFrame(unitKey)
                         healthText:SetShadowOffset(0, 0)
                         frame.healthText = healthText
                     end
-                    frame.healthText:SetFont(GetFontPath(), settings.healthFontSize or 11, GetFontOutline())
+                    frame.healthText:SetFont(GetFontPath(), ScaleFont(settings.healthFontSize or 11), GetFontOutline())
                     local healthAnchorInfo = GetTextAnchorInfo(settings.healthAnchor or "RIGHT")
                     local healthOffsetX = Scale(settings.healthOffsetX or -4)
                     local healthOffsetY = Scale(settings.healthOffsetY or 0)
@@ -3401,7 +3416,7 @@ function QUI_UF:RefreshFrame(unitKey)
                     end
                     local fontPath = GetFontPath()
                     local fontOutline = GetFontOutline()
-                    frame.powerText:SetFont(fontPath, settings.powerTextFontSize or 12, fontOutline)
+                    frame.powerText:SetFont(fontPath, ScaleFont(settings.powerTextFontSize or 12), fontOutline)
                     frame.powerText:ClearAllPoints()
                     local powerAnchorInfo = GetTextAnchorInfo(settings.powerTextAnchor or "BOTTOMRIGHT")
                     local powerOffsetX = Scale(settings.powerTextOffsetX or -4)
@@ -3666,9 +3681,9 @@ function QUI_UF:RefreshFrame(unitKey)
     -- Update fonts and text positions
     local fontPath = GetFontPath()
     local fontOutline = general and general.fontOutline or "OUTLINE"
-    
+
     if frame.nameText then
-        frame.nameText:SetFont(fontPath, settings.nameFontSize or 12, fontOutline)
+        frame.nameText:SetFont(fontPath, ScaleFont(settings.nameFontSize or 12), fontOutline)
         frame.nameText:ClearAllPoints()
         local nameAnchorInfo = GetTextAnchorInfo(settings.nameAnchor or "LEFT")
         frame.nameText:SetPoint(nameAnchorInfo.point, frame, nameAnchorInfo.point, Scale(settings.nameOffsetX or 4), Scale(settings.nameOffsetY or 0))
@@ -3679,9 +3694,9 @@ function QUI_UF:RefreshFrame(unitKey)
             frame.nameText:Hide()
         end
     end
-    
+
     if frame.healthText then
-        frame.healthText:SetFont(fontPath, settings.healthFontSize or 12, fontOutline)
+        frame.healthText:SetFont(fontPath, ScaleFont(settings.healthFontSize or 12), fontOutline)
         frame.healthText:ClearAllPoints()
         local healthAnchorInfo = GetTextAnchorInfo(settings.healthAnchor or "RIGHT")
         frame.healthText:SetPoint(healthAnchorInfo.point, frame, healthAnchorInfo.point, Scale(settings.healthOffsetX or -4), Scale(settings.healthOffsetY or 0))
@@ -3709,7 +3724,7 @@ function QUI_UF:RefreshFrame(unitKey)
 
     -- Update power text position and font
     if frame.powerText then
-        frame.powerText:SetFont(fontPath, settings.powerTextFontSize or 12, fontOutline)
+        frame.powerText:SetFont(fontPath, ScaleFont(settings.powerTextFontSize or 12), fontOutline)
         frame.powerText:ClearAllPoints()
         local powerAnchorInfo = GetTextAnchorInfo(settings.powerTextAnchor or "BOTTOMRIGHT")
         frame.powerText:SetPoint(powerAnchorInfo.point, frame, powerAnchorInfo.point, Scale(settings.powerTextOffsetX or -4), Scale(settings.powerTextOffsetY or 2))
