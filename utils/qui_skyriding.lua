@@ -74,6 +74,46 @@ local function Scale(x)
     return x
 end
 
+local function SetSize(frame, width, height)
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    if QUICore and QUICore.SetSize then
+        return QUICore:SetSize(frame, width, height)
+    end
+    frame:SetSize(width, height)
+end
+
+local function SetPoint(frame, ...)
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    if QUICore and QUICore.SetPoint then
+        return QUICore:SetPoint(frame, ...)
+    end
+    frame:SetPoint(...)
+end
+
+local function SetWidth(frame, width)
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    if QUICore and QUICore.SetWidth then
+        return QUICore:SetWidth(frame, width)
+    end
+    frame:SetWidth(width)
+end
+
+local function SetHeight(frame, height)
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    if QUICore and QUICore.SetHeight then
+        return QUICore:SetHeight(frame, height)
+    end
+    frame:SetHeight(height)
+end
+
+local function SafeSetFont(fontString, fontPath, size, flags)
+    local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore
+    if QUICore and QUICore.SafeSetFont then
+        return QUICore:SafeSetFont(fontString, fontPath, size, flags)
+    end
+    fontString:SetFont(fontPath, size, flags)
+end
+
 ---------------------------------------------------------------------------
 -- API Wrappers
 ---------------------------------------------------------------------------
@@ -161,8 +201,8 @@ local function CreateSkyridingFrame()
 
     -- Main container frame
     skyridingFrame = CreateFrame("Frame", "QuaziiUI_Skyriding", UIParent)
-    skyridingFrame:SetSize(width, height)
-    skyridingFrame:SetPoint("CENTER", UIParent, "CENTER", 0, -150)
+    SetSize(skyridingFrame, width, height)
+    SetPoint(skyridingFrame, "CENTER", UIParent, "CENTER", 0, -150)
     skyridingFrame:SetFrameStrata("MEDIUM")
     skyridingFrame:SetClampedToScreen(true)
 
@@ -322,8 +362,8 @@ local function CreateSkyridingFrame()
 
     -- Whirling Surge ability icon (right side of bar)
     abilityIcon = CreateFrame("Frame", nil, skyridingFrame)
-    abilityIcon:SetSize(height, height)
-    abilityIcon:SetPoint("LEFT", skyridingFrame, "RIGHT", 2, 0)
+    SetSize(abilityIcon, height, height)
+    SetPoint(abilityIcon, "LEFT", skyridingFrame, "RIGHT", 2, 0)
 
     -- Icon texture
     abilityIcon.texture = abilityIcon:CreateTexture(nil, "ARTWORK")
@@ -769,9 +809,9 @@ local function UpdateAbilityIcon()
         totalHeight = vigorHeight + 2 + swHeight  -- 2px gap between bars
         yOffset = -(2 + swHeight) / 2  -- Shift down to center on both bars
     end
-    abilityIcon:SetSize(totalHeight, totalHeight)
+    SetSize(abilityIcon, totalHeight, totalHeight)
     abilityIcon:ClearAllPoints()
-    abilityIcon:SetPoint("LEFT", skyridingFrame, "RIGHT", 2, yOffset)
+    SetPoint(abilityIcon, "LEFT", skyridingFrame, "RIGHT", 2, yOffset)
 
     -- Get cooldown info
     local cooldownInfo = C_Spell.GetSpellCooldown(WHIRLING_SURGE_SPELL_ID)
@@ -887,9 +927,9 @@ local function ApplySettings()
     local locked = settings.locked ~= false
 
     -- Size and position
-    skyridingFrame:SetSize(width, height)
+    SetSize(skyridingFrame, width, height)
     skyridingFrame:ClearAllPoints()
-    skyridingFrame:SetPoint("CENTER", UIParent, "CENTER", offsetX, offsetY)
+    SetPoint(skyridingFrame, "CENTER", UIParent, "CENTER", offsetX, offsetY)
 
     -- Apply HUD layer priority
     local QUICore = _G.QuaziiUI and _G.QuaziiUI.QUICore

@@ -186,13 +186,9 @@ end
 local function ScaleFont(x)
     if not x or x == 0 then return x end
 
-    -- Use conservative scaling for fonts - just apply the UI scale factor
-    -- without PixelUtil's aggressive pixel snapping to maintain readability
-    if QUICore and QUICore.GetPixelScale then
-        return x * QUICore:GetPixelScale()
-    else
-        return x
-    end
+    -- For fonts, use simple scaling without PixelUtil snapping to maintain readability
+    -- PixelUtil.GetNearestPixelSize can make fonts too small on some scales
+    return x
 end
 
 -- Clear scale cache when resolution changes
@@ -1865,39 +1861,39 @@ local function CreateUnitFrame(unit, unitKey)
     -- Name text
     local fontPath = GetFontPath()
     local fontOutline = general and general.fontOutline or "OUTLINE"
-    local nameFontSize = ScaleFont(settings.nameFontSize or 12)
+    local nameFontSize = settings.nameFontSize or 12
     local nameAnchorInfo = GetTextAnchorInfo(settings.nameAnchor or "LEFT")
     local nameOffsetX = Scale(settings.nameOffsetX or 4)
     local nameOffsetY = Scale(settings.nameOffsetY or 0)
 
     local nameText = textFrame:CreateFontString(nil, "OVERLAY")
-    nameText:SetFont(fontPath, nameFontSize, fontOutline)
+    QUICore:SafeSetFont(nameText, fontPath, nameFontSize, fontOutline)
     nameText:SetPoint(nameAnchorInfo.point, frame, nameAnchorInfo.point, nameOffsetX, nameOffsetY)
     nameText:SetJustifyH(nameAnchorInfo.justify)
     nameText:SetTextColor(1, 1, 1, 1)
     frame.nameText = nameText
 
     -- Health text
-    local healthFontSize = ScaleFont(settings.healthFontSize or 12)
+    local healthFontSize = settings.healthFontSize or 12
     local healthAnchorInfo = GetTextAnchorInfo(settings.healthAnchor or "RIGHT")
     local healthOffsetX = Scale(settings.healthOffsetX or -4)
     local healthOffsetY = Scale(settings.healthOffsetY or 0)
 
     local healthText = textFrame:CreateFontString(nil, "OVERLAY")
-    healthText:SetFont(fontPath, healthFontSize, fontOutline)
+    QUICore:SafeSetFont(healthText, fontPath, healthFontSize, fontOutline)
     healthText:SetPoint(healthAnchorInfo.point, frame, healthAnchorInfo.point, healthOffsetX, healthOffsetY)
     healthText:SetJustifyH(healthAnchorInfo.justify)
     healthText:SetTextColor(1, 1, 1, 1)
     frame.healthText = healthText
 
     -- Power text (separate from power bar, for displaying power %)
-    local powerTextFontSize = ScaleFont(settings.powerTextFontSize or 12)
+    local powerTextFontSize = settings.powerTextFontSize or 12
     local powerAnchorInfo = GetTextAnchorInfo(settings.powerTextAnchor or "BOTTOMRIGHT")
     local powerTextOffsetX = Scale(settings.powerTextOffsetX or -4)
     local powerTextOffsetY = Scale(settings.powerTextOffsetY or 2)
 
     local powerText = textFrame:CreateFontString(nil, "OVERLAY")
-    powerText:SetFont(fontPath, powerTextFontSize, fontOutline)
+    QUICore:SafeSetFont(powerText, fontPath, powerTextFontSize, fontOutline)
     powerText:SetPoint(powerAnchorInfo.point, frame, powerAnchorInfo.point, powerTextOffsetX, powerTextOffsetY)
     powerText:SetJustifyH(powerAnchorInfo.justify)
     powerText:SetTextColor(1, 1, 1, 1)

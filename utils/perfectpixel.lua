@@ -21,46 +21,25 @@ local GetScreenHeight = GetScreenHeight
 local InCombatLockdown = InCombatLockdown
 local GetPhysicalScreenSize = GetPhysicalScreenSize
 
--- Performance-optimized cached values to reduce API overhead
-local screenPhysicalWidth, screenPhysicalHeight = 0, 0
-local screenWidth, screenHeight = 0, 0
-local screenResolutionString = ""
-local screenAspectRatio = 1.0
-local multiMonitorEffectiveWidth = 0
-local pixelToUIUnitFactor = 1.0
-local currentUIScale = 1.0
+-- Lightweight cache for performance
+local displayCache = {
+    physicalWidth = 0,
+    physicalHeight = 0,
+    uiWidth = 0,
+    uiHeight = 0,
+    aspectRatio = 1.0,
+    pixelRatio = 1.0,
+    effectiveWidth = nil,
+    lastUpdate = 0,
+    isValid = false
+}
 
 -- Multi-monitor configuration constants
 local ULTRAWIDE_RATIO_THRESHOLD = 2.37  -- 21:9 and wider
 local EYEFINITY_RATIO_THRESHOLD = 3.5    -- Very wide multi-monitor setups
 local WOW_REFERENCE_HEIGHT = 768         -- Blizzard's base UI height
 
--- Performance optimization constants
-local SIZE_UPDATE_INTERVAL = 0.016  -- ~60 FPS update rate for slider dragging
-local lastSizeUpdate = 0
 
--- Slider update system for performance optimization
-local sliderDragging = false
-local sliderLightweightFunc = nil
-local sliderUpdateCallCount = 0
-
--- Update global model scenes to prevent tainting issues
-function QUICore:UpdateGlobalModelScenes()
-    if _G.GlobalFXDialogModelScene then
-        _G.GlobalFXDialogModelScene:Hide()
-        _G.GlobalFXDialogModelScene:Show()
-    end
-
-    if _G.GlobalFXMediumModelScene then
-        _G.GlobalFXMediumModelScene:Hide()
-        _G.GlobalFXMediumModelScene:Show()
-    end
-
-    if _G.GlobalFXBackgroundModelScene then
-        _G.GlobalFXBackgroundModelScene:Hide()
-        _G.GlobalFXBackgroundModelScene:Show()
-    end
-end
 
 --- Advanced multi-monitor configuration detection
 --- Analyzes physical screen dimensions to determine optimal UI centering
@@ -175,10 +154,7 @@ function QUICore:ApplyUIScaling()
     end
 end
 
---- Calculate optimal pixel size for current display configuration
-function QUICore:GetOptimalPixelSize()
-    return max(0.4, min(1.15, pixelToUIUnitFactor))
-end
+
 
 --- Event handler for UI scale and display resolution changes
 function QUICore:OnResolutionOrScaleChange(event)
@@ -334,6 +310,155 @@ function QUICore:ThrottledUpdateAll()
 
     -- Not dragging - just call full update directly
     QUICore:ApplyConfiguredUIScale()
+end
+
+-- PixelUtil wrapper functions for pixel-perfect rendering
+function QUICore:SetSize(frame, width, height)
+    PixelUtil.SetSize(frame, width, height)
+end
+
+function QUICore:SetPoint(frame, ...)
+    PixelUtil.SetPoint(frame, ...)
+end
+
+function QUICore:SetWidth(frame, width)
+    PixelUtil.SetWidth(frame, width)
+end
+
+function QUICore:SetHeight(frame, height)
+    PixelUtil.SetHeight(frame, height)
+end
+
+--- Safe font setting with pixel-perfect sizing
+function QUICore:SafeSetFont(fontString, fontPath, size, flags)
+    if not fontString then return end
+    -- Use mathematically correct scale for crisp fonts: pixels per UI unit
+    local uiScale = UIParent:GetEffectiveScale()
+    local pixelScale = 1 / uiScale
+    size = PixelUtil.GetNearestPixelSize(size, pixelScale)
+    fontPath = fontPath or "Fonts\\FRIZQT__.TTF"
+    flags = flags or "OUTLINE"
+    pcall(fontString.SetFont, fontString, fontPath, size, flags)
+end
+
+--- Calculate pixel-perfect thickness for borders/lines
+function QUICore:PixelPerfectThickness(value)
+    if not QUICore.db or not QUICore.db.profile or not QUICore.db.profile.general or
+       not QUICore.db.profile.general.enablePixelPerfect then
+        return value
+    end
+
+    local uiScale = UIParent:GetEffectiveScale()
+    local pixels = math.floor(value / uiScale + 0.5)
+    if value > 0 and pixels < 1 then pixels = 1 end
+    return pixels * uiScale
+end
+
+--- Calculate pixel-perfect ceiling
+function QUICore:PixelPerfectCeil(value)
+    if not QUICore.db or not QUICore.db.profile or not QUICore.db.profile.general or
+       not QUICore.db.profile.general.enablePixelPerfect then
+        return value
+    end
+
+    local uiScale = UIParent:GetEffectiveScale()
+    return math.ceil(value / uiScale) * uiScale
+end
+
+--- Adjust a size to ensure borders fit evenly on all sides
+function QUICore:PixelPerfectSizeForBorder(size, borderThickness)
+    if not QUICore.db or not QUICore.db.profile or not QUICore.db.profile.general or
+       not QUICore.db.profile.general.enablePixelPerfect then
+        return size, borderThickness
+    end
+
+    local scale = self:GetPixelScale()
+
+    -- Snap border to nearest pixel (minimum 1 pixel if > 0)
+    local borderPixels = math.floor(borderThickness / scale + 0.5)
+    if borderThickness > 0 and borderPixels < 1 then
+        borderPixels = 1
+    end
+    local ppBorder = borderPixels * scale
+
+    -- Snap size to nearest pixel
+    local sizePixels = math.floor(size / scale + 0.5)
+
+    -- Calculate content area (what's left after borders on both sides)
+    local contentPixels = sizePixels - (2 * borderPixels)
+
+    -- If content would be less than 1 pixel, increase size
+    if contentPixels < 1 then
+        contentPixels = 1
+        sizePixels = contentPixels + (2 * borderPixels)
+    end
+
+    return sizePixels * scale, ppBorder
+end
+
+--- Adjust size and scale together for pixel-perfect rendering with borders
+function QUICore:PixelPerfectSizeAndScaleForBorder(size, iconScale, borderThickness)
+    if not QUICore.db or not QUICore.db.profile or not QUICore.db.profile.general or
+       not QUICore.db.profile.general.enablePixelPerfect then
+        return size * iconScale, iconScale, borderThickness
+    end
+
+    local pixelScale = self:GetPixelScale()
+
+    -- Calculate the desired final rendered size
+    local desiredFinalSize = size * iconScale
+
+    -- Snap border to nearest pixel (minimum 1 pixel if > 0)
+    local borderPixels = math.floor(borderThickness / pixelScale + 0.5)
+    if borderThickness > 0 and borderPixels < 1 then
+        borderPixels = 1
+    end
+    local ppBorder = borderPixels * pixelScale
+
+    -- Snap the final size to nearest pixel
+    local finalSizePixels = math.floor(desiredFinalSize / pixelScale + 0.5)
+
+    -- Calculate content area (what's left after borders on both sides)
+    local contentPixels = finalSizePixels - (2 * borderPixels)
+
+    -- If content would be less than 1 pixel, increase size
+    if contentPixels < 1 then
+        contentPixels = 1
+        finalSizePixels = contentPixels + (2 * borderPixels)
+    end
+
+    local ppFinalSize = finalSizePixels * pixelScale
+
+    -- Return: the pixel-perfect final size, scale=1.0, and border
+    return ppFinalSize, 1.0, ppBorder
+end
+
+--- Get the pixel scale (calculates if not yet cached)
+function QUICore:GetPixelScale()
+    if not displayCache.isValid then
+        RefreshDisplayMetrics()
+        RecalculateScalingParameters()
+        displayCache.isValid = true
+    end
+    return pixelToUIUnitFactor
+end
+
+-- Update global model scenes to prevent tainting issues
+function QUICore:UpdateGlobalModelScenes()
+    if _G.GlobalFXDialogModelScene then
+        _G.GlobalFXDialogModelScene:Hide()
+        _G.GlobalFXDialogModelScene:Show()
+    end
+
+    if _G.GlobalFXMediumModelScene then
+        _G.GlobalFXMediumModelScene:Hide()
+        _G.GlobalFXMediumModelScene:Show()
+    end
+
+    if _G.GlobalFXBackgroundModelScene then
+        _G.GlobalFXBackgroundModelScene:Hide()
+        _G.GlobalFXBackgroundModelScene:Show()
+    end
 end
 
 -- Maintain backward compatibility with existing Scale function calls
