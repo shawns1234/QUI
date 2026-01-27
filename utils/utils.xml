@@ -45,4 +45,5 @@
     <Script file="qui_dungeon_teleport.lua"/>
     <Script file="qui_key_tracker.lua"/>
     <Script file="qui_raidbuffs.lua"/>
+    <Script file="debug_pixelprofiler.lua"/>
 </Ui>
