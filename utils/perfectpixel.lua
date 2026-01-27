@@ -27,9 +27,9 @@ end
 function AF.SetFont(fontString, fontPath, size, flags)
     if not fontString then return end
 
-    -- Calculate pixel-perfect font size using AF's proven algorithm
-    local pixelScale = AF.GetPixelFactor()
-    local pixelPerfectSize = AF.GetNearestPixelSize(size, pixelScale)
+    -- Calculate pixel-perfect font size
+    -- Font sizes in WoW are in pixels, so we snap to nearest pixel for crisp rendering
+    local pixelPerfectSize = math.floor(size + 0.5) -- Simple rounding to nearest pixel
 
     -- Set defaults with WoW 12.x compatibility
     fontPath = fontPath or "Fonts\\FRIZQT__.TTF"
@@ -152,8 +152,10 @@ QUICore.Scale = AF.GetNearestPixelSize
 
 -- Expose AF functions through QUICore for existing code
 -- This provides a clean API while using AF internally
-QUICore.SetSize = AF.SetSize
-QUICore.SetPoint = AF.SetPoint
-QUICore.SetWidth = AF.SetWidth
-QUICore.SetHeight = AF.SetHeight
-QUICore.SafeSetFont = AF.SetFont
+QUICore.SetSize = function(...) return AF.SetSize(...) end
+QUICore.SetPoint = function(...) return AF.SetPoint(...) end
+QUICore.SetWidth = function(...) return AF.SetWidth(...) end
+QUICore.SetHeight = function(...) return AF.SetHeight(...) end
+QUICore.SafeSetFont = function(fontString, fontPath, size, flags)
+    return AF.SetFont(fontString, fontPath, size, flags)
+end

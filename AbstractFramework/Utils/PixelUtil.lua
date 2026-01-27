@@ -1,6 +1,125 @@
 ---@class AbstractFramework
 local AF = select(2, ...)
 
+-- Utility functions
+function AF.Round(value)
+    return math.floor(value + 0.5)
+end
+
+function AF.Clamp(value, min, max)
+    if value < min then return min end
+    if value > max then return max end
+    return value
+end
+
+function AF.RoundToDecimal(value, decimals)
+    local mult = 10^(decimals or 0)
+    return math.floor(value * mult + 0.5) / mult
+end
+
+function AF.Copy(tbl)
+    if type(tbl) ~= "table" then return tbl end
+    local copy = {}
+    for k, v in pairs(tbl) do
+        copy[k] = AF.Copy(v)
+    end
+    return copy
+end
+
+function AF.IsEmpty(tbl)
+    return not tbl or next(tbl) == nil
+end
+
+-- Stub implementations for missing functions
+function AF.Debug(msg)
+    if AFConfig and AFConfig.debug and AFConfig.debug.AF then
+        print("|cFF56D1FF[AF]|r " .. tostring(msg))
+    end
+end
+
+function AF.GetColorStr(color, text)
+    -- Simple color string function
+    local colors = {
+        yellow = "FFFF00",
+        red = "FF0000",
+        green = "00FF00",
+        blue = "0000FF",
+    }
+    local hex = colors[color] or "FFFFFF"
+    return "|cFF" .. hex .. text .. "|r"
+end
+
+function AF.WrapTextInColor(text, color)
+    return AF.GetColorStr(color, text)
+end
+
+function AF.Fire(event, ...)
+    -- Simple event firing - in a real implementation this would be more complex
+    if AF[event] then
+        AF[event](...)
+    end
+end
+
+function AF.RegisterCallback(event, callback)
+    -- Simple callback registration
+    if not AF.callbacks then AF.callbacks = {} end
+    if not AF.callbacks[event] then AF.callbacks[event] = {} end
+    table.insert(AF.callbacks[event], callback)
+end
+
+function AF.CreateBasicEventHandler(func, event)
+    -- Simple event handler creation
+    if not AF.eventHandlers then AF.eventHandlers = {} end
+    AF.eventHandlers[event] = func
+end
+
+function AF.GetAddon()
+    return "QuaziiUI"
+end
+
+function AF.CalcPoint(region)
+    if region:GetNumPoints() ~= 1 then return "CENTER", 0, 0 end
+    local point, relativeTo, relativePoint, offsetX, offsetY = region:GetPoint()
+    return point, offsetX, offsetY
+end
+
+function AF.Lerp(min, max, t)
+    return min + (max - min) * t
+end
+
+function AF.IsBlank(str)
+    return not str or str == ""
+end
+
+-- Simple queue implementation for combat-safe updates
+local function NewQueue()
+    local queue = {}
+    queue.items = {}
+    queue.head = 1
+    queue.tail = 1
+
+    function queue:push(item)
+        self.items[self.tail] = item
+        self.tail = self.tail + 1
+    end
+
+    function queue:pop()
+        if self.head >= self.tail then return nil end
+        local item = self.items[self.head]
+        self.items[self.head] = nil
+        self.head = self.head + 1
+        return item
+    end
+
+    function queue:isEmpty()
+        return self.head >= self.tail
+    end
+
+    return queue
+end
+
+AF.NewQueue = NewQueue
+
 -- Interface\SharedXML\PixelUtil.lua
 ---------------------------------------------------------------------
 -- pixel perfect
