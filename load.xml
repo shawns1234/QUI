@@ -4,8 +4,16 @@
     <Include file="libs\libs.xml" />
 
     <!-- AbstractFramework Core (BEFORE locales/init) -->
+    <!-- Embedded libraries must load BEFORE Init.lua -->
+    <Script file="AbstractFramework\Libs\utf8.lua" />
     <Script file="AbstractFramework\Libs\LibStub\LibStub.lua" />
     <Include file="AbstractFramework\Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml" />
+    <Script file="AbstractFramework\Libs\base64.lua" />
+    <Script file="AbstractFramework\Libs\json.lua" />
+    <Script file="AbstractFramework\Libs\md5.lua" />
+    <Script file="AbstractFramework\Libs\sha256.lua" />
+    <Script file="AbstractFramework\Libs\qrcode.lua" />
+    <Script file="AbstractFramework\Libs\FAIAP.lua" />
     <Script file="AbstractFramework\Locales\enUS.lua" />
     <Script file="AbstractFramework\Utils\Math.lua" />
     <Script file="AbstractFramework\Utils\Table.lua" />

@@ -27,6 +27,15 @@ end
 function AF.SetFont(fontString, fontPath, size, flags)
     if not fontString then return end
 
+    -- Validate parameters - ensure size is a number
+    if type(size) ~= "number" then
+        -- If size is not a number, assume parameters are in wrong order
+        -- This handles cases where fontPath and size are swapped
+        local temp = fontPath
+        fontPath = size
+        size = temp
+    end
+
     -- Calculate pixel-perfect font size
     -- Font sizes in WoW are in pixels, so we snap to nearest pixel for crisp rendering
     local pixelPerfectSize = math.floor(size + 0.5) -- Simple rounding to nearest pixel
@@ -43,7 +52,7 @@ end
 ---@param fontPath string|nil
 ---@param size number
 ---@param flags string|nil
----@return FontString
+---@ree
 function AF.CreateFontString(parent, fontPath, size, flags)
     local fs = parent:CreateFontString(nil, "OVERLAY")
 

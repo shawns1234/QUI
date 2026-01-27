@@ -169,6 +169,26 @@ function AF.UIParent:ADDON_LOADED(addon)
     end
 end
 
+-- Event system
+AF.callbacks = {}
+function AF.RegisterCallback(event, callback)
+    if not AF.callbacks[event] then AF.callbacks[event] = {} end
+    table.insert(AF.callbacks[event], callback)
+end
+
+function AF.Fire(event, ...)
+    if AF.callbacks[event] then
+        for _, callback in ipairs(AF.callbacks[event]) do
+            callback(...)
+        end
+    end
+end
+
+function AF.CreateBasicEventHandler(func, event)
+    if not AF.eventHandlers then AF.eventHandlers = {} end
+    AF.eventHandlers[event] = func
+end
+
 --! scale should NOT be TOO SMALL
 --! or it will result in abnormal display of borders
 --! since AF has changed SetSnapToPixelGrid / SetTexelSnappingBias
@@ -189,6 +209,46 @@ end
 
 function AF.SetUIParentScale(scale, skipPixelsUpdate)
     UIParent:SetScale(scale, skipPixelsUpdate)
+end
+
+-- Missing utility functions
+function AF.GetAddon()
+    return "QuaziiUI"
+end
+
+function AF.CalcPoint(region)
+    if region:GetNumPoints() ~= 1 then return "CENTER", 0, 0 end
+    local point, relativeTo, relativePoint, offsetX, offsetY = region:GetPoint()
+    return point, offsetX, offsetY
+end
+
+function AF.Lerp(min, max, t)
+    return min + (max - min) * t
+end
+
+function AF.IsBlank(str)
+    return not str or str == ""
+end
+
+function AF.Debug(msg)
+    if AFConfig and AFConfig.debug and AFConfig.debug.AF then
+        print("|cFF56D1FF[AF]|r " .. tostring(msg))
+    end
+end
+
+function AF.GetColorStr(color, text)
+    local colors = {
+        yellow = "FFFF00",
+        red = "FF0000",
+        green = "00FF00",
+        blue = "0000FF",
+    }
+    local hex = colors[color] or "FFFFFF"
+    return "|cFF" .. hex .. text .. "|r"
+end
+
+function AF.WrapTextInColor(text, color)
+    return AF.GetColorStr(color, text)
 end
 
 ---------------------------------------------------------------------

@@ -93,6 +93,11 @@ function AF.GetBestScale()
 end
 
 function AF.GetNearestPixelSize(uiUnitSize, layoutScale, minPixels)
+    -- Validate uiUnitSize parameter
+    if type(uiUnitSize) ~= "number" then
+        return 0
+    end
+
     if uiUnitSize == 0 and (not minPixels or minPixels == 0) then
         return 0
     end
@@ -137,6 +142,11 @@ end
 -- size
 ---------------------------------------------------------------------
 function AF.SetWidth(region, width, minPixels)
+    -- Validate region parameter
+    if not region or type(region) ~= "table" or not region.GetEffectiveScale then
+        return
+    end
+
     -- clear conflicts
     region._gridWidth = nil
     region._itemWidth = nil
@@ -147,6 +157,11 @@ function AF.SetWidth(region, width, minPixels)
 end
 
 function AF.SetHeight(region, height, minPixels)
+    -- Validate region parameter
+    if not region or type(region) ~= "table" or not region.GetEffectiveScale then
+        return
+    end
+
     -- clear conflicts
     region._gridHeight = nil
     region._itemHeight = nil
