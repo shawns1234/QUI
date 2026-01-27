@@ -22,27 +22,36 @@ AF.Libs.Comm = LibStub("AceComm-3.0")
 AF.Libs.LibDataBroker = LibStub("LibDataBroker-1.1")
 AF.Libs.LibDBIcon = LibStub("LibDBIcon-1.0")
 
--- embedded libs (commented out - not available in this integration)
--- AF.Libs.FAIAP = LibStub("AF_FAIAP")
+-- embedded libs
+AF.Libs.FAIAP = LibStub("AF_FAIAP")
 
--- AF.Libs.MD5 = LibStub("AF_MD5")
--- AF.MD5 = AF.Libs.MD5.sumhexa
+AF.Libs.MD5 = LibStub("AF_MD5")
+---@type fun(str:string):string
+AF.MD5 = AF.Libs.MD5.sumhexa
 
--- AF.Libs.SHA256 = LibStub("AF_SHA256")
--- AF.SHA256 = AF.Libs.SHA256.hash
+AF.Libs.SHA256 = LibStub("AF_SHA256")
+---@type fun(str:string):string
+AF.SHA256 = AF.Libs.SHA256.hash
 
--- AF.Libs.BASE64 = LibStub("AF_BASE64")
--- AF.EncodeBase64 = AF.Libs.BASE64.encode
--- AF.DecodeBase64 = AF.Libs.BASE64.decode
+AF.Libs.BASE64 = LibStub("AF_BASE64")
+---@type fun(str:string, encoder:table?, usecaching:boolean?):string
+AF.EncodeBase64 = AF.Libs.BASE64.encode
+---@type fun(str:string, decoder:table?, usecaching:boolean?):string
+AF.DecodeBase64 = AF.Libs.BASE64.decode
 
--- AF.Libs.JSON = LibStub("AF_JSON")
--- AF.EncodeJson = AF.Libs.JSON.encode_json
--- AF.EncodeHJson = AF.Libs.JSON.encode_hjson
--- AF.DecodeJson = AF.Libs.JSON.decode
+AF.Libs.JSON = LibStub("AF_JSON")
+---@type fun(obj:any, options:table?):string
+AF.EncodeJson = AF.Libs.JSON.encode_json
+---@type fun(obj:any, options:table?):string
+AF.EncodeHJson = AF.Libs.JSON.encode_hjson
+---@type fun(str:string, options:table?):any
+AF.DecodeJson = AF.Libs.JSON.decode
 
--- AF.Libs.QRCODE = LibStub("AF_QRCODE")
--- AF.GetQRCodeFrame = AF.Libs.QRCODE.GetQRCodeFrame
--- AF.GetQRCodeString = AF.Libs.QRCODE.GetQRCodeString
+AF.Libs.QRCODE = LibStub("AF_QRCODE")
+---@type fun(parent:Frame, str:string, size:number?, padding:number?):Frame
+AF.GetQRCodeFrame = AF.Libs.QRCODE.GetQRCodeFrame
+---@type fun(str:string, white_pixel:string?, black_pixel:string?):string
+AF.GetQRCodeString = AF.Libs.QRCODE.GetQRCodeString
 
 ---------------------------------------------------------------------
 -- game version
