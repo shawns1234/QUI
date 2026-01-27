@@ -335,6 +335,11 @@ end
 ---------------------------------------------------------------------
 
 function AF.SetPoint(region, ...)
+    -- Validate region parameter
+    if not region or type(region) ~= "table" or not region.SetPoint then
+        return
+    end
+
     if not region._points then region._points = {} end
     local point, relativeTo, relativePoint, offsetX, offsetY
 

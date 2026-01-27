@@ -27,18 +27,21 @@ end
 function AF.SetFont(fontString, fontPath, size, flags)
     if not fontString then return end
 
-    -- Validate parameters - ensure size is a number
+    -- Handle parameter order issues - if size is not a number, parameters are likely swapped
     if type(size) ~= "number" then
-        -- If size is not a number, assume parameters are in wrong order
-        -- This handles cases where fontPath and size are swapped
         local temp = fontPath
         fontPath = size
         size = temp
     end
 
+    -- Ensure size is a valid number and never 0 (which causes WoW errors)
+    size = tonumber(size) or 12
+    if size <= 0 then size = 12 end
+
     -- Calculate pixel-perfect font size
     -- Font sizes in WoW are in pixels, so we snap to nearest pixel for crisp rendering
     local pixelPerfectSize = math.floor(size + 0.5) -- Simple rounding to nearest pixel
+    if pixelPerfectSize <= 0 then pixelPerfectSize = 12 end -- Safety check
 
     -- Set defaults with WoW 12.x compatibility
     fontPath = fontPath or "Fonts\\FRIZQT__.TTF"

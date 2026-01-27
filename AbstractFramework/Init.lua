@@ -3,6 +3,9 @@ local AF = select(2, ...)
 _G.AbstractFramework = AF
 AF.name = "AbstractFramework"
 
+-- Initialize AFConfig as global BEFORE any other code
+AFConfig = AFConfig or {}
+
 -- no operation
 AF.noop = function() end
 AF.noop_true = function() return true end
