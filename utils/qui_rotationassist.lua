@@ -507,7 +507,14 @@ RefreshIconFrame = function()
         local fontPath = LSM:Fetch("font", fontName) or STANDARD_TEXT_FONT
         local fontSize = db.keybindSize or 13
         local outline = db.keybindOutline and "OUTLINE" or ""
-        iconFrame.keybindText:SetFont(fontPath, fontSize, outline)
+
+        -- Use AF.SetFont for pixel-perfect font scaling
+        local AF = _G.AbstractFramework
+        if AF and AF.SetFont then
+            AF.SetFont(iconFrame.keybindText, fontPath, fontSize, outline)
+        else
+            iconFrame.keybindText:SetFont(fontPath, fontSize, outline)
+        end
 
         local color = db.keybindColor or { 1, 1, 1, 1 }
         iconFrame.keybindText:SetTextColor(color[1], color[2], color[3], color[4] or 1)
