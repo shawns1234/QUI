@@ -255,6 +255,14 @@ local function GetEnchantText(unit, slotId)
     local itemLink = GetInventoryItemLink(unit, slotId)
     if not itemLink then return nil, nil end  -- No item
 
+    -- Check if offhand item is enchantable (only weapons can be enchanted in offhand)
+    if slotId == INVSLOT_OFFHAND then
+        local _, _, _, _, _, itemType = GetItemInfo(itemLink)
+        if itemType ~= "Weapon" then
+            return nil, false  -- Only weapons are enchantable in offhand
+        end
+    end
+
     -- Not all slots can be enchanted - only check enchantable slots
     local enchantableSlots = {
         [INVSLOT_CHEST] = true,
